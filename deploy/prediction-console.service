@@ -6,8 +6,9 @@ After=docker.service network-online.target prediction-infra.service
 
 [Service]
 Type=simple
-Restart=on-failure
+Restart=always
 RestartSec=5s
+SuccessExitStatus=1 137 143
 TimeoutStartSec=90
 TimeoutStopSec=30
 ExecStartPre=-/usr/bin/docker rm -f prediction-console
