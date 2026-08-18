@@ -10,6 +10,7 @@ const navigation = [
   { href: "/markets", label: "已选市场", icon: "markets" as const },
   { href: "/sandboxes", label: "Sandbox", icon: "box" as const },
   { href: "/predictions", label: "预测结果", icon: "trend" as const },
+  { href: "/trades", label: "交易记录", icon: "trades" as const },
   { href: "/backtests", label: "回测数据集", icon: "archive" as const },
   { href: "/delivery", label: "消息交付", icon: "send" as const },
   { href: "/settings", label: "系统设置", icon: "settings" as const },

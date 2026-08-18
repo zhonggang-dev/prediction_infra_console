@@ -29,6 +29,8 @@ Console 的 BFF 会使用服务端环境变量访问 Go，浏览器不会得到�
 | `PREDICTION_INFRA_BASE_URL` | Go 服务地址，例如 `https://prediction.example.com` |
 | `CONSOLE_API_TOKEN` | 仅读取 `/api/v1/console/*` 的控制台令牌 |
 | `BACKTEST_DATASET_TOKEN` | 独立的回测数据集读写令牌 |
+| `TRADING_EXECUTION_BASE_URL` | Go 交易执行服务地址，例如 `https://execution.example.com` |
+| `TRADING_EXECUTION_API_TOKEN` | 仅读取交易执行服务 API 的 Bearer Token |
 
 回测接口会添加 `Idempotency-Key`；所有时间使用 UTC ISO 8601。
 

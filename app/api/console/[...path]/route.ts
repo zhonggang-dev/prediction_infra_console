@@ -3,7 +3,7 @@ const BACKTEST_FILES = new Set(["sandboxes.parquet", "predictions.parquet", "clo
 const DATASET_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
 
 type RouteParams = { params: Promise<{ path: string[] }> };
-type ProxyTarget = { baseUrl?: string; token?: string; endpoint: string; stream: boolean };
+type ProxyTarget = { baseUrl?: string; token?: string; endpoint: string; stream: boolean; serviceName: string };
 
 /** 同源 BFF 只转发白名单接口，浏览器不会获得任一服务令牌。 */
 export async function GET(request: Request, { params }: RouteParams) {
@@ -17,7 +17,7 @@ export async function POST(request: Request, { params }: RouteParams) {
 
 async function forward(request: Request, path: string[]): Promise<Response> {
   if (request.method === "GET" && path.length === 1 && path[0] === "capabilities") {
-    return Response.json({ data: { console_read: Boolean(process.env.PREDICTION_INFRA_BASE_URL && process.env.CONSOLE_API_TOKEN), backtest_create: Boolean(process.env.PREDICTION_INFRA_BASE_URL && process.env.BACKTEST_DATASET_TOKEN) } });
+    return Response.json({ data: { console_read: Boolean(process.env.PREDICTION_INFRA_BASE_URL && process.env.CONSOLE_API_TOKEN), trade_read: Boolean(process.env.TRADING_EXECUTION_BASE_URL && process.env.TRADING_EXECUTION_API_TOKEN), backtest_create: Boolean(process.env.PREDICTION_INFRA_BASE_URL && process.env.BACKTEST_DATASET_TOKEN) } });
   }
   const target = resolveTarget(path, request.method);
   if (!target) return Response.json({ error: "不支持的控制台接口" }, { status: 404 });
@@ -37,7 +37,7 @@ async function forward(request: Request, path: string[]): Promise<Response> {
       signal: target.stream ? undefined : AbortSignal.timeout(10_000),
     });
   } catch {
-    return Response.json({ message: "上游 Prediction Infra 暂时不可用。", code: "UPSTREAM_UNAVAILABLE" }, { status: 502 });
+    return Response.json({ message: `上游 ${target.serviceName} 暂时不可用。`, code: "UPSTREAM_UNAVAILABLE" }, { status: 502 });
   }
   const passthroughHeaders = copyResponseHeaders(response.headers);
   return new Response(response.body, { status: response.status, headers: passthroughHeaders });
@@ -48,12 +48,22 @@ function resolveTarget(path: string[], method: string): ProxyTarget | undefined 
   const first = path[0];
   if (!first) return undefined;
   if (first === "backtest-datasets") return resolveBacktestTarget(path, method);
+  if (first === "trades" && method === "GET" && path.length === 1) {
+    return {
+      baseUrl: process.env.TRADING_EXECUTION_BASE_URL,
+      token: process.env.TRADING_EXECUTION_API_TOKEN,
+      endpoint: "/api/v1/trades",
+      stream: false,
+      serviceName: "Trading Execution",
+    };
+  }
   if (!CONSOLE_RESOURCES.has(first) || path.length !== 1) return undefined;
   return {
     baseUrl: process.env.PREDICTION_INFRA_BASE_URL,
     token: process.env.CONSOLE_API_TOKEN,
     endpoint: `/api/v1/console/${first}`,
     stream: false,
+    serviceName: "Prediction Infra",
   };
 }
 
@@ -61,15 +71,15 @@ function resolveTarget(path: string[], method: string): ProxyTarget | undefined 
 function resolveBacktestTarget(path: string[], method: string): ProxyTarget | undefined {
   const baseUrl = process.env.PREDICTION_INFRA_BASE_URL;
   if (method === "GET" && path.length === 1) {
-    return { baseUrl, token: process.env.CONSOLE_API_TOKEN, endpoint: "/api/v1/console/backtest-datasets", stream: false };
+    return { baseUrl, token: process.env.CONSOLE_API_TOKEN, endpoint: "/api/v1/console/backtest-datasets", stream: false, serviceName: "Prediction Infra" };
   }
   if (method === "POST" && path.length === 1) {
-    return { baseUrl, token: process.env.BACKTEST_DATASET_TOKEN, endpoint: "/api/v1/backtest-datasets", stream: false };
+    return { baseUrl, token: process.env.BACKTEST_DATASET_TOKEN, endpoint: "/api/v1/backtest-datasets", stream: false, serviceName: "Prediction Infra" };
   }
   const datasetID = path[1];
   if (method !== "GET" || !datasetID || !DATASET_ID_PATTERN.test(datasetID)) return undefined;
   if (path.length === 2) {
-    return { baseUrl, token: process.env.BACKTEST_DATASET_TOKEN, endpoint: `/api/v1/backtest-datasets/${datasetID}`, stream: false };
+    return { baseUrl, token: process.env.BACKTEST_DATASET_TOKEN, endpoint: `/api/v1/backtest-datasets/${datasetID}`, stream: false, serviceName: "Prediction Infra" };
   }
   const fileName = path[3];
   if (path.length !== 4 || path[2] !== "files" || !fileName || !BACKTEST_FILES.has(fileName)) return undefined;
@@ -78,6 +88,7 @@ function resolveBacktestTarget(path: string[], method: string): ProxyTarget | un
     token: process.env.BACKTEST_DATASET_TOKEN,
     endpoint: `/api/v1/backtest-datasets/${datasetID}/files/${fileName}`,
     stream: true,
+    serviceName: "Prediction Infra",
   };
 }
 

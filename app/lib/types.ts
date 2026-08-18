@@ -45,3 +45,64 @@ export interface BacktestCreateParams {
 }
 
 export interface ApiResult<T> { data: T; mode: ApiMode; }
+
+export type TradeSide = "BUY" | "SELL";
+
+/** 前端交易记录仅对应 Go 账本中已确认、已入账的真实 Fill。 */
+export interface TradeRecord {
+  fillKey: string;
+  venue: string;
+  venueTradeId: string;
+  orderId: string;
+  venueOrderId: string;
+  orderStatus: string;
+  executionAccountId: string;
+  modelId: string;
+  strategyId: string;
+  marketId: string;
+  marketLabel?: string;
+  conditionId?: string;
+  tokenId: string;
+  outcomeName?: string;
+  lotId?: string;
+  side: TradeSide;
+  liquidityRole: string;
+  shares: string;
+  price: string;
+  grossNotional: string;
+  totalFee: string;
+  netCashDelta: string;
+  realizedPnl: string;
+  transactionHash?: string;
+  matchedAt: string;
+  confirmedAt: string;
+}
+
+export interface TradeHistorySummary {
+  tradeCount: number;
+  buyNotional: string;
+  sellNotional: string;
+  netCashFlow: string;
+  totalFee: string;
+  realizedPnl: string;
+}
+
+export interface TradeHistoryPage {
+  items: TradeRecord[];
+  summary: TradeHistorySummary;
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface TradeHistoryParams {
+  limit?: number;
+  offset?: number;
+  from?: string;
+  to?: string;
+  side?: "" | TradeSide;
+  modelId?: string;
+  strategyId?: string;
+  executionAccountId?: string;
+  query?: string;
+}

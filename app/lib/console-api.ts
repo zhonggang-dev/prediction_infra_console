@@ -1,7 +1,8 @@
 "use client";
 
 import { demoData, demoOverview } from "./demo-data";
-import type { ApiMode, ApiResult, BacktestCreateParams, ConsoleList, ConsoleResource, ConsoleRow, OverviewData } from "./types";
+import { demoTradeHistory } from "./demo-trades";
+import type { ApiMode, ApiResult, BacktestCreateParams, ConsoleList, ConsoleResource, ConsoleRow, OverviewData, TradeHistoryPage, TradeHistoryParams, TradeHistorySummary, TradeRecord, TradeSide } from "./types";
 
 type RawRecord = Record<string, unknown>;
 type ListPayload = { items?: RawRecord[]; total?: number; limit?: number; offset?: number };
@@ -36,6 +37,29 @@ function mapRow(resource: ConsoleResource, item: RawRecord): ConsoleRow {
 function mapOverview(item: RawRecord): OverviewData {
   return { selectedMarketTotal: number(item.selected_market_total), sandboxTotal: number(item.sandbox_total), predictionTotal: number(item.prediction_total), backtestReadyTotal: number(item.backtest_ready_total), outboxPendingTotal: number(item.outbox_pending_total), currentSelectionRunID: optional(item.current_selection_run_id), lastSelectedAt: optional(item.last_selected_at), lastSandboxAt: optional(item.last_sandbox_at), lastPredictionAt: optional(item.last_prediction_at) };
 }
+
+function mapTrade(item: RawRecord): TradeRecord {
+  const rawSide = string(item.side, "BUY").toUpperCase();
+  return {
+    fillKey: string(item.fill_key), venue: string(item.venue), venueTradeId: string(item.venue_trade_id),
+    orderId: string(item.order_id), venueOrderId: string(item.venue_order_id), orderStatus: string(item.order_status),
+    executionAccountId: string(item.execution_account_id), modelId: string(item.model_id), strategyId: string(item.strategy_id),
+    marketId: string(item.market_id), marketLabel: optional(item.market_label), conditionId: optional(item.condition_id),
+    tokenId: string(item.token_id), outcomeName: optional(item.outcome_name), lotId: optional(item.lot_id),
+    side: (rawSide === "SELL" ? "SELL" : "BUY") as TradeSide, liquidityRole: string(item.liquidity_role),
+    shares: string(item.shares, "0"), price: string(item.price, "0"), grossNotional: string(item.gross_notional, "0"),
+    totalFee: string(item.total_fee, "0"), netCashDelta: string(item.net_cash_delta, "0"), realizedPnl: string(item.realized_pnl, "0"),
+    transactionHash: optional(item.transaction_hash), matchedAt: string(item.matched_at), confirmedAt: string(item.confirmed_at),
+  };
+}
+
+function mapTradeSummary(item: RawRecord | undefined): TradeHistorySummary {
+  return {
+    tradeCount: number(item?.trade_count), buyNotional: string(item?.buy_notional, "0"),
+    sellNotional: string(item?.sell_notional, "0"), netCashFlow: string(item?.net_cash_flow, "0"),
+    totalFee: string(item?.total_fee, "0"), realizedPnl: string(item?.realized_pnl, "0"),
+  };
+}
 const optional = (value: unknown) => typeof value === "string" && value ? value : typeof value === "number" ? String(value) : undefined;
 const string = (value: unknown, fallback = "—") => value === undefined || value === null || value === "" ? fallback : String(value);
 const number = (value: unknown) => typeof value === "number" ? value : Number(value ?? 0) || 0;
@@ -44,7 +68,7 @@ const bytes = (value: unknown) => typeof value === "number" ? `${(value / 1_048_
 const timeText = (value: unknown) => optional(value) ? new Date(String(value)).toISOString().replace("T", " ").replace(".000Z", " UTC") : "—";
 
 export const consoleApi = {
-  capabilities: () => request<{ console_read: boolean; backtest_create: boolean }>("capabilities"),
+  capabilities: () => request<{ console_read: boolean; trade_read: boolean; backtest_create: boolean }>("capabilities"),
   async overview() { const result = await request<RawRecord>("overview"); return { data: mapOverview(result.data), mode: result.mode }; },
   async list(resource: ConsoleResource, params: { limit?: number; offset?: number } = {}) {
     const query = new URLSearchParams({ limit: String(params.limit ?? 20), offset: String(params.offset ?? 0) });
@@ -52,8 +76,26 @@ export const consoleApi = {
     const data: ConsoleList = { items: (result.data.items ?? []).map((item) => mapRow(resource, item)), total: number(result.data.total), limit: number(result.data.limit) || 20, offset: number(result.data.offset) };
     return { data, mode: result.mode };
   },
+  async tradeHistory(params: TradeHistoryParams = {}) {
+    const query = new URLSearchParams({ limit: String(params.limit ?? 20), offset: String(params.offset ?? 0) });
+    if (params.from) query.set("from", params.from);
+    if (params.to) query.set("to", params.to);
+    if (params.side) query.set("side", params.side);
+    if (params.modelId) query.set("model_id", params.modelId);
+    if (params.strategyId) query.set("strategy_id", params.strategyId);
+    if (params.executionAccountId) query.set("execution_account_id", params.executionAccountId);
+    if (params.query) query.set("q", params.query);
+    const result = await request<RawRecord>(`trades?${query}`);
+    const items = Array.isArray(result.data.items) ? result.data.items as RawRecord[] : [];
+    const data: TradeHistoryPage = {
+      items: items.map(mapTrade), summary: mapTradeSummary(result.data.summary as RawRecord | undefined),
+      total: number(result.data.total), limit: number(result.data.limit) || 20, offset: number(result.data.offset),
+    };
+    return { data, mode: result.mode };
+  },
   createBacktest: (params: BacktestCreateParams) => request<RawRecord>("backtest-datasets", { method: "POST", body: JSON.stringify(params), headers: { "Idempotency-Key": crypto.randomUUID() } }),
   demoOverview: (): ApiResult<OverviewData> => ({ data: demoOverview, mode: "demo" }),
+  demoTradeHistory: (params: TradeHistoryParams = {}): ApiResult<TradeHistoryPage> => ({ data: demoTradeHistory(params), mode: "demo" }),
   demoList: (resource: ConsoleResource, params: { limit?: number; offset?: number } = {}): ApiResult<ConsoleList> => {
     const all = demoData[resource]; const offset = params.offset ?? 0; const limit = params.limit ?? 20;
     return { data: { items: all.slice(offset, offset + limit), total: all.length, limit, offset }, mode: "demo" };
