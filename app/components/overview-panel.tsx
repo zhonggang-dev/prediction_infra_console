@@ -1,4 +1,3 @@
-import Link from "next/link";
 import type { OverviewData } from "../lib/types";
 import { Icon } from "./icons";
 import { Status } from "./status";
@@ -27,7 +26,7 @@ export function OverviewPanel({ data }: { data?: OverviewData }) {
   ];
   return <>
     <section className="metric-grid">{metrics.map(([label, value, detail], index) => <div className="metric" key={String(label)}><div className="metric-label">{label}</div><div className={`metric-value ${index === 3 && Number(value) > 0 ? "warning" : ""}`}>{value}</div><div className="metric-meta">{detail}</div></div>)}</section>
-    <section className="section"><div className="section-head"><h2 className="section-title">数据处理链路</h2><Link className="link" href="/markets">查看已选市场 <Icon name="arrow" /></Link></div><div className="panel pipeline">{pipeline.map((step, index) => <div className="pipeline-step" key={step.name}><span className="pipeline-index">0{index + 1}</span><span className="pipeline-name">{step.name} · {step.count}</span><span className="pipeline-detail"><Status value={step.status} /> {step.detail}</span></div>)}</div></section>
+    <section className="section"><div className="section-head"><h2 className="section-title">数据处理链路</h2><a className="link" href="/markets">查看已选市场 <Icon name="arrow" /></a></div><div className="panel pipeline">{pipeline.map((step, index) => <div className="pipeline-step" key={step.name}><span className="pipeline-index">0{index + 1}</span><span className="pipeline-name">{step.name} · {step.count}</span><span className="pipeline-detail"><Status value={step.status} /> {step.detail}</span></div>)}</div></section>
     <section className="section two-col"><div><div className="section-head"><h2 className="section-title">最近活动</h2></div><div className="panel panel-pad"><div className="events">{events.map((event) => <div className="event" key={event.title}><i className={`event-mark ${event.status === "pending" ? "warning" : ""}`} /><div><div className="event-title">{event.title}</div><div className="event-description">{event.description}</div></div><time className="mono muted">{utc(event.createdAt)}</time></div>)}</div></div></div><OperationGuide /></section>
   </>;
 }

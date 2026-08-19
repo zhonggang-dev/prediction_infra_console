@@ -9,7 +9,7 @@ import { Icon } from "./icons";
 type RangeKey = "24h" | "7d" | "30d" | "all";
 type Filters = { range: RangeKey; side: "" | "BUY" | "SELL"; modelId: string; strategyId: string; executionAccountId: string; query: string };
 
-const defaultFilters: Filters = { range: "7d", side: "", modelId: "", strategyId: "", executionAccountId: "", query: "" };
+const defaultFilters: Filters = { range: "24h", side: "", modelId: "", strategyId: "", executionAccountId: "", query: "" };
 const rangeLabels: Record<RangeKey, string> = { "24h": "最近 24 小时", "7d": "最近 7 天", "30d": "最近 30 天", all: "全部时间" };
 
 /** 真实成交查询、筛选和账本明细集中在独立页面，避免与预测记录口径混淆。 */

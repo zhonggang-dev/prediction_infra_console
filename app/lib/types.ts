@@ -106,3 +106,124 @@ export interface TradeHistoryParams {
   executionAccountId?: string;
   query?: string;
 }
+
+export type LiveHealth = "healthy" | "degraded" | "stopped";
+export type LiveStageState = "done" | "active" | "warning" | "idle";
+export type LiveEventSeverity = "info" | "success" | "warning" | "error";
+
+export interface LiveWorker {
+  id: string;
+  name: string;
+  purpose: string;
+  cadence: string;
+  status: LiveHealth;
+  lastHeartbeatAt?: string;
+  currentTask: string;
+  metricLabel: string;
+  metricValue: string;
+}
+
+export interface LiveFunnelStage {
+  id: string;
+  index: number;
+  name: string;
+  description: string;
+  count: number;
+  throughputLabel: string;
+  state: LiveStageState;
+}
+
+export interface LiveRiskMetric {
+  id: string;
+  name: string;
+  current: number;
+  limit: number;
+  unit: "$" | "%" | "count" | "minutes";
+  hint: string;
+  state: "safe" | "warning" | "danger";
+}
+
+export interface LiveOrderStep {
+  name: string;
+  status: "done" | "active" | "pending" | "warning";
+  timestamp?: string;
+  detail: string;
+}
+
+export interface LiveOrder {
+  orderId: string;
+  marketId: string;
+  marketLabel: string;
+  outcomeName: string;
+  side: TradeSide;
+  status: string;
+  price: number;
+  shares: number;
+  filledShares: number;
+  ageSeconds: number;
+  modelId: string;
+  strategyId: string;
+  triggeredBy: string;
+  predictedProbability?: number;
+  edge?: number;
+  lifecycle: LiveOrderStep[];
+}
+
+export interface LivePosition {
+  positionId: string;
+  marketId: string;
+  marketLabel: string;
+  outcomeName: string;
+  shares: number;
+  averagePrice: number;
+  markPrice: number;
+  cost: number;
+  marketValue: number;
+  unrealizedPnl: number;
+  exposurePct: number;
+  strategyId: string;
+  predictionAgeMinutes?: number;
+}
+
+export interface LiveEvent {
+  id: string;
+  timestamp: string;
+  severity: LiveEventSeverity;
+  thread: string;
+  section: string;
+  title: string;
+  detail: string;
+  marketLabel?: string;
+  orderId?: string;
+}
+
+export interface LiveOperationsSnapshot {
+  observedAt: string;
+  dataFreshnessSeconds: number;
+  engine: {
+    health: LiveHealth;
+    runId: string;
+    presetName: string;
+    startedAt: string;
+    venueName: string;
+    venueStatus: LiveHealth;
+    ledgerStatus: LiveHealth;
+    reconciliationStatus: LiveHealth;
+  };
+  capital: {
+    equity: number;
+    availableCash: number;
+    grossExposure: number;
+    exposureLimit: number;
+    realizedPnlToday: number;
+    unrealizedPnl: number;
+    feeToday: number;
+  };
+  workers: LiveWorker[];
+  funnel: LiveFunnelStage[];
+  risks: LiveRiskMetric[];
+  orders: LiveOrder[];
+  positions: LivePosition[];
+  events: LiveEvent[];
+  dataQuality: { id: string; name: string; status: LiveHealth; detail: string }[];
+}

@@ -9,7 +9,7 @@ async function render(pathname = "/") {
 }
 
 async function withoutBackendConfig(run) {
-  const names = ["PREDICTION_INFRA_BASE_URL", "CONSOLE_API_TOKEN", "BACKTEST_DATASET_TOKEN", "TRADING_EXECUTION_BASE_URL", "TRADING_EXECUTION_API_TOKEN"];
+  const names = ["PREDICTION_INFRA_BASE_URL", "CONSOLE_API_TOKEN", "BACKTEST_DATASET_TOKEN", "TRADING_EXECUTION_BASE_URL", "TRADING_EXECUTION_API_TOKEN", "TRADING_EXECUTION_LIVE_READ_ONLY_TOKEN"];
   const previous = Object.fromEntries(names.map((name) => [name, process.env[name]]));
   for (const name of names) delete process.env[name];
   try {
@@ -46,11 +46,19 @@ test("服务端可渲染真实交易记录页面", async () => {
   assert.match(html, /已确认并写入资金与仓位账本/);
 });
 
+test("服务端可渲染实盘监控页面", async () => {
+  const response = await render("/live");
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /实盘监控/);
+  assert.match(html, /从机会扫描到成交入账/);
+});
+
 test("能力接口在未配置令牌时安全关闭写能力", async () => {
   const response = await withoutBackendConfig(() => render("/api/console/capabilities"));
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), {
-    data: { console_read: false, trade_read: false, backtest_create: false },
+    data: { console_read: false, trade_read: false, live_read: false, backtest_create: false },
   });
 });
 
@@ -63,6 +71,13 @@ test("实时接口未配置后端时返回稳定错误", async () => {
 
 test("交易记录接口未配置执行服务时安全失败", async () => {
   const response = await withoutBackendConfig(() => render("/api/console/trades?limit=20&offset=0"));
+  assert.equal(response.status, 503);
+  const payload = await response.json();
+  assert.equal(payload.code, "BACKEND_NOT_CONFIGURED");
+});
+
+test("实盘聚合接口未配置执行服务时安全失败", async () => {
+  const response = await withoutBackendConfig(() => render("/api/console/live-operations"));
   assert.equal(response.status, 503);
   const payload = await response.json();
   assert.equal(payload.code, "BACKEND_NOT_CONFIGURED");

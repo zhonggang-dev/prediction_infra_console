@@ -17,7 +17,7 @@ export async function POST(request: Request, { params }: RouteParams) {
 
 async function forward(request: Request, path: string[]): Promise<Response> {
   if (request.method === "GET" && path.length === 1 && path[0] === "capabilities") {
-    return Response.json({ data: { console_read: Boolean(process.env.PREDICTION_INFRA_BASE_URL && process.env.CONSOLE_API_TOKEN), trade_read: Boolean(process.env.TRADING_EXECUTION_BASE_URL && process.env.TRADING_EXECUTION_API_TOKEN), backtest_create: Boolean(process.env.PREDICTION_INFRA_BASE_URL && process.env.BACKTEST_DATASET_TOKEN) } });
+    return Response.json({ data: { console_read: Boolean(process.env.PREDICTION_INFRA_BASE_URL && process.env.CONSOLE_API_TOKEN), trade_read: Boolean(process.env.TRADING_EXECUTION_BASE_URL && process.env.TRADING_EXECUTION_API_TOKEN), live_read: Boolean(process.env.TRADING_EXECUTION_BASE_URL && process.env.TRADING_EXECUTION_LIVE_READ_ONLY_TOKEN), backtest_create: Boolean(process.env.PREDICTION_INFRA_BASE_URL && process.env.BACKTEST_DATASET_TOKEN) } });
   }
   const target = resolveTarget(path, request.method);
   if (!target) return Response.json({ error: "不支持的控制台接口" }, { status: 404 });
@@ -53,6 +53,15 @@ function resolveTarget(path: string[], method: string): ProxyTarget | undefined 
       baseUrl: process.env.TRADING_EXECUTION_BASE_URL,
       token: process.env.TRADING_EXECUTION_API_TOKEN,
       endpoint: "/api/v1/trades",
+      stream: false,
+      serviceName: "Trading Execution",
+    };
+  }
+  if (first === "live-operations" && method === "GET" && path.length === 1) {
+    return {
+      baseUrl: process.env.TRADING_EXECUTION_BASE_URL,
+      token: process.env.TRADING_EXECUTION_LIVE_READ_ONLY_TOKEN,
+      endpoint: "/api/v1/live-operations",
       stream: false,
       serviceName: "Trading Execution",
     };

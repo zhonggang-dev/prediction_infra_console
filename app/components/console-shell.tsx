@@ -1,6 +1,8 @@
 "use client";
 
-import Link from "next/link";
+/* Native anchors intentionally bypass the current vinext client-router export bug. */
+/* eslint-disable @next/next/no-html-link-for-pages */
+
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { Icon } from "./icons";
@@ -10,6 +12,7 @@ const navigation = [
   { href: "/markets", label: "已选市场", icon: "markets" as const },
   { href: "/sandboxes", label: "Sandbox", icon: "box" as const },
   { href: "/predictions", label: "预测结果", icon: "trend" as const },
+  { href: "/live", label: "实盘监控", icon: "live" as const },
   { href: "/trades", label: "交易记录", icon: "trades" as const },
   { href: "/backtests", label: "回测数据集", icon: "archive" as const },
   { href: "/delivery", label: "消息交付", icon: "send" as const },
@@ -24,18 +27,18 @@ export function ConsoleShell({ children }: { children: React.ReactNode }) {
 
   return <div className="console">
     <aside className={`sidebar ${isOpen ? "open" : ""}`} aria-label="主导航">
-      <Link className="brand" href="/" onClick={() => setIsOpen(false)}>
+      <a className="brand" href="/" onClick={() => setIsOpen(false)}>
         <span className="brand-mark">PI</span><span><span className="brand-name">Prediction Console</span><span className="brand-sub">Control plane</span></span>
-      </Link>
+      </a>
       <p className="nav-label">业务运行</p>
       <nav className="nav">
-        {navigation.map((item) => <Link key={item.href} href={item.href} onClick={() => setIsOpen(false)} className={`nav-link ${isActive(item.href) ? "active" : ""}`}><Icon name={item.icon} />{item.label}</Link>)}
+        {navigation.map((item) => <a key={item.href} href={item.href} onClick={() => setIsOpen(false)} className={`nav-link ${isActive(item.href) ? "active" : ""}`}><Icon name={item.icon} />{item.label}</a>)}
       </nav>
       <div className="sidebar-footer"><span className="live-indicator"><i className="dot" />服务状态由后端返回</span><br /><span>所有时间均为 UTC</span></div>
     </aside>
     <button className={`drawer-backdrop ${isOpen ? "open" : ""}`} aria-label="关闭导航" onClick={() => setIsOpen(false)} />
     <div className="content">
-      <header className="topbar"><div className="top-actions"><button className="button icon-button mobile-menu" aria-label="打开导航" onClick={() => setIsOpen(true)}><Icon name="menu" /></button><span className="breadcrumb">Prediction Infra / 内部运维</span></div><div className="top-actions"><span className="utc">UTC 数据标准</span><Link className="button" href="/settings">连接设置</Link></div></header>
+      <header className="topbar"><div className="top-actions"><button className="button icon-button mobile-menu" aria-label="打开导航" onClick={() => setIsOpen(true)}><Icon name="menu" /></button><span className="breadcrumb">Prediction Infra / 内部运维</span></div><div className="top-actions"><span className="utc">UTC 数据标准</span><a className="button" href="/settings">连接设置</a></div></header>
       <main className="main">{children}</main>
     </div>
   </div>;
