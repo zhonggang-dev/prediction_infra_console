@@ -54,6 +54,14 @@ test("服务端可渲染实盘监控页面", async () => {
   assert.match(html, /从机会扫描到成交入账/);
 });
 
+test("服务端可渲染双服务基础监控页面", async () => {
+  const response = await render("/observability");
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /服务监控/);
+  assert.match(html, /Prediction Infra 与 Trading Execution/);
+});
+
 test("能力接口在未配置令牌时安全关闭写能力", async () => {
   const response = await withoutBackendConfig(() => render("/api/console/capabilities"));
   assert.equal(response.status, 200);
@@ -67,6 +75,14 @@ test("实时接口未配置后端时返回稳定错误", async () => {
   assert.equal(response.status, 503);
   const payload = await response.json();
   assert.equal(payload.code, "BACKEND_NOT_CONFIGURED");
+});
+
+test("服务监控聚合接口允许两个后端独立离线", async () => {
+  const response = await withoutBackendConfig(() => render("/api/console/service-metrics"));
+  assert.equal(response.status, 200);
+  const payload = await response.json();
+  assert.equal(payload.data.services.length, 2);
+  assert.deepEqual(payload.data.services.map((service) => service.status), ["unavailable", "unavailable"]);
 });
 
 test("交易记录接口未配置执行服务时安全失败", async () => {

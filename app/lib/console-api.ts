@@ -2,7 +2,7 @@
 
 import { demoData, demoOverview } from "./demo-data";
 import { demoTradeHistory } from "./demo-trades";
-import type { ApiMode, ApiResult, BacktestCreateParams, ConsoleList, ConsoleResource, ConsoleRow, LiveEvent, LiveFunnelStage, LiveHealth, LiveOperationsSnapshot, LiveOrder, LiveOrderStep, LivePosition, LiveRiskMetric, LiveStageState, LiveWorker, OverviewData, TradeHistoryPage, TradeHistoryParams, TradeHistorySummary, TradeRecord, TradeSide } from "./types";
+import type { ApiMode, ApiResult, BacktestCreateParams, ConsoleList, ConsoleResource, ConsoleRow, LiveEvent, LiveFunnelStage, LiveHealth, LiveOperationsSnapshot, LiveOrder, LiveOrderStep, LivePosition, LiveRiskMetric, LiveStageState, LiveWorker, OverviewData, ServiceMetricsOverview, ServiceRuntimeHealth, ServiceRuntimeMetrics, TradeHistoryPage, TradeHistoryParams, TradeHistorySummary, TradeRecord, TradeSide } from "./types";
 
 type RawRecord = Record<string, unknown>;
 type ListPayload = { items?: RawRecord[]; total?: number; limit?: number; offset?: number };
@@ -36,6 +36,31 @@ function mapRow(resource: ConsoleResource, item: RawRecord): ConsoleRow {
 
 function mapOverview(item: RawRecord): OverviewData {
   return { selectedMarketTotal: number(item.selected_market_total), sandboxTotal: number(item.sandbox_total), predictionTotal: number(item.prediction_total), backtestReadyTotal: number(item.backtest_ready_total), outboxPendingTotal: number(item.outbox_pending_total), currentSelectionRunID: optional(item.current_selection_run_id), lastSelectedAt: optional(item.last_selected_at), lastSandboxAt: optional(item.last_sandbox_at), lastPredictionAt: optional(item.last_prediction_at) };
+}
+
+function mapServiceMetrics(item: RawRecord): ServiceRuntimeMetrics {
+  const requests = record(item.requests);
+  const cpu = record(item.cpu);
+  const memory = record(item.memory);
+  const runtimeData = record(item.runtime);
+  const rawStatus = string(item.status, "unavailable");
+  const status: ServiceRuntimeHealth = rawStatus === "healthy" || rawStatus === "degraded" ? rawStatus : "unavailable";
+  return {
+    service: item.service === "trading-execution" ? "trading-execution" : "prediction-infra",
+    status,
+    reason: optional(item.reason), version: optional(item.version), commit: optional(item.commit),
+    observedAt: optionalTime(item.observed_at), startedAt: optionalTime(item.started_at), uptimeSeconds: number(item.uptime_seconds),
+    requests: {
+      total: number(requests.total), qps: number(requests.qps_1m), errorRate: number(requests.error_rate_1m),
+      avgLatencyMs: number(requests.avg_latency_ms_1m), maxLatencyMs: number(requests.max_latency_ms_1m),
+    },
+    cpu: { usagePercent: number(cpu.usage_percent), gomaxprocs: number(cpu.gomaxprocs), logicalCpus: number(cpu.logical_cpus) },
+    memory: {
+      usageBytes: number(memory.usage_bytes), limitBytes: optionalNumber(memory.limit_bytes), usagePercent: optionalNumber(memory.usage_percent),
+      heapInuseBytes: number(memory.heap_inuse_bytes), heapObjects: number(memory.heap_objects),
+    },
+    runtime: { goVersion: optional(runtimeData.go_version), goroutines: number(runtimeData.goroutines), gcCycles: number(runtimeData.gc_cycles) },
+  };
 }
 
 function mapTrade(item: RawRecord): TradeRecord {
@@ -143,6 +168,11 @@ function mapLiveOperations(item: RawRecord): LiveOperationsSnapshot {
 export const consoleApi = {
   capabilities: () => request<{ console_read: boolean; trade_read: boolean; live_read: boolean; backtest_create: boolean }>("capabilities"),
   async overview() { const result = await request<RawRecord>("overview"); return { data: mapOverview(result.data), mode: result.mode }; },
+  async serviceMetrics() {
+    const result = await request<RawRecord>("service-metrics");
+    const data: ServiceMetricsOverview = { observedAt: optionalTime(result.data.observed_at) ?? new Date().toISOString(), services: records(result.data.services).map(mapServiceMetrics) };
+    return { data, mode: result.mode };
+  },
   async list(resource: ConsoleResource, params: { limit?: number; offset?: number } = {}) {
     const query = new URLSearchParams({ limit: String(params.limit ?? 20), offset: String(params.offset ?? 0) });
     const result = await request<ListPayload>(`${resource}?${query}`);

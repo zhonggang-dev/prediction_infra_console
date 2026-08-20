@@ -46,6 +46,40 @@ export interface BacktestCreateParams {
 
 export interface ApiResult<T> { data: T; mode: ApiMode; }
 
+export type ServiceRuntimeHealth = "healthy" | "degraded" | "unavailable";
+
+export interface ServiceRuntimeMetrics {
+  service: "prediction-infra" | "trading-execution";
+  status: ServiceRuntimeHealth;
+  reason?: string;
+  version?: string;
+  commit?: string;
+  observedAt?: string;
+  startedAt?: string;
+  uptimeSeconds: number;
+  requests: {
+    total: number;
+    qps: number;
+    errorRate: number;
+    avgLatencyMs: number;
+    maxLatencyMs: number;
+  };
+  cpu: { usagePercent: number; gomaxprocs: number; logicalCpus: number };
+  memory: {
+    usageBytes: number;
+    limitBytes?: number;
+    usagePercent?: number;
+    heapInuseBytes: number;
+    heapObjects: number;
+  };
+  runtime: { goVersion?: string; goroutines: number; gcCycles: number };
+}
+
+export interface ServiceMetricsOverview {
+  observedAt: string;
+  services: ServiceRuntimeMetrics[];
+}
+
 export type TradeSide = "BUY" | "SELL";
 
 /** 前端交易记录仅对应 Go 账本中已确认、已入账的真实 Fill。 */

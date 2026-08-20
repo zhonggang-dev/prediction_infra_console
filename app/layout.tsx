@@ -6,21 +6,21 @@ export async function generateMetadata(): Promise<Metadata> {
   const requestHeaders = await headers();
   const host = requestHeaders.get("x-forwarded-host") ?? requestHeaders.get("host") ?? "localhost";
   const protocol = requestHeaders.get("x-forwarded-proto") ?? (host.startsWith("localhost") || host.startsWith("127.0.0.1") ? "http" : "https");
-  const image = new URL("/og-live-trading.png", `${protocol}://${host}`).toString();
+  const image = new URL("/og-observability.png", `${protocol}://${host}`).toString();
   return {
-    title: "Prediction Console · 实盘监控",
-    description: "从信号、风控、订单、成交到交易账本的实盘运行控制台",
+    title: "Prediction Console · 服务监控与实盘运维",
+    description: "Prediction Infra 与 Trading Execution 的服务指标、实盘链路和交易账本控制台",
     icons: { icon: "/favicon.svg" },
     openGraph: {
       title: "Prediction Console",
-      description: "Live Trading Command Center · 实盘监控",
+      description: "Service Observability · QPS、CPU 与内存基础监控",
       type: "website",
-      images: [{ url: image, width: 1731, height: 909, alt: "Prediction Console 实盘交易全链路" }],
+      images: [{ url: image, width: 1731, height: 909, alt: "Prediction Console 双服务基础监控" }],
     },
     twitter: {
       card: "summary_large_image",
       title: "Prediction Console",
-      description: "Live Trading Command Center · 实盘监控",
+      description: "Service Observability · QPS、CPU 与内存基础监控",
       images: [image],
     },
   };

@@ -19,6 +19,9 @@ async function forward(request: Request, path: string[]): Promise<Response> {
   if (request.method === "GET" && path.length === 1 && path[0] === "capabilities") {
     return Response.json({ data: { console_read: Boolean(process.env.PREDICTION_INFRA_BASE_URL && process.env.CONSOLE_API_TOKEN), trade_read: Boolean(process.env.TRADING_EXECUTION_BASE_URL && process.env.TRADING_EXECUTION_API_TOKEN), live_read: Boolean(process.env.TRADING_EXECUTION_BASE_URL && process.env.TRADING_EXECUTION_LIVE_READ_ONLY_TOKEN), backtest_create: Boolean(process.env.PREDICTION_INFRA_BASE_URL && process.env.BACKTEST_DATASET_TOKEN) } });
   }
+  if (request.method === "GET" && path.length === 1 && path[0] === "service-metrics") {
+    return aggregateServiceMetrics();
+  }
   const target = resolveTarget(path, request.method);
   if (!target) return Response.json({ error: "不支持的控制台接口" }, { status: 404 });
   if (!target.baseUrl || !target.token) return Response.json({ error: "后端连接尚未配置，请在前端服务环境中设置对应变量。", code: "BACKEND_NOT_CONFIGURED" }, { status: 503 });
@@ -41,6 +44,69 @@ async function forward(request: Request, path: string[]): Promise<Response> {
   }
   const passthroughHeaders = copyResponseHeaders(response.headers);
   return new Response(response.body, { status: response.status, headers: passthroughHeaders });
+}
+
+type MetricsTarget = {
+  service: string;
+  baseUrl?: string;
+  token?: string;
+  metricsPath: string;
+  healthPath: string;
+};
+
+/** 并行读取两个服务；单个服务失败时仍返回另一个服务，避免监控页整体失明。 */
+async function aggregateServiceMetrics(): Promise<Response> {
+  const targets: MetricsTarget[] = [
+    {
+      service: "prediction-infra",
+      baseUrl: process.env.PREDICTION_INFRA_BASE_URL,
+      token: process.env.CONSOLE_API_TOKEN,
+      metricsPath: "/api/v1/console/service-metrics",
+      healthPath: "/health/ready",
+    },
+    {
+      service: "trading-execution",
+      baseUrl: process.env.TRADING_EXECUTION_BASE_URL,
+      token: process.env.TRADING_EXECUTION_LIVE_READ_ONLY_TOKEN,
+      metricsPath: "/api/v1/service-metrics",
+      healthPath: "/health/ready",
+    },
+  ];
+  const services = await Promise.all(targets.map(readServiceMetrics));
+  return Response.json({ data: { observed_at: new Date().toISOString(), services } }, { headers: { "cache-control": "no-store" } });
+}
+
+async function readServiceMetrics(target: MetricsTarget): Promise<Record<string, unknown>> {
+  if (!target.baseUrl || !target.token) {
+    return { service: target.service, status: "unavailable", reason: "后端连接尚未配置" };
+  }
+  const metricsURL = new URL(target.metricsPath, target.baseUrl);
+  const healthURL = new URL(target.healthPath, target.baseUrl);
+  try {
+    const [metricsResponse, healthResponse] = await Promise.all([
+      fetch(metricsURL, { headers: { authorization: `Bearer ${target.token}`, accept: "application/json" }, signal: AbortSignal.timeout(5_000) }),
+      fetch(healthURL, { headers: { accept: "application/json" }, signal: AbortSignal.timeout(5_000) }),
+    ]);
+    if (!metricsResponse.ok) {
+      return { service: target.service, status: "unavailable", reason: "指标接口暂时不可用" };
+    }
+    const metricsPayload = asRecord(await metricsResponse.json().catch(() => ({})));
+    const metrics = asRecord(metricsPayload.data ?? metricsPayload);
+    const healthPayload = asRecord(await healthResponse.json().catch(() => ({})));
+    return {
+      ...metrics,
+      service: typeof metrics.service === "string" ? metrics.service : target.service,
+      status: healthResponse.ok ? "healthy" : "degraded",
+      version: healthPayload.version,
+      commit: healthPayload.commit,
+    };
+  } catch {
+    return { service: target.service, status: "unavailable", reason: "服务网络不可达" };
+  }
+}
+
+function asRecord(value: unknown): Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 }
 
 /** 只允许代理固定的 Console 与回测数据集路径。 */

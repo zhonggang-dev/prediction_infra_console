@@ -31,6 +31,7 @@ Console 的 BFF 会使用服务端环境变量访问 Go，浏览器不会得到�
 | `BACKTEST_DATASET_TOKEN` | 独立的回测数据集读写令牌 |
 | `TRADING_EXECUTION_BASE_URL` | Go 交易执行服务地址，例如 `https://execution.example.com` |
 | `TRADING_EXECUTION_API_TOKEN` | 仅读取交易执行服务 API 的 Bearer Token |
+| `TRADING_EXECUTION_LIVE_READ_ONLY_TOKEN` | 实盘与基础服务监控共用的只读 Token |
 
 回测接口会添加 `Idempotency-Key`；所有时间使用 UTC ISO 8601。
 
@@ -45,6 +46,16 @@ Console 的 BFF 会使用服务端环境变量访问 Go，浏览器不会得到�
 - `observedAt` 与 `dataFreshnessSeconds`，让值班人员能判断页面是否陈旧。
 
 当前后端未提供该聚合接口时，页面会明确切换到产品预览数据，不会将模拟内容标记为真实实盘状态。前端类型契约位于 `app/lib/types.ts` 的 `LiveOperationsSnapshot`。
+
+## 基础服务监控
+
+`/observability` 已直接嵌入 Console 导航，展示 Prediction Infra 和 Trading Execution 的近 1 分钟 QPS、5xx 比例、请求延迟、CPU、内存、Goroutine 与运行时长。浏览器只访问同源 `GET /api/console/service-metrics`，BFF 会并行调用：
+
+- Prediction Infra `GET /api/v1/console/service-metrics`；
+- Trading Execution `GET /api/v1/service-metrics`；
+- 两个服务各自的 `GET /health/ready`。
+
+一个服务离线不会遮蔽另一个服务。未连接后端时页面会明确标注演示模式。采集口径与接口字段见 [docs/service-observability.md](docs/service-observability.md)。
 
 `TRADING_EXECUTION_API_TOKEN` 仅用于读取成交账本；`TRADING_EXECUTION_LIVE_READ_ONLY_TOKEN` 必须等于 Go 服务的 `LIVE_OPERATIONS_READ_ONLY_TOKEN`。生产环境不得把这两个权限不同的 Token 配成同一个值。
 
