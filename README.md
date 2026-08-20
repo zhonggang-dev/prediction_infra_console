@@ -22,6 +22,8 @@ pnpm dev
 
 Console 的 BFF 会使用服务端环境变量访问 Go，浏览器不会得到这些令牌。BFF 本身必须由公司 SSO、VPN 或内网反向代理保护，不能携带真实令牌直接暴露到公网。反向代理还应限制 XXL-JOB 等内部路由，不要把它们转发给前端用户。
 
+systemd 部署默认只监听 `127.0.0.1:13000`。如果需要直接通过服务器内网地址访问，可复制 `deploy/service.env.example` 到 `/etc/prediction-console/service.env`，把 `PREDICTION_CONSOLE_BIND_ADDRESS` 设置为该服务器的明确内网 IP 后重启服务。不要设置成 `0.0.0.0`，避免绕过 VPN、SSO 或内网边界。
+
 ## 服务端环境变量
 
 | 变量 | 用途 |
