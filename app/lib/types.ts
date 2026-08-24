@@ -141,6 +141,26 @@ export interface TradeHistoryParams {
   query?: string;
 }
 
+/** UTC 自然日内，按执行账户和开仓策略归因的净已实现盈亏。 */
+export interface DailyPnLPoint {
+  day: string;
+  executionAccountId: string;
+  modelId: string;
+  strategyId: string;
+  realizedPnl: string;
+  closedTradeCount: number;
+  closedShares: string;
+}
+
+export interface DailyPnLReport {
+  items: DailyPnLPoint[];
+  days: number;
+  fromDay: string;
+  toDay: string;
+  timezone: "UTC";
+  generatedAt: string;
+}
+
 export type LiveHealth = "healthy" | "degraded" | "stopped";
 export type LiveStageState = "done" | "active" | "warning" | "idle";
 export type LiveEventSeverity = "info" | "success" | "warning" | "error";
@@ -186,6 +206,7 @@ export interface LiveOrderStep {
 
 export interface LiveOrder {
   orderId: string;
+  executionAccountId: string;
   marketId: string;
   marketLabel: string;
   outcomeName: string;
@@ -205,6 +226,8 @@ export interface LiveOrder {
 
 export interface LivePosition {
   positionId: string;
+  executionAccountId: string;
+  managed: boolean;
   marketId: string;
   marketLabel: string;
   outcomeName: string;
@@ -217,6 +240,18 @@ export interface LivePosition {
   exposurePct: number;
   strategyId: string;
   predictionAgeMinutes?: number;
+}
+
+/** 单个系统执行钱包的累计资金使用与收益摘要。 */
+export interface LiveWalletSummary {
+  executionAccountId: string;
+  positionCount: number;
+  peakCashUsed: number;
+  cumulativeInvestedCost: number;
+  realizedPnl: number;
+  unrealizedPnl: number;
+  totalPnl: number;
+  return: number | null;
 }
 
 export interface LiveEvent {
@@ -253,6 +288,7 @@ export interface LiveOperationsSnapshot {
     unrealizedPnl: number;
     feeToday: number;
   };
+  wallets: LiveWalletSummary[];
   workers: LiveWorker[];
   funnel: LiveFunnelStage[];
   risks: LiveRiskMetric[];

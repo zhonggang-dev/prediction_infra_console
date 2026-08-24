@@ -1,8 +1,8 @@
 "use client";
 
 import { demoData, demoOverview } from "./demo-data";
-import { demoTradeHistory } from "./demo-trades";
-import type { ApiMode, ApiResult, BacktestCreateParams, ConsoleList, ConsoleResource, ConsoleRow, LiveEvent, LiveFunnelStage, LiveHealth, LiveOperationsSnapshot, LiveOrder, LiveOrderStep, LivePosition, LiveRiskMetric, LiveStageState, LiveWorker, OverviewData, ServiceMetricsOverview, ServiceRuntimeHealth, ServiceRuntimeMetrics, TradeHistoryPage, TradeHistoryParams, TradeHistorySummary, TradeRecord, TradeSide } from "./types";
+import { demoDailyPnL, demoTradeHistory } from "./demo-trades";
+import type { ApiMode, ApiResult, BacktestCreateParams, ConsoleList, ConsoleResource, ConsoleRow, DailyPnLPoint, DailyPnLReport, LiveEvent, LiveFunnelStage, LiveHealth, LiveOperationsSnapshot, LiveOrder, LiveOrderStep, LivePosition, LiveRiskMetric, LiveStageState, LiveWalletSummary, LiveWorker, OverviewData, ServiceMetricsOverview, ServiceRuntimeHealth, ServiceRuntimeMetrics, TradeHistoryPage, TradeHistoryParams, TradeHistorySummary, TradeRecord, TradeSide } from "./types";
 
 type RawRecord = Record<string, unknown>;
 type ListPayload = { items?: RawRecord[]; total?: number; limit?: number; offset?: number };
@@ -85,6 +85,25 @@ function mapTradeSummary(item: RawRecord | undefined): TradeHistorySummary {
     totalFee: string(item?.total_fee, "0"), realizedPnl: string(item?.realized_pnl, "0"),
   };
 }
+
+function mapDailyPnLPoint(item: RawRecord): DailyPnLPoint {
+  return {
+    day: string(item.day), executionAccountId: string(item.execution_account_id),
+    modelId: string(item.model_id), strategyId: string(item.strategy_id),
+    realizedPnl: string(item.realized_pnl, "0"), closedTradeCount: number(item.closed_trade_count),
+    closedShares: string(item.closed_shares, "0"),
+  };
+}
+
+function mapDailyPnLReport(item: RawRecord): DailyPnLReport {
+  const timezone = string(item.timezone, "UTC");
+  if (timezone !== "UTC") throw new ConsoleApiError("每日盈亏接口返回了不支持的时区", "live");
+  return {
+    items: records(item.items).map(mapDailyPnLPoint), days: number(item.days),
+    fromDay: string(item.from_day), toDay: string(item.to_day), timezone,
+    generatedAt: optionalTime(item.generated_at) ?? new Date().toISOString(),
+  };
+}
 const optional = (value: unknown) => typeof value === "string" && value ? value : typeof value === "number" ? String(value) : undefined;
 const string = (value: unknown, fallback = "—") => value === undefined || value === null || value === "" ? fallback : String(value);
 const number = (value: unknown) => typeof value === "number" ? value : Number(value ?? 0) || 0;
@@ -98,6 +117,22 @@ const optionalTime = (value: unknown) => typeof value === "string" && !Number.is
 const liveHealth = (value: unknown): LiveHealth => value === "healthy" || value === "stopped" ? value : "degraded";
 const stageState = (value: unknown): LiveStageState => value === "done" || value === "active" || value === "warning" ? value : "idle";
 const tradeSide = (value: unknown): TradeSide => String(value).toUpperCase() === "SELL" ? "SELL" : "BUY";
+
+function requiredLiveString(value: unknown, field: string): string {
+  if (typeof value !== "string" || !value.trim()) throw new ConsoleApiError(`实盘聚合接口缺少 ${field}`, "live");
+  return value.trim();
+}
+
+function requiredLiveNumber(value: unknown, field: string): number {
+  const parsed = typeof value === "number" ? value : typeof value === "string" && value.trim() ? Number(value) : Number.NaN;
+  if (!Number.isFinite(parsed)) throw new ConsoleApiError(`实盘聚合接口返回了无效的 ${field}`, "live");
+  return parsed;
+}
+
+function requiredLiveBoolean(value: unknown, field: string): boolean {
+  if (typeof value !== "boolean") throw new ConsoleApiError(`实盘聚合接口返回了无效的 ${field}`, "live");
+  return value;
+}
 
 /** 显式映射线程心跳，允许尚未上报的线程返回 null 时间。 */
 function mapLiveWorker(item: RawRecord): LiveWorker {
@@ -127,7 +162,8 @@ function mapLiveOrderStep(item: RawRecord): LiveOrderStep {
 /** 显式映射开放订单，保留 UNKNOWN、RECONCILING 等真实状态。 */
 function mapLiveOrder(item: RawRecord): LiveOrder {
   return {
-    orderId: string(item.orderId), marketId: string(item.marketId), marketLabel: string(item.marketLabel, "未知 Market"), outcomeName: string(item.outcomeName, "—"),
+    orderId: string(item.orderId), executionAccountId: requiredLiveString(item.executionAccountId, "orders.executionAccountId"),
+    marketId: string(item.marketId), marketLabel: string(item.marketLabel, "未知 Market"), outcomeName: string(item.outcomeName, "—"),
     side: tradeSide(item.side), status: string(item.status, "UNKNOWN"), price: number(item.price), shares: number(item.shares), filledShares: number(item.filledShares),
     ageSeconds: number(item.ageSeconds), modelId: string(item.modelId, "—"), strategyId: string(item.strategyId, "—"), triggeredBy: string(item.triggeredBy, "system"),
     predictedProbability: optionalNumber(item.predictedProbability), edge: optionalNumber(item.edge), lifecycle: records(item.lifecycle).map(mapLiveOrderStep),
@@ -137,9 +173,28 @@ function mapLiveOrder(item: RawRecord): LiveOrder {
 /** 显式映射链上仓位与账本成本的合并结果。 */
 function mapLivePosition(item: RawRecord): LivePosition {
   return {
-    positionId: string(item.positionId), marketId: string(item.marketId), marketLabel: string(item.marketLabel, "未知 Market"), outcomeName: string(item.outcomeName, "—"),
+    positionId: string(item.positionId), executionAccountId: requiredLiveString(item.executionAccountId, "positions.executionAccountId"),
+    managed: requiredLiveBoolean(item.managed, "positions.managed"),
+    marketId: string(item.marketId), marketLabel: string(item.marketLabel, "未知 Market"), outcomeName: string(item.outcomeName, "—"),
     shares: number(item.shares), averagePrice: number(item.averagePrice), markPrice: number(item.markPrice), cost: number(item.cost), marketValue: number(item.marketValue),
     unrealizedPnl: number(item.unrealizedPnl), exposurePct: number(item.exposurePct), strategyId: string(item.strategyId, "—"), predictionAgeMinutes: optionalNumber(item.predictionAgeMinutes),
+  };
+}
+
+/** 钱包累计收益字段缺失时拒绝用零值冒充真实数据。 */
+function mapLiveWallet(item: RawRecord): LiveWalletSummary {
+  if (!("return" in item)) throw new ConsoleApiError("实盘聚合接口缺少 wallets.return", "live");
+  const positionCount = requiredLiveNumber(item.positionCount, "wallets.positionCount");
+  if (!Number.isSafeInteger(positionCount) || positionCount < 0) throw new ConsoleApiError("实盘聚合接口返回了无效的 wallets.positionCount", "live");
+  return {
+    executionAccountId: requiredLiveString(item.executionAccountId, "wallets.executionAccountId"),
+    positionCount,
+    peakCashUsed: requiredLiveNumber(item.peakCashUsed, "wallets.peakCashUsed"),
+    cumulativeInvestedCost: requiredLiveNumber(item.cumulativeInvestedCost, "wallets.cumulativeInvestedCost"),
+    realizedPnl: requiredLiveNumber(item.realizedPnl, "wallets.realizedPnl"),
+    unrealizedPnl: requiredLiveNumber(item.unrealizedPnl, "wallets.unrealizedPnl"),
+    totalPnl: requiredLiveNumber(item.totalPnl, "wallets.totalPnl"),
+    return: item.return === null ? null : requiredLiveNumber(item.return, "wallets.return"),
   };
 }
 
@@ -155,12 +210,26 @@ function mapLiveOperations(item: RawRecord): LiveOperationsSnapshot {
   const startedAt = optionalTime(engine.startedAt);
   if (!observedAt || !startedAt) throw new ConsoleApiError("实盘聚合接口返回了无效时间字段", "live");
   const capital = record(item.capital);
+  const wallets = records(item.wallets).map(mapLiveWallet);
+  if (!wallets.length) throw new ConsoleApiError("实盘聚合接口没有返回任何钱包", "live");
+  const walletIDs = new Set(wallets.map((wallet) => wallet.executionAccountId));
+  if (walletIDs.size !== wallets.length) throw new ConsoleApiError("实盘聚合接口返回了重复钱包", "live");
+  const orders = records(item.orders).map(mapLiveOrder);
+  const positions = records(item.positions).map(mapLivePosition);
+  if ([...orders, ...positions].some((entry) => !walletIDs.has(entry.executionAccountId))) {
+    throw new ConsoleApiError("实盘订单或持仓引用了未知钱包", "live");
+  }
+  for (const wallet of wallets) {
+    const managedCount = positions.filter((position) => position.executionAccountId === wallet.executionAccountId && position.managed).length;
+    if (wallet.positionCount !== managedCount) throw new ConsoleApiError(`钱包 ${wallet.executionAccountId} 的系统管理持仓数量与明细不一致`, "live");
+  }
   return {
     observedAt, dataFreshnessSeconds: number(item.dataFreshnessSeconds),
     engine: { health: liveHealth(engine.health), runId: string(engine.runId, "—"), presetName: string(engine.presetName, "—"), startedAt, venueName: string(engine.venueName, "Polymarket CLOB"), venueStatus: liveHealth(engine.venueStatus), ledgerStatus: liveHealth(engine.ledgerStatus), reconciliationStatus: liveHealth(engine.reconciliationStatus) },
     capital: { equity: number(capital.equity), availableCash: number(capital.availableCash), grossExposure: number(capital.grossExposure), exposureLimit: number(capital.exposureLimit), realizedPnlToday: number(capital.realizedPnlToday), unrealizedPnl: number(capital.unrealizedPnl), feeToday: number(capital.feeToday) },
+    wallets,
     workers: records(item.workers).map(mapLiveWorker), funnel: records(item.funnel).map(mapLiveFunnelStage), risks: records(item.risks).map(mapLiveRisk),
-    orders: records(item.orders).map(mapLiveOrder), positions: records(item.positions).map(mapLivePosition), events: records(item.events).map(mapLiveEvent),
+    orders, positions, events: records(item.events).map(mapLiveEvent),
     dataQuality: records(item.dataQuality).map((quality) => ({ id: string(quality.id), name: string(quality.name), status: liveHealth(quality.status), detail: string(quality.detail) })),
   };
 }
@@ -196,10 +265,15 @@ export const consoleApi = {
     };
     return { data, mode: result.mode };
   },
+  async dailyPnL(days = 14) {
+    const result = await request<RawRecord>(`daily-pnl?${new URLSearchParams({ days: String(days) })}`);
+    return { data: mapDailyPnLReport(result.data), mode: result.mode };
+  },
   async liveOperations() { const result = await request<RawRecord>("live-operations"); return { data: mapLiveOperations(result.data), mode: result.mode }; },
   createBacktest: (params: BacktestCreateParams) => request<RawRecord>("backtest-datasets", { method: "POST", body: JSON.stringify(params), headers: { "Idempotency-Key": crypto.randomUUID() } }),
   demoOverview: (): ApiResult<OverviewData> => ({ data: demoOverview, mode: "demo" }),
   demoTradeHistory: (params: TradeHistoryParams = {}): ApiResult<TradeHistoryPage> => ({ data: demoTradeHistory(params), mode: "demo" }),
+  demoDailyPnL: (days = 14): ApiResult<DailyPnLReport> => ({ data: demoDailyPnL(days), mode: "demo" }),
   demoList: (resource: ConsoleResource, params: { limit?: number; offset?: number } = {}): ApiResult<ConsoleList> => {
     const all = demoData[resource]; const offset = params.offset ?? 0; const limit = params.limit ?? 20;
     return { data: { items: all.slice(offset, offset + limit), total: all.length, limit, offset }, mode: "demo" };

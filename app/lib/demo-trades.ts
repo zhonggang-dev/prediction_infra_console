@@ -1,4 +1,4 @@
-import type { TradeHistoryPage, TradeHistoryParams, TradeRecord } from "./types";
+import type { DailyPnLReport, TradeHistoryPage, TradeHistoryParams, TradeRecord } from "./types";
 
 const utc = (offsetMinutes: number) => new Date(Date.now() - offsetMinutes * 60_000).toISOString();
 
@@ -51,6 +51,40 @@ export function demoTradeHistory(params: TradeHistoryParams = {}): TradeHistoryP
       tradeCount: filtered.length, buyNotional: sum("grossNotional", "BUY"), sellNotional: sum("grossNotional", "SELL"),
       netCashFlow: sum("netCashDelta"), totalFee: sum("totalFee"), realizedPnl: sum("realizedPnl"),
     },
+  };
+}
+
+const demoPnLSeries = [
+  { account: "acct-forecast-v2-multfactor-v2", model: "forecast-v2", strategy: "multfactor_v2", today: 2.1837, cycle: [1.24, -0.42, 0, 2.71, 0.86, -1.18, 1.92] },
+  { account: "acct-forecast-v2-multfactor-v1", model: "forecast-v2", strategy: "multfactor_v1", today: -0.7954, cycle: [-0.31, 0.72, 1.08, -1.44, 0, 0.48, -0.22] },
+  { account: "acct-forecast-v3-multfactor-v1", model: "forecast-v3", strategy: "multfactor_v1", today: 1.248, cycle: [0.63, 1.16, -0.54, 0.92, 1.37, 0, -0.81] },
+  { account: "acct-forecast-v1-multfactor-v1", model: "forecast-v1", strategy: "multfactor_v1", today: 0, cycle: [0.39, 0, -0.27, 0.58, 0.14, -0.62, 0] },
+];
+
+/** 生成连续、确定性的演示序列；每个启用绑定每天都有一条记录，包括零收益日。 */
+export function demoDailyPnL(requestedDays = 14): DailyPnLReport {
+  const days = Math.max(1, Math.min(90, requestedDays));
+  const now = new Date();
+  const toDay = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+  const fromDay = new Date(toDay);
+  fromDay.setUTCDate(fromDay.getUTCDate() - days + 1);
+  const items = Array.from({ length: days }, (_, index) => {
+    const day = new Date(fromDay);
+    day.setUTCDate(day.getUTCDate() + index);
+    const daysAgo = days - index - 1;
+    return demoPnLSeries.map((series, seriesIndex) => {
+      const value = daysAgo === 0 ? series.today : series.cycle[(daysAgo + seriesIndex * 2) % series.cycle.length];
+      const trades = value === 0 ? 0 : 1 + ((daysAgo + seriesIndex) % 3);
+      return {
+        day: day.toISOString().slice(0, 10), executionAccountId: series.account,
+        modelId: series.model, strategyId: series.strategy, realizedPnl: decimal(value),
+        closedTradeCount: trades, closedShares: decimal(trades * (8.5 + seriesIndex * 2.25)),
+      };
+    });
+  }).flat();
+  return {
+    items, days, fromDay: fromDay.toISOString().slice(0, 10), toDay: toDay.toISOString().slice(0, 10),
+    timezone: "UTC", generatedAt: now.toISOString(),
   };
 }
 

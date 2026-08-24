@@ -52,6 +52,19 @@ test("服务端可渲染实盘监控页面", async () => {
   const html = await response.text();
   assert.match(html, /实盘监控/);
   assert.match(html, /从机会扫描到成交入账/);
+  assert.match(html, /选择钱包/);
+  assert.match(html, /系统管理持仓/);
+  assert.match(html, /Peak Cash Used/);
+  assert.match(html, /累计投入成本/);
+  assert.match(html, /Realized PnL/);
+  assert.match(html, /Unrealized PnL/);
+  assert.match(html, /Total PnL/);
+  assert.match(html, /Return/);
+  assert.match(html, /每日钱包策略盈亏/);
+  assert.match(html, /净已实现盈亏/);
+  assert.match(html, /正在读取真实实盘快照/);
+  assert.doesNotMatch(html, /\$12,842\.36/);
+  assert.doesNotMatch(html, />LIVE</);
 });
 
 test("服务端可渲染双服务基础监控页面", async () => {
@@ -87,6 +100,13 @@ test("服务监控聚合接口允许两个后端独立离线", async () => {
 
 test("交易记录接口未配置执行服务时安全失败", async () => {
   const response = await withoutBackendConfig(() => render("/api/console/trades?limit=20&offset=0"));
+  assert.equal(response.status, 503);
+  const payload = await response.json();
+  assert.equal(payload.code, "BACKEND_NOT_CONFIGURED");
+});
+
+test("每日盈亏接口未配置执行服务时安全失败", async () => {
+  const response = await withoutBackendConfig(() => render("/api/console/daily-pnl?days=14"));
   assert.equal(response.status, 503);
   const payload = await response.json();
   assert.equal(payload.code, "BACKEND_NOT_CONFIGURED");

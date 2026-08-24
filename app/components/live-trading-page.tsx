@@ -3,8 +3,9 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { consoleApi } from "../lib/console-api";
 import { demoLiveOperations } from "../lib/demo-live";
-import type { ApiMode, LiveEvent, LiveHealth, LiveOperationsSnapshot, LiveOrder, LiveRiskMetric } from "../lib/types";
+import type { ApiMode, DailyPnLReport, LiveEvent, LiveHealth, LiveOperationsSnapshot, LiveOrder, LivePosition, LiveRiskMetric, LiveWalletSummary } from "../lib/types";
 import { ConsoleShell } from "./console-shell";
+import { DailyPnLDashboard } from "./daily-pnl-dashboard";
 import { Icon } from "./icons";
 
 type EventFilter = "all" | "risk" | "trade";
@@ -13,79 +14,145 @@ type EventFilter = "all" | "risk" | "trade";
 export function LiveTradingPage({ previewObservedAt }: { previewObservedAt: string }) {
   const previewSnapshot = useMemo(() => demoLiveOperations(previewObservedAt), [previewObservedAt]);
   const [snapshot, setSnapshot] = useState<LiveOperationsSnapshot>();
-  const [mode, setMode] = useState<ApiMode>("live");
+  const [mode, setMode] = useState<ApiMode>("unavailable");
   const [error, setError] = useState<string>();
   const [loading, setLoading] = useState(true);
+  const [pnlReport, setPnlReport] = useState<DailyPnLReport>();
+  const [pnlMode, setPnlMode] = useState<ApiMode>("unavailable");
+  const [pnlError, setPnlError] = useState<string>();
+  const [pnlLoading, setPnlLoading] = useState(true);
+  const [pnlDays, setPnlDays] = useState(14);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [refreshMs, setRefreshMs] = useState(15_000);
+  const [selectedWalletId, setSelectedWalletId] = useState<string>();
   const [selectedOrderId, setSelectedOrderId] = useState<string>();
   const [eventFilter, setEventFilter] = useState<EventFilter>("all");
 
-  const load = useCallback(async () => {
+  const loadOperations = useCallback(async () => {
+    setLoading(true);
     try {
       const result = await consoleApi.liveOperations();
       setSnapshot(result.data);
       setMode(result.mode);
       setError(undefined);
     } catch (requestError) {
-      setSnapshot(previewSnapshot);
-      setMode("demo");
+      setSnapshot(undefined);
+      setMode("unavailable");
       setError(requestError instanceof Error ? requestError.message : "实盘聚合接口尚未接入");
     } finally {
       setLoading(false);
     }
-  }, [previewSnapshot]);
+  }, []);
+
+  const loadPnL = useCallback(async (days: number) => {
+    setPnlLoading(true);
+    try {
+      const result = await consoleApi.dailyPnL(days);
+      setPnlReport(result.data);
+      setPnlMode(result.mode);
+      setPnlError(undefined);
+    } catch (requestError) {
+      setPnlReport(undefined);
+      setPnlMode("unavailable");
+      setPnlError(requestError instanceof Error ? requestError.message : "每日盈亏接口尚未接入");
+    } finally {
+      setPnlLoading(false);
+    }
+  }, []);
+
+  const load = useCallback(async () => {
+    await Promise.all([loadOperations(), loadPnL(pnlDays)]);
+  }, [loadOperations, loadPnL, pnlDays]);
 
   useEffect(() => {
-    const initialLoad = window.setTimeout(() => { void load(); }, 0);
+    const initialLoad = window.setTimeout(() => { void Promise.all([loadOperations(), loadPnL(14)]); }, 0);
     return () => window.clearTimeout(initialLoad);
-  }, [load]);
+  }, [loadOperations, loadPnL]);
   useEffect(() => {
     if (!autoRefresh) return;
     const timer = window.setInterval(() => { void load(); }, refreshMs);
     return () => window.clearInterval(timer);
   }, [autoRefresh, load, refreshMs]);
-  const activeSnapshot = snapshot ?? previewSnapshot;
-  const effectiveOrderId = selectedOrderId ?? activeSnapshot.orders[0]?.orderId;
-  const selectedOrder = activeSnapshot.orders.find((order) => order.orderId === effectiveOrderId) ?? activeSnapshot.orders[0];
-  const filteredEvents = useMemo(() => filterEvents(activeSnapshot.events, eventFilter), [activeSnapshot.events, eventFilter]);
+  const showPreview = () => {
+    setAutoRefresh(false);
+    setSnapshot(previewSnapshot);
+    setMode("demo");
+    setLoading(false);
+    setPnlReport(consoleApi.demoDailyPnL(pnlDays).data);
+    setPnlMode("demo");
+    setPnlLoading(false);
+  };
+  const retryLive = () => {
+    setSnapshot(undefined);
+    setPnlReport(undefined);
+    setMode("unavailable");
+    setPnlMode("unavailable");
+    setError(undefined);
+    setPnlError(undefined);
+    setAutoRefresh(true);
+    void load();
+  };
+  const changePnLDays = (days: number) => {
+    setPnlDays(days);
+    if (pnlMode === "demo") setPnlReport(consoleApi.demoDailyPnL(days).data);
+    else void loadPnL(days);
+  };
+
+  const activeSnapshot = snapshot;
+  const selectedWallet = activeSnapshot?.wallets.find((wallet) => wallet.executionAccountId === selectedWalletId) ?? activeSnapshot?.wallets[0];
+  const effectiveWalletId = selectedWallet?.executionAccountId;
+  const walletOrders = activeSnapshot?.orders.filter((order) => order.executionAccountId === effectiveWalletId) ?? [];
+  const walletPositions = activeSnapshot?.positions.filter((position) => position.executionAccountId === effectiveWalletId && position.managed) ?? [];
+  const effectiveOrderId = walletOrders.some((order) => order.orderId === selectedOrderId) ? selectedOrderId : walletOrders[0]?.orderId;
+  const selectedOrder = walletOrders.find((order) => order.orderId === effectiveOrderId);
+  const filteredEvents = activeSnapshot ? filterEvents(activeSnapshot.events, eventFilter) : [];
+  const walletPnLReport = useMemo(() => {
+    if (!pnlReport || !effectiveWalletId) return undefined;
+    return { ...pnlReport, items: pnlReport.items.filter((point) => point.executionAccountId === effectiveWalletId) };
+  }, [effectiveWalletId, pnlReport]);
 
   return <ConsoleShell>
     <header className="page-head live-page-head">
       <div>
         <p className="eyebrow">Live Trading / Command Center</p>
-        <div className="live-title-line"><h1>实盘监控</h1><HealthBadge health={activeSnapshot.engine.health} label={healthLabel(activeSnapshot.engine.health)} pulse /></div>
+        <div className="live-title-line"><h1>实盘监控</h1>{activeSnapshot ? <HealthBadge health={activeSnapshot.engine.health} label={healthLabel(activeSnapshot.engine.health)} pulse /> : <span className="health-badge unavailable"><i />{loading ? "读取中" : "数据不可用"}</span>}</div>
         <p className="description">从机会扫描到成交入账的全链路观测面；用于值班判断与追踪，不在此页面直接修改策略或发起交易。</p>
       </div>
       <div className="live-head-actions">
         <label className="refresh-select"><span>刷新</span><select value={refreshMs} onChange={(event) => setRefreshMs(Number(event.target.value))} aria-label="自动刷新间隔"><option value={15000}>15 秒</option><option value={30000}>30 秒</option><option value={60000}>60 秒</option></select></label>
         <button className={`button auto-refresh ${autoRefresh ? "active" : ""}`} aria-pressed={autoRefresh} onClick={() => setAutoRefresh((value) => !value)}><i /> 自动</button>
-        <button className="button" onClick={() => void load()} disabled={loading}><Icon name="refresh" /> {loading ? "刷新中" : "立即刷新"}</button>
+        <button className="button" onClick={() => void load()} disabled={loading || pnlLoading}><Icon name="refresh" /> {loading || pnlLoading ? "刷新中" : "立即刷新"}</button>
       </div>
     </header>
 
-    {mode === "demo" && <div className="notice live-preview-notice"><div><strong>当前展示产品预览数据</strong><p>页面已按真实实盘引擎结构完成；后端提供 <span className="mono">live-operations</span> 聚合接口后会自动切换为实时数据。当前原因：{error}</p></div><button className="button" onClick={() => void load()}>重试真实数据</button></div>}
+    {mode === "unavailable" && !loading && <div className="notice live-error-notice"><div><strong>真实钱包数据不可用</strong><p>为避免把演示值误认成真实收益，当前不会自动填充产品预览。原因：{error}</p></div><div className="notice-actions"><button className="button" onClick={retryLive}>重试真实数据</button><button className="button" onClick={showPreview}>查看产品预览</button></div></div>}
+    {mode === "demo" && <div className="notice live-preview-notice"><div><strong>当前为用户主动打开的产品预览</strong><p>以下钱包、仓位与盈亏均为演示数据，不代表任何真实钱包。</p></div><button className="button" onClick={retryLive}>返回真实数据</button></div>}
+    {mode === "live" && pnlMode === "unavailable" && !pnlLoading && <div className="notice live-error-notice"><div><strong>每日盈亏数据不可用</strong><p>实盘快照正常，但每日账本收益不会使用演示值替代。原因：{pnlError}</p></div><div className="notice-actions"><button className="button" onClick={() => void loadPnL(pnlDays)}>重试盈亏数据</button><button className="button" onClick={showPreview}>查看产品预览</button></div></div>}
 
-    <LiveStatusBar snapshot={activeSnapshot} mode={mode} />
-    <CapitalMetrics snapshot={activeSnapshot} loading={loading && !snapshot} />
+    {activeSnapshot && <LiveStatusBar snapshot={activeSnapshot} mode={mode} />}
+    <WalletPerformance wallets={activeSnapshot?.wallets ?? []} wallet={selectedWallet} selectedWalletId={effectiveWalletId} onWallet={setSelectedWalletId} loading={loading && !activeSnapshot} />
+    <DailyPnLDashboard report={walletPnLReport} loading={pnlLoading && !pnlReport} days={pnlDays} onDays={changePnLDays} preview={pnlMode === "demo"} />
+
+    {!activeSnapshot && <section className="section panel live-data-state"><strong>{loading ? "正在读取真实实盘快照" : "没有可展示的真实实盘快照"}</strong><p>{loading ? "钱包指标将在服务端返回完整快照后显示。" : "请重试真实数据，或明确选择查看产品预览。"}</p></section>}
+    {activeSnapshot && <>
     <WorkerGrid snapshot={activeSnapshot} />
     <TradingFunnel snapshot={activeSnapshot} />
 
     <section className="section live-workbench">
       <div className="live-orders-column">
-        <div className="section-head"><div><h2 className="section-title">活跃订单</h2><p className="section-caption">点击订单查看从预测到成交验真的完整生命周期</p></div><a className="link" href="/trades">查看成交账本 <Icon name="arrow" /></a></div>
+        <div className="section-head"><div><h2 className="section-title">活跃订单</h2><p className="section-caption">所选钱包 · 点击订单查看从预测到成交验真的完整生命周期</p></div><a className="link" href="/trades">查看成交账本 <Icon name="arrow" /></a></div>
         <div className="panel live-orders-panel">
-          <OrderList orders={activeSnapshot.orders} selectedOrderId={selectedOrder?.orderId} onSelect={setSelectedOrderId} />
+          <OrderList orders={walletOrders} selectedOrderId={selectedOrder?.orderId} onSelect={setSelectedOrderId} />
           {selectedOrder && <OrderLifecycle order={selectedOrder} />}
         </div>
       </div>
       <div>
-        <div className="section-head"><div><h2 className="section-title">风险中枢</h2><p className="section-caption">所有值均为只读状态，红线动作仍由服务端执行</p></div></div>
+        <div className="section-head"><div><h2 className="section-title">风险中枢</h2><p className="section-caption">全局口径 · 所有值均为只读状态，红线动作仍由服务端执行</p></div></div>
         <div className="panel risk-panel">{activeSnapshot.risks.map((risk) => <RiskRow risk={risk} key={risk.id} />)}<div className="risk-footer"><span><i className="risk-shield">✓</i>交易权限</span><strong>策略服务端风控已启用</strong></div></div>
       </div>
     </section>
 
-    <PositionsPanel snapshot={activeSnapshot} />
+    <PositionsPanel positions={walletPositions} walletId={effectiveWalletId} />
 
     <section className="section live-bottom-grid">
       <div>
@@ -98,6 +165,7 @@ export function LiveTradingPage({ previewObservedAt }: { previewObservedAt: stri
         <div className="operator-note"><span>值班原则</span><p>订单状态不等于成交事实。只有 CLOB <span className="mono">/trades</span> 验真并写入 ledger 后，才计入资金与仓位。</p></div>
       </div>
     </section>
+    </>}
   </ConsoleShell>;
 }
 
@@ -112,18 +180,20 @@ function LiveStatusBar({ snapshot, mode }: { snapshot: LiveOperationsSnapshot; m
 
 function StatusCheck({ label, health }: { label: string; health: LiveHealth }) { return <span className={health}><i />{label}</span>; }
 
-function CapitalMetrics({ snapshot, loading }: { snapshot: LiveOperationsSnapshot; loading: boolean }) {
-  const exposurePct = snapshot.capital.exposureLimit ? snapshot.capital.grossExposure / snapshot.capital.exposureLimit * 100 : 0;
-  const availablePct = snapshot.capital.equity ? snapshot.capital.availableCash / snapshot.capital.equity * 100 : 0;
+function WalletPerformance({ wallets, wallet, selectedWalletId, onWallet, loading }: { wallets: LiveWalletSummary[]; wallet?: LiveWalletSummary; selectedWalletId?: string; onWallet: (id: string) => void; loading: boolean }) {
   const metrics = [
-    { label: "账户权益", value: usd(snapshot.capital.equity), meta: "现金 + 持仓盯市", tone: "" },
-    { label: "可用现金", value: usd(snapshot.capital.availableCash), meta: `${availablePct.toFixed(1)}% 资金可用`, tone: "" },
-    { label: "总敞口", value: usd(snapshot.capital.grossExposure), meta: `占限额 ${exposurePct.toFixed(1)}%`, tone: exposurePct > 80 ? "warning" : "" },
-    { label: "今日已实现", value: signedUsd(snapshot.capital.realizedPnlToday), meta: `手续费 ${usd(snapshot.capital.feeToday)}`, tone: snapshot.capital.realizedPnlToday >= 0 ? "positive" : "negative" },
-    { label: "未实现盈亏", value: signedUsd(snapshot.capital.unrealizedPnl), meta: `${snapshot.positions.length} 个开放持仓`, tone: snapshot.capital.unrealizedPnl >= 0 ? "positive" : "negative" },
-    { label: "开放订单", value: String(snapshot.orders.length), meta: `${snapshot.orders.filter((order) => order.status === "PARTIAL").length} 个部分成交`, tone: "" },
+    { label: "系统管理持仓", value: wallet ? String(wallet.positionCount) : "—", meta: "不含未纳管链上仓位", tone: "" },
+    { label: "Peak Cash Used", value: wallet ? usd(wallet.peakCashUsed) : "—", meta: "历史最大同时在场成本（含买入费）", tone: "" },
+    { label: "累计投入成本", value: wallet ? usd(wallet.cumulativeInvestedCost) : "—", meta: "已确认买入累计成本", tone: "" },
+    { label: "Realized PnL", value: wallet ? signedUsd(wallet.realizedPnl) : "—", meta: "累计已实现盈亏", tone: wallet ? pnlTone(wallet.realizedPnl) : "" },
+    { label: "Unrealized PnL", value: wallet ? signedUsd(wallet.unrealizedPnl) : "—", meta: "当前系统持仓盯市", tone: wallet ? pnlTone(wallet.unrealizedPnl) : "" },
+    { label: "Total PnL", value: wallet ? signedUsd(wallet.totalPnl) : "—", meta: "Realized + Unrealized", tone: wallet ? pnlTone(wallet.totalPnl) : "" },
+    { label: "Return", value: wallet?.return === null || wallet?.return === undefined ? "—" : signedPct(wallet.return), meta: "Total PnL / Peak Cash Used", tone: wallet?.return === null || wallet?.return === undefined ? "" : pnlTone(wallet.return) },
   ];
-  return <section className={`live-metrics ${loading ? "is-loading" : ""}`}>{metrics.map((metric) => <div className="live-metric" key={metric.label}><span>{metric.label}</span><strong className={metric.tone}>{metric.value}</strong><small>{metric.meta}</small></div>)}</section>;
+  return <section className="section wallet-performance" aria-labelledby="wallet-performance-title">
+    <div className="section-head wallet-performance-head"><div><h2 className="section-title" id="wallet-performance-title">钱包核心指标</h2><p className="section-caption">单钱包累计口径；全局线程与风险状态不随选择器变化</p></div><label className="wallet-selector"><span>选择钱包</span><select className="select" value={selectedWalletId ?? ""} onChange={(event) => onWallet(event.target.value)} disabled={!wallets.length} aria-label="选择实盘钱包">{wallets.length ? wallets.map((item) => <option value={item.executionAccountId} key={item.executionAccountId}>{item.executionAccountId}</option>) : <option value="">{loading ? "正在读取钱包" : "暂无真实钱包"}</option>}</select></label></div>
+    <div className={`live-metrics wallet-metrics ${loading ? "is-loading" : ""}`}>{metrics.map((metric) => <div className="live-metric" key={metric.label}><span>{metric.label}</span><strong className={metric.tone}>{metric.value}</strong><small>{metric.meta}</small></div>)}</div>
+  </section>;
 }
 
 function WorkerGrid({ snapshot }: { snapshot: LiveOperationsSnapshot }) {
@@ -163,11 +233,11 @@ function RiskRow({ risk }: { risk: LiveRiskMetric }) {
   return <div className="risk-row"><div className="risk-row-head"><div><strong>{risk.name}</strong><span>{risk.hint}</span></div><div><strong>{riskValue(risk.current, risk.unit)}</strong><small>/ {riskValue(risk.limit, risk.unit)}</small></div></div><div className={`risk-bar ${risk.state}`}><i style={{ width: `${Math.max(2, usage)}%` }} /></div><footer><span>{usage.toFixed(1)}% 已使用</span><span>{risk.state === "safe" ? "安全" : risk.state === "warning" ? "关注" : "越线"}</span></footer></div>;
 }
 
-function PositionsPanel({ snapshot }: { snapshot: LiveOperationsSnapshot }) {
-  return <section className="section"><div className="section-head"><div><h2 className="section-title">开放持仓</h2><p className="section-caption">以链上持仓为事实源，使用最新盘口盯市；预测年龄用于判断退出决策是否可信</p></div><span className="section-total">市值 {usd(snapshot.positions.reduce((sum, item) => sum + item.marketValue, 0))}</span></div><div className="panel table-scroll"><table className="position-table"><thead><tr><th>市场 / Outcome</th><th>策略</th><th>持仓数量</th><th>均价</th><th>标记价</th><th>成本 / 市值</th><th>未实现盈亏</th><th>预测年龄</th><th>限额占用</th></tr></thead><tbody>{snapshot.positions.map((position) => {
+function PositionsPanel({ positions, walletId }: { positions: LivePosition[]; walletId?: string }) {
+  return <section className="section"><div className="section-head"><div><h2 className="section-title">系统管理持仓明细</h2><p className="section-caption">仅展示所选钱包中 managed=true 的仓位；以链上数量为事实源，使用最新盘口盯市</p></div><span className="section-total">{walletId && <span className="mono">{walletId} · </span>}市值 {usd(positions.reduce((sum, item) => sum + item.marketValue, 0))}</span></div><div className="panel table-scroll"><table className="position-table"><thead><tr><th>市场 / Outcome</th><th>策略</th><th>持仓数量</th><th>均价</th><th>标记价</th><th>成本 / 市值</th><th>未实现盈亏</th><th>预测年龄</th><th>限额占用</th></tr></thead><tbody>{positions.map((position) => {
     const age = position.predictionAgeMinutes;
     return <tr key={position.positionId}><td><div className="position-market"><strong>{position.marketLabel}</strong><span><i className="outcome-chip">{position.outcomeName}</i><span className="mono muted">{position.marketId}</span></span></div></td><td><span className="strategy-chip">{position.strategyId}</span></td><td className="mono">{position.shares.toFixed(2)}</td><td className="mono">{position.averagePrice.toFixed(3)}</td><td className="mono">{position.markPrice.toFixed(3)}</td><td><strong>{usd(position.cost)}</strong><small>{usd(position.marketValue)}</small></td><td><strong className={position.unrealizedPnl >= 0 ? "positive" : "negative"}>{signedUsd(position.unrealizedPnl)}</strong></td><td><span className={`prediction-age ${age === undefined ? "" : age > 45 ? "stale" : age > 30 ? "warning" : ""}`}>{age === undefined ? "—" : `${age}m`}</span></td><td><div className="mini-exposure"><i><b style={{ width: `${Math.min(100, position.exposurePct * 100)}%` }} /></i><span>{pct(position.exposurePct)}</span></div></td></tr>;
-  })}{!snapshot.positions.length && <tr><td colSpan={9}><div className="empty"><strong>当前没有开放持仓</strong><p>已确认的链上持仓会在这里展示。</p></div></td></tr>}</tbody></table></div></section>;
+  })}{!positions.length && <tr><td colSpan={9}><div className="empty"><strong>当前没有系统管理持仓</strong><p>所选钱包中已纳管且确认的开放仓位会在这里展示。</p></div></td></tr>}</tbody></table></div></section>;
 }
 
 function EventTabs({ value, onChange }: { value: EventFilter; onChange: (value: EventFilter) => void }) {
@@ -181,6 +251,7 @@ function EventRow({ event }: { event: LiveEvent }) {
 function HealthBadge({ health, label, pulse = false }: { health: LiveHealth; label: string; pulse?: boolean }) { return <span className={`health-badge ${health} ${pulse ? "pulse" : ""}`}><i />{label}</span>; }
 function filterEvents(events: LiveEvent[], filter: EventFilter) { if (filter === "risk") return events.filter((event) => event.severity === "warning" || event.severity === "error" || event.section === "risk"); if (filter === "trade") return events.filter((event) => ["fill", "order", "reprice"].includes(event.section)); return events; }
 function healthLabel(health: LiveHealth) { return health === "healthy" ? "正常" : health === "degraded" ? "关注" : "停止"; }
+function pnlTone(value: number) { return value > 0 ? "positive" : value < 0 ? "negative" : ""; }
 
 const moneyFormatter = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 2 });
 const usd = (value: number) => moneyFormatter.format(value);

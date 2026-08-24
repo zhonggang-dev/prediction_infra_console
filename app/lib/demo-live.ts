@@ -7,6 +7,10 @@ import type { LiveOperationsSnapshot } from "./types";
 export function demoLiveOperations(observedAt = new Date().toISOString()): LiveOperationsSnapshot {
   const observedAtMs = new Date(observedAt).getTime();
   const ago = (seconds: number) => new Date(observedAtMs - seconds * 1000).toISOString();
+  const primaryWallet = "acct-forecast-v2-multfactor-v2";
+  const defensiveWallet = "acct-forecast-v2-multfactor-v1";
+  const growthWallet = "acct-forecast-v3-multfactor-v1";
+  const legacyWallet = "acct-forecast-v1-multfactor-v1";
   return {
     observedAt,
     dataFreshnessSeconds: 4,
@@ -29,6 +33,12 @@ export function demoLiveOperations(observedAt = new Date().toISOString()): LiveO
       unrealizedPnl: 76.44,
       feeToday: 13.82,
     },
+    wallets: [
+      { executionAccountId: primaryWallet, positionCount: 1, peakCashUsed: 92.4, cumulativeInvestedCost: 154.26, realizedPnl: 18.42, unrealizedPnl: 5.93, totalPnl: 24.35, return: 0.263528 },
+      { executionAccountId: defensiveWallet, positionCount: 1, peakCashUsed: 48, cumulativeInvestedCost: 82.6, realizedPnl: -4.8, unrealizedPnl: -0.79, totalPnl: -5.59, return: -0.116458 },
+      { executionAccountId: growthWallet, positionCount: 0, peakCashUsed: 35, cumulativeInvestedCost: 67.2, realizedPnl: 12.48, unrealizedPnl: 0, totalPnl: 12.48, return: 0.356571 },
+      { executionAccountId: legacyWallet, positionCount: 1, peakCashUsed: 28, cumulativeInvestedCost: 49, realizedPnl: 3.91, unrealizedPnl: 2.03, totalPnl: 5.94, return: 0.212143 },
+    ],
     workers: [
       { id: "cycle", name: "机会扫描", purpose: "找新市场、获取预测并尝试开仓", cadence: "每 30 分钟", status: "healthy", lastHeartbeatAt: ago(96), currentTask: "等待 3 个 Echo 预测完成", metricLabel: "本轮候选", metricValue: "20" },
       { id: "monitor", name: "持仓与挂单看护", purpose: "退出判断、撤单、重报价与成交确认", cadence: "每 3 分钟", status: "healthy", lastHeartbeatAt: ago(14), currentTask: "检查 4 个挂单 · 7 个持仓", metricLabel: "下次检查", metricValue: "02:46" },
@@ -50,7 +60,7 @@ export function demoLiveOperations(observedAt = new Date().toISOString()): LiveO
     ],
     orders: [
       {
-        orderId: "0xc14f…3a92", marketId: "0x8d7a…f014", marketLabel: "Will the Federal Reserve cut rates in September?", outcomeName: "YES", side: "BUY", status: "PARTIAL", price: 0.684, shares: 36.55, filledShares: 18.5, ageSeconds: 412, modelId: "forecast-v2", strategyId: "multfactor_v2", triggeredBy: "cycle", predictedProbability: 0.742, edge: 0.058,
+        orderId: "0xc14f…3a92", executionAccountId: primaryWallet, marketId: "0x8d7a…f014", marketLabel: "Will the Federal Reserve cut rates in September?", outcomeName: "YES", side: "BUY", status: "PARTIAL", price: 0.684, shares: 36.55, filledShares: 18.5, ageSeconds: 412, modelId: "forecast-v2", strategyId: "multfactor_v2", triggeredBy: "cycle", predictedProbability: 0.742, edge: 0.058,
         lifecycle: [
           { name: "预测完成", status: "done", timestamp: ago(591), detail: "YES 74.2% · Echo 运行 31m 18s" },
           { name: "策略通过", status: "done", timestamp: ago(552), detail: "Edge +5.8% · Kelly 建议 $25.00" },
@@ -61,7 +71,7 @@ export function demoLiveOperations(observedAt = new Date().toISOString()): LiveO
         ],
       },
       {
-        orderId: "0xa98e…e718", marketId: "0x19bc…142e", marketLabel: "Will Bitcoin close above $120,000 this month?", outcomeName: "NO", side: "BUY", status: "LIVE", price: 0.432, shares: 23.15, filledShares: 0, ageSeconds: 1027, modelId: "forecast-v3", strategyId: "multfactor_v1", triggeredBy: "cycle", predictedProbability: 0.507, edge: 0.075,
+        orderId: "0xa98e…e718", executionAccountId: growthWallet, marketId: "0x19bc…142e", marketLabel: "Will Bitcoin close above $120,000 this month?", outcomeName: "NO", side: "BUY", status: "LIVE", price: 0.432, shares: 23.15, filledShares: 0, ageSeconds: 1027, modelId: "forecast-v3", strategyId: "multfactor_v1", triggeredBy: "cycle", predictedProbability: 0.507, edge: 0.075,
         lifecycle: [
           { name: "预测完成", status: "done", timestamp: ago(1240), detail: "NO 50.7% · 预测仍在新鲜窗口" },
           { name: "策略通过", status: "done", timestamp: ago(1090), detail: "Edge +7.5% · 建议买入 $10.00" },
@@ -72,7 +82,7 @@ export function demoLiveOperations(observedAt = new Date().toISOString()): LiveO
         ],
       },
       {
-        orderId: "0xe721…9cd0", marketId: "0x72df…50aa", marketLabel: "Will the S&P 500 finish the week higher?", outcomeName: "NO", side: "SELL", status: "CANCEL_PENDING", price: 0.271, shares: 10, filledShares: 0, ageSeconds: 3520, modelId: "forecast-v2", strategyId: "rolling_exit_v2", triggeredBy: "monitor", predictedProbability: 0.338, edge: -0.021,
+        orderId: "0xe721…9cd0", executionAccountId: defensiveWallet, marketId: "0x72df…50aa", marketLabel: "Will the S&P 500 finish the week higher?", outcomeName: "NO", side: "SELL", status: "CANCEL_PENDING", price: 0.271, shares: 10, filledShares: 0, ageSeconds: 3520, modelId: "forecast-v2", strategyId: "rolling_exit_v2", triggeredBy: "monitor", predictedProbability: 0.338, edge: -0.021,
         lifecycle: [
           { name: "退出信号", status: "done", timestamp: ago(3620), detail: "预测衰减触发 CLOSE_FULL" },
           { name: "风险校验", status: "done", timestamp: ago(3598), detail: "可卖数量与链上持仓一致" },
@@ -84,9 +94,9 @@ export function demoLiveOperations(observedAt = new Date().toISOString()): LiveO
       },
     ],
     positions: [
-      { positionId: "pos-fed-yes", marketId: "0x8d7a…f014", marketLabel: "Will the Federal Reserve cut rates in September?", outcomeName: "YES", shares: 82.4, averagePrice: 0.612, markPrice: 0.684, cost: 50.43, marketValue: 56.36, unrealizedPnl: 5.93, exposurePct: 0.59, strategyId: "multfactor_v2", predictionAgeMinutes: 9 },
-      { positionId: "pos-eth-yes", marketId: "0xc0a1…910b", marketLabel: "Will Ethereum trade above $5,000 in August?", outcomeName: "YES", shares: 54.8, averagePrice: 0.41, markPrice: 0.447, cost: 22.47, marketValue: 24.50, unrealizedPnl: 2.03, exposurePct: 0.26, strategyId: "multfactor_v1", predictionAgeMinutes: 31 },
-      { positionId: "pos-spx-no", marketId: "0x72df…50aa", marketLabel: "Will the S&P 500 finish the week higher?", outcomeName: "NO", shares: 10, averagePrice: 0.35, markPrice: 0.271, cost: 3.5, marketValue: 2.71, unrealizedPnl: -0.79, exposurePct: 0.04, strategyId: "rolling_exit_v2", predictionAgeMinutes: 47 },
+      { positionId: "pos-fed-yes", executionAccountId: primaryWallet, managed: true, marketId: "0x8d7a…f014", marketLabel: "Will the Federal Reserve cut rates in September?", outcomeName: "YES", shares: 82.4, averagePrice: 0.612, markPrice: 0.684, cost: 50.43, marketValue: 56.36, unrealizedPnl: 5.93, exposurePct: 0.59, strategyId: "multfactor_v2", predictionAgeMinutes: 9 },
+      { positionId: "pos-eth-yes", executionAccountId: legacyWallet, managed: true, marketId: "0xc0a1…910b", marketLabel: "Will Ethereum trade above $5,000 in August?", outcomeName: "YES", shares: 54.8, averagePrice: 0.41, markPrice: 0.447, cost: 22.47, marketValue: 24.50, unrealizedPnl: 2.03, exposurePct: 0.26, strategyId: "multfactor_v1", predictionAgeMinutes: 31 },
+      { positionId: "pos-spx-no", executionAccountId: defensiveWallet, managed: true, marketId: "0x72df…50aa", marketLabel: "Will the S&P 500 finish the week higher?", outcomeName: "NO", shares: 10, averagePrice: 0.35, markPrice: 0.271, cost: 3.5, marketValue: 2.71, unrealizedPnl: -0.79, exposurePct: 0.04, strategyId: "rolling_exit_v2", predictionAgeMinutes: 47 },
     ],
     events: [
       { id: "evt-1", timestamp: ago(7), severity: "success", thread: "prediction", section: "prediction", title: "Echo 预测完成", detail: "概率已写入调度器并唤醒本轮决策", marketLabel: "Fed rate cut in September" },

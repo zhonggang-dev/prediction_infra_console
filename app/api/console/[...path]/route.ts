@@ -123,6 +123,15 @@ function resolveTarget(path: string[], method: string): ProxyTarget | undefined 
       serviceName: "Trading Execution",
     };
   }
+  if (first === "daily-pnl" && method === "GET" && path.length === 1) {
+    return {
+      baseUrl: process.env.TRADING_EXECUTION_BASE_URL,
+      token: process.env.TRADING_EXECUTION_API_TOKEN,
+      endpoint: "/api/v1/daily-pnl",
+      stream: false,
+      serviceName: "Trading Execution",
+    };
+  }
   if (first === "live-operations" && method === "GET" && path.length === 1) {
     return {
       baseUrl: process.env.TRADING_EXECUTION_BASE_URL,
@@ -174,5 +183,6 @@ function copyResponseHeaders(source: Headers): Headers {
     const value = source.get(name);
     if (value) result.set(name, value);
   }
+  result.set("cache-control", source.get("cache-control") ?? "no-store");
   return result;
 }
