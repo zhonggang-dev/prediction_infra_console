@@ -62,6 +62,8 @@ test("服务端可渲染实盘监控页面", async () => {
   assert.match(html, /Return/);
   assert.match(html, /每日钱包策略盈亏/);
   assert.match(html, /净已实现盈亏/);
+  assert.match(html, /模型 Edge 分布/);
+  assert.match(html, /模型概率 − 盘口中间价/);
   assert.match(html, /正在读取真实实盘快照/);
   assert.doesNotMatch(html, /\$12,842\.36/);
   assert.doesNotMatch(html, />LIVE</);
@@ -114,6 +116,13 @@ test("每日盈亏接口未配置执行服务时安全失败", async () => {
 
 test("实盘聚合接口未配置执行服务时安全失败", async () => {
   const response = await withoutBackendConfig(() => render("/api/console/live-operations"));
+  assert.equal(response.status, 503);
+  const payload = await response.json();
+  assert.equal(payload.code, "BACKEND_NOT_CONFIGURED");
+});
+
+test("Edge 分布接口未配置执行服务时安全失败", async () => {
+  const response = await withoutBackendConfig(() => render("/api/console/edge-distribution"));
   assert.equal(response.status, 503);
   const payload = await response.json();
   assert.equal(payload.code, "BACKEND_NOT_CONFIGURED");

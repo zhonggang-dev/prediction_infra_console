@@ -161,6 +161,38 @@ export interface DailyPnLReport {
   generatedAt: string;
 }
 
+export interface EdgeDistributionBin {
+  lower: number;
+  upper: number;
+  count: number;
+  ratio: number;
+}
+
+export interface EdgeDistributionSeries {
+  modelId: string;
+  sampleCount: number;
+  excludedCount: number;
+  mean: number;
+  median: number;
+  standardDeviation: number;
+  minimum: number;
+  maximum: number;
+  positiveRatio: number;
+  bins: EdgeDistributionBin[];
+}
+
+/** 最新一次十分钟决策边界上的跨市场 outcome-0 edge 分布。 */
+export interface EdgeDistribution {
+  decisionAt: string;
+  generatedAt: string;
+  priceBasis: "MIDPOINT";
+  outcomeScope: "OUTCOME_0";
+  binWidth: number;
+  rangeMin: number;
+  rangeMax: number;
+  series: EdgeDistributionSeries[];
+}
+
 export type LiveHealth = "healthy" | "degraded" | "stopped";
 export type LiveStageState = "done" | "active" | "warning" | "idle";
 export type LiveEventSeverity = "info" | "success" | "warning" | "error";

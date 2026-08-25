@@ -2,7 +2,7 @@
 
 import { demoData, demoOverview } from "./demo-data";
 import { demoDailyPnL, demoTradeHistory } from "./demo-trades";
-import type { ApiMode, ApiResult, BacktestCreateParams, ConsoleList, ConsoleResource, ConsoleRow, DailyPnLPoint, DailyPnLReport, LiveEvent, LiveFunnelStage, LiveHealth, LiveOperationsSnapshot, LiveOrder, LiveOrderStep, LivePosition, LiveRiskMetric, LiveStageState, LiveWalletSummary, LiveWorker, OverviewData, ServiceMetricsOverview, ServiceRuntimeHealth, ServiceRuntimeMetrics, TradeHistoryPage, TradeHistoryParams, TradeHistorySummary, TradeRecord, TradeSide } from "./types";
+import type { ApiMode, ApiResult, BacktestCreateParams, ConsoleList, ConsoleResource, ConsoleRow, DailyPnLPoint, DailyPnLReport, EdgeDistribution, EdgeDistributionBin, EdgeDistributionSeries, LiveEvent, LiveFunnelStage, LiveHealth, LiveOperationsSnapshot, LiveOrder, LiveOrderStep, LivePosition, LiveRiskMetric, LiveStageState, LiveWalletSummary, LiveWorker, OverviewData, ServiceMetricsOverview, ServiceRuntimeHealth, ServiceRuntimeMetrics, TradeHistoryPage, TradeHistoryParams, TradeHistorySummary, TradeRecord, TradeSide } from "./types";
 
 type RawRecord = Record<string, unknown>;
 type ListPayload = { items?: RawRecord[]; total?: number; limit?: number; offset?: number };
@@ -104,6 +104,60 @@ function mapDailyPnLReport(item: RawRecord): DailyPnLReport {
     generatedAt: optionalTime(item.generated_at) ?? new Date().toISOString(),
   };
 }
+
+/** 校验并映射一个 Edge 直方图分箱。 */
+function mapEdgeBin(item: RawRecord): EdgeDistributionBin {
+  const lower = requiredEdgeValue(item.lower, "bins.lower");
+  const upper = requiredEdgeValue(item.upper, "bins.upper");
+  if (lower >= upper) throw edgeContractError("bins 区间");
+  return {
+    lower,
+    upper,
+    count: requiredEdgeCount(item.count, "bins.count"),
+    ratio: requiredEdgeRatio(item.ratio, "bins.ratio"),
+  };
+}
+
+/** 校验并映射一个模型的 Edge 分布序列。 */
+function mapEdgeSeries(item: RawRecord, rangeMin: number, rangeMax: number, binWidth: number): EdgeDistributionSeries {
+  const sampleCount = requiredEdgeCount(item.sample_count, "series.sample_count");
+  const bins = records(item.bins).map(mapEdgeBin);
+  validateEdgeBins(bins, sampleCount, rangeMin, rangeMax, binWidth);
+  const minimum = requiredEdgeValue(item.minimum, "series.minimum");
+  const maximum = requiredEdgeValue(item.maximum, "series.maximum");
+  if (sampleCount > 0 && minimum > maximum) throw edgeContractError("series 最值");
+  return {
+    modelId: requiredEdgeString(item.model_id, "series.model_id"),
+    sampleCount,
+    excludedCount: requiredEdgeCount(item.excluded_count, "series.excluded_count"),
+    mean: requiredEdgeValue(item.mean, "series.mean"),
+    median: requiredEdgeValue(item.median, "series.median"),
+    standardDeviation: requiredEdgeRatio(item.standard_deviation, "series.standard_deviation"),
+    minimum,
+    maximum,
+    positiveRatio: requiredEdgeRatio(item.positive_ratio, "series.positive_ratio"),
+    bins,
+  };
+}
+
+/** 校验并映射完整的 Edge 分布快照。 */
+function mapEdgeDistribution(item: RawRecord): EdgeDistribution {
+  const decisionAt = optionalTime(item.decision_at);
+  const generatedAt = optionalTime(item.generated_at);
+  if (!decisionAt || !generatedAt || item.price_basis !== "MIDPOINT" || item.outcome_scope !== "OUTCOME_0") {
+    throw new ConsoleApiError("Edge 分布接口返回了不支持的数据口径", "live");
+  }
+  const rangeMin = requiredEdgeValue(item.range_min, "range_min");
+  const rangeMax = requiredEdgeValue(item.range_max, "range_max");
+  const binWidth = requiredEdgeNumber(item.bin_width, "bin_width");
+  if (rangeMin >= 0 || rangeMax <= 0 || binWidth <= 0 || binWidth > rangeMax - rangeMin) throw edgeContractError("分布区间");
+  const series = records(item.series).map((entry) => mapEdgeSeries(entry, rangeMin, rangeMax, binWidth));
+  if (new Set(series.map((entry) => entry.modelId)).size !== series.length) throw edgeContractError("重复模型");
+  return {
+    decisionAt, generatedAt, priceBasis: "MIDPOINT", outcomeScope: "OUTCOME_0", binWidth, rangeMin, rangeMax,
+    series,
+  };
+}
 const optional = (value: unknown) => typeof value === "string" && value ? value : typeof value === "number" ? String(value) : undefined;
 const string = (value: unknown, fallback = "—") => value === undefined || value === null || value === "" ? fallback : String(value);
 const number = (value: unknown) => typeof value === "number" ? value : Number(value ?? 0) || 0;
@@ -132,6 +186,69 @@ function requiredLiveNumber(value: unknown, field: string): number {
 function requiredLiveBoolean(value: unknown, field: string): boolean {
   if (typeof value !== "boolean") throw new ConsoleApiError(`实盘聚合接口返回了无效的 ${field}`, "live");
   return value;
+}
+
+/** 读取 Edge 协议中的有限数字。 */
+function requiredEdgeNumber(value: unknown, field: string): number {
+  const parsed = typeof value === "number" ? value : Number.NaN;
+  if (!Number.isFinite(parsed)) throw new ConsoleApiError(`Edge 分布接口返回了无效的 ${field}`, "live");
+  return parsed;
+}
+
+/** 读取 Edge 协议中的非空字符串。 */
+function requiredEdgeString(value: unknown, field: string): string {
+  if (typeof value !== "string" || !value.trim()) throw edgeContractError(field);
+  return value.trim();
+}
+
+/** 读取 Edge 协议中的非负安全整数。 */
+function requiredEdgeCount(value: unknown, field: string): number {
+  const parsed = requiredEdgeNumber(value, field);
+  if (!Number.isSafeInteger(parsed) || parsed < 0) throw edgeContractError(field);
+  return parsed;
+}
+
+/** 读取 Edge 协议中的零到一比例。 */
+function requiredEdgeRatio(value: unknown, field: string): number {
+  const parsed = requiredEdgeNumber(value, field);
+  if (parsed < 0 || parsed > 1) throw edgeContractError(field);
+  return parsed;
+}
+
+/** 读取 Edge 协议中的负一到一概率差。 */
+function requiredEdgeValue(value: unknown, field: string): number {
+  const parsed = requiredEdgeNumber(value, field);
+  if (parsed < -1 || parsed > 1) throw edgeContractError(field);
+  return parsed;
+}
+
+/** 校验分箱连续性、范围和样本总数是否一致。 */
+function validateEdgeBins(bins: EdgeDistributionBin[], sampleCount: number, rangeMin: number, rangeMax: number, binWidth: number): void {
+  if (!bins.length || !approximatelyEqual(bins[0].lower, rangeMin) || !approximatelyEqual(bins.at(-1)?.upper, rangeMax)) {
+    throw edgeContractError("bins 范围");
+  }
+  let count = 0;
+  for (let index = 0; index < bins.length; index += 1) {
+    const bin = bins[index];
+    const previous = bins[index - 1];
+    if (!approximatelyEqual(bin.upper - bin.lower, binWidth) || (previous && !approximatelyEqual(previous.upper, bin.lower))) {
+      throw edgeContractError("bins 连续性");
+    }
+    const expectedRatio = sampleCount > 0 ? bin.count / sampleCount : 0;
+    if (!approximatelyEqual(bin.ratio, expectedRatio)) throw edgeContractError("bins 比例");
+    count += bin.count;
+  }
+  if (count !== sampleCount) throw edgeContractError("bins 样本总数");
+}
+
+/** 比较 Edge 协议中的浮点边界。 */
+function approximatelyEqual(left: number | undefined, right: number): boolean {
+  return left !== undefined && Math.abs(left - right) <= 1e-8;
+}
+
+/** 创建统一的 Edge 协议错误。 */
+function edgeContractError(field: string): ConsoleApiError {
+  return new ConsoleApiError(`Edge 分布接口返回了无效的 ${field}`, "live");
 }
 
 /** 显式映射线程心跳，允许尚未上报的线程返回 null 时间。 */
@@ -268,6 +385,13 @@ export const consoleApi = {
   async dailyPnL(days = 14) {
     const result = await request<RawRecord>(`daily-pnl?${new URLSearchParams({ days: String(days) })}`);
     return { data: mapDailyPnLReport(result.data), mode: result.mode };
+  },
+  /** 读取并校验最新 Edge 分布，可选按模型过滤。 */
+  async edgeDistribution(modelId?: string) {
+    const query = new URLSearchParams();
+    if (modelId) query.set("model_id", modelId);
+    const result = await request<RawRecord>(`edge-distribution${query.size ? `?${query}` : ""}`);
+    return { data: mapEdgeDistribution(result.data), mode: result.mode };
   },
   async liveOperations() { const result = await request<RawRecord>("live-operations"); return { data: mapLiveOperations(result.data), mode: result.mode }; },
   createBacktest: (params: BacktestCreateParams) => request<RawRecord>("backtest-datasets", { method: "POST", body: JSON.stringify(params), headers: { "Idempotency-Key": crypto.randomUUID() } }),

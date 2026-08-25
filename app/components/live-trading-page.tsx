@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { consoleApi } from "../lib/console-api";
 import { demoLiveOperations } from "../lib/demo-live";
-import type { ApiMode, DailyPnLReport, LiveEvent, LiveHealth, LiveOperationsSnapshot, LiveOrder, LivePosition, LiveRiskMetric, LiveWalletSummary } from "../lib/types";
+import type { ApiMode, DailyPnLReport, EdgeDistribution, LiveEvent, LiveHealth, LiveOperationsSnapshot, LiveOrder, LivePosition, LiveRiskMetric, LiveWalletSummary } from "../lib/types";
 import { ConsoleShell } from "./console-shell";
 import { DailyPnLDashboard } from "./daily-pnl-dashboard";
+import { EdgeDistributionPanel } from "./edge-distribution-panel";
 import { Icon } from "./icons";
 
 type EventFilter = "all" | "risk" | "trade";
@@ -22,6 +23,9 @@ export function LiveTradingPage({ previewObservedAt }: { previewObservedAt: stri
   const [pnlError, setPnlError] = useState<string>();
   const [pnlLoading, setPnlLoading] = useState(true);
   const [pnlDays, setPnlDays] = useState(14);
+  const [edgeDistribution, setEdgeDistribution] = useState<EdgeDistribution>();
+  const [edgeError, setEdgeError] = useState<string>();
+  const [edgeLoading, setEdgeLoading] = useState(true);
   const [autoRefresh, setAutoRefresh] = useState(true);
   const [refreshMs, setRefreshMs] = useState(15_000);
   const [selectedWalletId, setSelectedWalletId] = useState<string>();
@@ -60,14 +64,29 @@ export function LiveTradingPage({ previewObservedAt }: { previewObservedAt: stri
     }
   }, []);
 
+  /** 读取最新 Edge 分布并同步页面错误状态。 */
+  const loadEdges = useCallback(async () => {
+    setEdgeLoading(true);
+    try {
+      const result = await consoleApi.edgeDistribution();
+      setEdgeDistribution(result.data);
+      setEdgeError(undefined);
+    } catch (requestError) {
+      setEdgeDistribution(undefined);
+      setEdgeError(requestError instanceof Error ? requestError.message : "Edge 分布接口尚未接入");
+    } finally {
+      setEdgeLoading(false);
+    }
+  }, []);
+
   const load = useCallback(async () => {
-    await Promise.all([loadOperations(), loadPnL(pnlDays)]);
-  }, [loadOperations, loadPnL, pnlDays]);
+    await Promise.all([loadOperations(), loadPnL(pnlDays), loadEdges()]);
+  }, [loadEdges, loadOperations, loadPnL, pnlDays]);
 
   useEffect(() => {
-    const initialLoad = window.setTimeout(() => { void Promise.all([loadOperations(), loadPnL(14)]); }, 0);
+    const initialLoad = window.setTimeout(() => { void Promise.all([loadOperations(), loadPnL(14), loadEdges()]); }, 0);
     return () => window.clearTimeout(initialLoad);
-  }, [loadOperations, loadPnL]);
+  }, [loadEdges, loadOperations, loadPnL]);
   useEffect(() => {
     if (!autoRefresh) return;
     const timer = window.setInterval(() => { void load(); }, refreshMs);
@@ -89,6 +108,8 @@ export function LiveTradingPage({ previewObservedAt }: { previewObservedAt: stri
     setPnlMode("unavailable");
     setError(undefined);
     setPnlError(undefined);
+    setEdgeDistribution(undefined);
+    setEdgeError(undefined);
     setAutoRefresh(true);
     void load();
   };
@@ -121,7 +142,7 @@ export function LiveTradingPage({ previewObservedAt }: { previewObservedAt: stri
       <div className="live-head-actions">
         <label className="refresh-select"><span>刷新</span><select value={refreshMs} onChange={(event) => setRefreshMs(Number(event.target.value))} aria-label="自动刷新间隔"><option value={15000}>15 秒</option><option value={30000}>30 秒</option><option value={60000}>60 秒</option></select></label>
         <button className={`button auto-refresh ${autoRefresh ? "active" : ""}`} aria-pressed={autoRefresh} onClick={() => setAutoRefresh((value) => !value)}><i /> 自动</button>
-        <button className="button" onClick={() => void load()} disabled={loading || pnlLoading}><Icon name="refresh" /> {loading || pnlLoading ? "刷新中" : "立即刷新"}</button>
+        <button className="button" onClick={() => void load()} disabled={loading || pnlLoading || edgeLoading}><Icon name="refresh" /> {loading || pnlLoading || edgeLoading ? "刷新中" : "立即刷新"}</button>
       </div>
     </header>
 
@@ -132,6 +153,7 @@ export function LiveTradingPage({ previewObservedAt }: { previewObservedAt: stri
     {activeSnapshot && <LiveStatusBar snapshot={activeSnapshot} mode={mode} />}
     <WalletPerformance wallets={activeSnapshot?.wallets ?? []} wallet={selectedWallet} selectedWalletId={effectiveWalletId} onWallet={setSelectedWalletId} loading={loading && !activeSnapshot} />
     <DailyPnLDashboard report={walletPnLReport} loading={pnlLoading && !pnlReport} days={pnlDays} onDays={changePnLDays} preview={pnlMode === "demo"} />
+    <EdgeDistributionPanel distribution={edgeDistribution} loading={edgeLoading} error={edgeError} onRetry={() => void loadEdges()} />
 
     {!activeSnapshot && <section className="section panel live-data-state"><strong>{loading ? "正在读取真实实盘快照" : "没有可展示的真实实盘快照"}</strong><p>{loading ? "钱包指标将在服务端返回完整快照后显示。" : "请重试真实数据，或明确选择查看产品预览。"}</p></section>}
     {activeSnapshot && <>
