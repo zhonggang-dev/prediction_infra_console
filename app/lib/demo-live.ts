@@ -53,10 +53,10 @@ export function demoLiveOperations(observedAt = new Date().toISOString()): LiveO
       { id: "ledger", index: 6, name: "成交入账", description: "Fill 验真、仓位与资金账本", count: 3, throughputLabel: "3 笔已确认", state: "warning" },
     ],
     risks: [
-      { id: "exposure", name: "总敞口", current: 3623.94, limit: 8500, unit: "$", hint: "所有未结算持仓的成本口径", state: "safe" },
-      { id: "market", name: "单市场敞口", current: 684, limit: 1000, unit: "$", hint: "最大市场已使用 68.4%", state: "warning" },
-      { id: "loss", name: "当日亏损熔断", current: 0, limit: 500, unit: "$", hint: "当前为盈利状态，未占用亏损额度", state: "safe" },
-      { id: "stale", name: "预测过期", current: 1, limit: 3, unit: "count", hint: "超过 45 分钟的持仓预测", state: "warning" },
+      { id: "exposure", name: "总敞口", current: 114.25191, warningThreshold: 67.36, hardLimit: 84.2, usagePercentage: 135.691105, hardLimitEnforced: true, thresholdType: "hard_limit", unit: "$", hint: "全局所有钱包真实持仓成本，包含外部未纳管仓位", state: "danger" },
+      { id: "market", name: "单市场最大敞口", current: 58.63, warningThreshold: 32, hardLimit: 40, usagePercentage: 146.575, hardLimitEnforced: true, thresholdType: "hard_limit", unit: "$", hint: "当前敞口最大的账户内市场", state: "danger" },
+      { id: "daily_volume", name: "当日交易金额", current: 93.22, warningThreshold: 33.76, hardLimit: 42.2, usagePercentage: 220.9, hardLimitEnforced: true, thresholdType: "hard_limit", unit: "$", hint: "按账户时区统计已确认成交加活动预占", state: "danger" },
+      { id: "stale", name: "预测过期", current: 6, warningThreshold: 0, hardLimit: 0, hardLimitEnforced: false, thresholdType: "target", unit: "count", hint: "超过账户 signal_age 的持仓数量，运营目标为 0", state: "danger" },
     ],
     orders: [
       {

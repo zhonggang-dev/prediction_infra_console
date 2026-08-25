@@ -44,10 +44,11 @@ systemd 部署默认只监听 `127.0.0.1:13000`。如果需要直接通过服务
 - 引擎、CLOB、Ledger 与 Reconcile 健康状态；
 - CycleThread、MonitorThread、PredictionScheduler 的心跳和当前任务；
 - 当轮扫描到入账的交易漏斗；
-- 资金、风险限额、开放订单、持仓、订单生命周期和事件流；
+- 资金、服务端计算的预警线/硬上限/真实占用率、开放订单、持仓、订单生命周期和事件流；
 - `observedAt` 与 `dataFreshnessSeconds`，让值班人员能判断页面是否陈旧。
 
 当前后端未提供该聚合接口时，页面会明确切换到产品预览数据，不会将模拟内容标记为真实实盘状态。前端类型契约位于 `app/lib/types.ts` 的 `LiveOperationsSnapshot`。
+风险卡片不会自行推算业务阈值：`warningThreshold`、`hardLimit`、`usagePercentage`、`hardLimitEnforced` 和 `state` 必须由 Trading 返回。进度条可以在视觉上封顶，但文字保留大于 100% 的真实占用率；目标为 0 的计数直接展示超出数量，不执行除法。
 
 ## 基础服务监控
 

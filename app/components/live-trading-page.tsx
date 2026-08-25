@@ -169,8 +169,8 @@ export function LiveTradingPage({ previewObservedAt }: { previewObservedAt: stri
         </div>
       </div>
       <div>
-        <div className="section-head"><div><h2 className="section-title">风险中枢</h2><p className="section-caption">全局口径 · 所有值均为只读状态，红线动作仍由服务端执行</p></div></div>
-        <div className="panel risk-panel">{activeSnapshot.risks.map((risk) => <RiskRow risk={risk} key={risk.id} />)}<div className="risk-footer"><span><i className="risk-shield">✓</i>交易权限</span><strong>策略服务端风控已启用</strong></div></div>
+        <div className="section-head"><div><h2 className="section-title">全局风险概览</h2><p className="section-caption">统计所有钱包及外部未纳管仓位 · 阈值和状态由 Trading 服务端计算</p></div></div>
+        <div className="panel risk-panel">{activeSnapshot.risks.map((risk) => <RiskRow risk={risk} key={risk.id} />)}<div className="risk-footer"><span><i className="risk-shield">✓</i>交易权限</span><strong>Trading 金额硬上限已启用</strong></div></div>
       </div>
     </section>
 
@@ -250,9 +250,44 @@ function OrderLifecycle({ order }: { order: LiveOrder }) {
   </div>;
 }
 
+/** 展示服务端返回的风险当前值、预警线、硬上限和执行状态。 */
 function RiskRow({ risk }: { risk: LiveRiskMetric }) {
-  const usage = Math.min(100, risk.limit ? risk.current / risk.limit * 100 : 0);
-  return <div className="risk-row"><div className="risk-row-head"><div><strong>{risk.name}</strong><span>{risk.hint}</span></div><div><strong>{riskValue(risk.current, risk.unit)}</strong><small>/ {riskValue(risk.limit, risk.unit)}</small></div></div><div className={`risk-bar ${risk.state}`}><i style={{ width: `${Math.max(2, usage)}%` }} /></div><footer><span>{usage.toFixed(1)}% 已使用</span><span>{risk.state === "safe" ? "安全" : risk.state === "warning" ? "关注" : "越线"}</span></footer></div>;
+  const limitLabel = risk.thresholdType === "target" ? "运营目标" : "硬上限";
+  return <div className={`risk-row ${risk.state}`}>
+    <div className="risk-row-head"><div><strong>{risk.name}</strong><span>{risk.hint}</span></div><div className="risk-row-value"><strong>{riskValue(risk.current, risk.unit)}</strong><small>{limitLabel} {riskValue(risk.hardLimit, risk.unit)}</small></div></div>
+    <div className="risk-thresholds">{riskThresholdSummary(risk)}</div>
+    <div className={`risk-bar ${risk.state}`}><i style={{ width: `${riskBarWidth(risk)}%` }} /></div>
+    <footer><span>{riskUsageLabel(risk)}</span><span>{riskStateLabel(risk)}</span></footer>
+  </div>;
+}
+
+/** 只限制进度条的视觉宽度，保留后端返回的真实占用率文本。 */
+function riskBarWidth(risk: LiveRiskMetric) {
+  if (risk.usagePercentage === undefined) return risk.current > risk.hardLimit ? 100 : 0;
+  if (risk.usagePercentage <= 0) return 0;
+  return Math.min(100, Math.max(2, risk.usagePercentage));
+}
+
+/** 生成风险阈值来源和执行语义说明。 */
+function riskThresholdSummary(risk: LiveRiskMetric) {
+  if (risk.thresholdType === "target") return `仅监控 · 目标 ${riskValue(risk.hardLimit, risk.unit)}`;
+  const enforcement = risk.hardLimitEnforced ? "Trading 强制执行" : "未强制执行";
+  return `预警线 ${riskValue(risk.warningThreshold, risk.unit)} · ${enforcement}`;
+}
+
+/** 生成占用率或零目标超出数量，避免出现除以零。 */
+function riskUsageLabel(risk: LiveRiskMetric) {
+  if (risk.usagePercentage !== undefined) return `${risk.usagePercentage.toFixed(1)}% 硬上限占用`;
+  const exceeded = Math.max(0, risk.current - risk.hardLimit);
+  return exceeded > 0 ? `超出目标 ${riskValue(exceeded, risk.unit)}` : "目标已达成";
+}
+
+/** 把后端风险状态转换为清晰的中文操作提示。 */
+function riskStateLabel(risk: LiveRiskMetric) {
+  if (risk.state === "safe") return "安全";
+  if (risk.state === "warning") return "接近硬上限";
+  if (risk.thresholdType === "target") return "未达目标";
+  return risk.current > risk.hardLimit ? "已超硬上限" : "已达硬上限";
 }
 
 function PositionsPanel({ positions, walletId }: { positions: LivePosition[]; walletId?: string }) {

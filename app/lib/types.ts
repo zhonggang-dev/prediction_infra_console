@@ -223,7 +223,11 @@ export interface LiveRiskMetric {
   id: string;
   name: string;
   current: number;
-  limit: number;
+  warningThreshold: number;
+  hardLimit: number;
+  usagePercentage?: number;
+  hardLimitEnforced: boolean;
+  thresholdType: "hard_limit" | "target";
   unit: "$" | "%" | "count" | "minutes";
   hint: string;
   state: "safe" | "warning" | "danger";
