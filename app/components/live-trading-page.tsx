@@ -169,8 +169,8 @@ export function LiveTradingPage({ previewObservedAt }: { previewObservedAt: stri
         </div>
       </div>
       <div>
-        <div className="section-head"><div><h2 className="section-title">全局风险概览</h2><p className="section-caption">统计所有钱包及外部未纳管仓位 · 阈值和状态由 Trading 服务端计算</p></div></div>
-        <div className="panel risk-panel">{activeSnapshot.risks.map((risk) => <RiskRow risk={risk} key={risk.id} />)}<div className="risk-footer"><span><i className="risk-shield">✓</i>交易权限</span><strong>Trading 金额硬上限已启用</strong></div></div>
+        <div className="section-head"><div><h2 className="section-title">全局风险概览</h2><p className="section-caption">统计所有钱包及外部未纳管仓位 · 优先采用 Trading 显式口径，旧协议按只读目标兼容</p></div></div>
+        <div className="panel risk-panel">{activeSnapshot.risks.map((risk) => <RiskRow risk={risk} key={risk.id} />)}<div className="risk-footer"><span><i className="risk-shield">✓</i>交易权限</span><strong>{riskEnforcementSummary(activeSnapshot.risks)}</strong></div></div>
       </div>
     </section>
 
@@ -277,17 +277,24 @@ function riskThresholdSummary(risk: LiveRiskMetric) {
 
 /** 生成占用率或零目标超出数量，避免出现除以零。 */
 function riskUsageLabel(risk: LiveRiskMetric) {
-  if (risk.usagePercentage !== undefined) return `${risk.usagePercentage.toFixed(1)}% 硬上限占用`;
+  if (risk.usagePercentage !== undefined) return `${risk.usagePercentage.toFixed(1)}% ${risk.thresholdType === "target" ? "目标占用" : "硬上限占用"}`;
   const exceeded = Math.max(0, risk.current - risk.hardLimit);
   return exceeded > 0 ? `超出目标 ${riskValue(exceeded, risk.unit)}` : "目标已达成";
 }
 
 /** 把后端风险状态转换为清晰的中文操作提示。 */
 function riskStateLabel(risk: LiveRiskMetric) {
-  if (risk.state === "safe") return "安全";
-  if (risk.state === "warning") return "接近硬上限";
-  if (risk.thresholdType === "target") return "未达目标";
+  if (risk.state === "safe") return risk.thresholdType === "target" ? "目标内" : "安全";
+  if (risk.state === "warning") return risk.thresholdType === "target" ? "接近目标" : "接近硬上限";
+  if (risk.thresholdType === "target") return risk.current > risk.hardLimit ? "已超目标" : "已达目标";
   return risk.current > risk.hardLimit ? "已超硬上限" : "已达硬上限";
+}
+
+/** 汇总当前是否存在 Trading 真正强制执行的金额硬上限。 */
+function riskEnforcementSummary(risks: LiveRiskMetric[]) {
+  return risks.some((risk) => risk.thresholdType === "hard_limit" && risk.hardLimitEnforced)
+    ? "Trading 硬上限已启用"
+    : "金额目标仅监控，不拦截交易";
 }
 
 function PositionsPanel({ positions, walletId }: { positions: LivePosition[]; walletId?: string }) {

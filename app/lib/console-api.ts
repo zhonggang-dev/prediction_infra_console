@@ -2,6 +2,7 @@
 
 import { demoData, demoOverview } from "./demo-data";
 import { demoDailyPnL, demoTradeHistory } from "./demo-trades";
+import { normalizeLiveRisk } from "./live-risk";
 import type { ApiMode, ApiResult, BacktestCreateParams, ConsoleList, ConsoleResource, ConsoleRow, DailyPnLPoint, DailyPnLReport, EdgeDistribution, EdgeDistributionBin, EdgeDistributionSeries, LiveEvent, LiveFunnelStage, LiveHealth, LiveOperationsSnapshot, LiveOrder, LiveOrderStep, LivePosition, LiveRiskMetric, LiveStageState, LiveWalletSummary, LiveWorker, OverviewData, ServiceMetricsOverview, ServiceRuntimeHealth, ServiceRuntimeMetrics, TradeHistoryPage, TradeHistoryParams, TradeHistorySummary, TradeRecord, TradeSide } from "./types";
 
 type RawRecord = Record<string, unknown>;
@@ -261,40 +262,13 @@ function mapLiveFunnelStage(item: RawRecord): LiveFunnelStage {
   return { id: string(item.id), index: number(item.index), name: string(item.name), description: string(item.description), count: number(item.count), throughputLabel: string(item.throughputLabel), state: stageState(item.state) };
 }
 
-/** 解析服务端风险状态，未知值按危险展示。 */
-function liveRiskState(value: unknown): LiveRiskMetric["state"] {
-  return value === "safe" || value === "warning" || value === "danger" ? value : "danger";
-}
-
-/** 解析服务端阈值类型，拒绝把未知业务口径伪装成有效数据。 */
-function liveRiskThresholdType(value: unknown): LiveRiskMetric["thresholdType"] {
-  if (value === "hard_limit" || value === "target") return value;
-  throw new ConsoleApiError("实盘聚合接口返回了未知的风险阈值类型", "live");
-}
-
-/** 显式映射服务端计算的预警线、硬上限和真实占用率。 */
+/** 映射新旧风险契约并保持 ConsoleApiError 的实盘错误分类。 */
 function mapLiveRisk(item: RawRecord): LiveRiskMetric {
-  const rawUnit = string(item.unit, "count");
-  const unit = rawUnit === "$" || rawUnit === "%" || rawUnit === "minutes" ? rawUnit : "count";
-  const current = requiredLiveNumber(item.current, "risks.current");
-  const warningThreshold = requiredLiveNumber(item.warningThreshold, "risks.warningThreshold");
-  const hardLimit = requiredLiveNumber(item.hardLimit, "risks.hardLimit");
-  const usagePercentage = optionalNumber(item.usagePercentage);
-  const hardLimitEnforced = requiredLiveBoolean(item.hardLimitEnforced, "risks.hardLimitEnforced");
-  const thresholdType = liveRiskThresholdType(item.thresholdType);
-  if (current < 0 || warningThreshold < 0 || hardLimit < 0 || (usagePercentage !== undefined && usagePercentage < 0)) {
-    throw new ConsoleApiError("实盘聚合接口返回了负数风险阈值", "live");
+  try {
+    return normalizeLiveRisk(item);
+  } catch (error) {
+    throw new ConsoleApiError(error instanceof Error ? error.message : "实盘聚合接口返回了无效风险字段", "live");
   }
-  if (hardLimit > 0 && (warningThreshold > hardLimit || usagePercentage === undefined)) {
-    throw new ConsoleApiError("实盘聚合接口返回了不一致的风险阈值", "live");
-  }
-  if (thresholdType === "hard_limit" && !hardLimitEnforced) {
-    throw new ConsoleApiError("实盘聚合接口未执行声明的风险硬上限", "live");
-  }
-  return {
-    id: string(item.id), name: string(item.name), current, warningThreshold, hardLimit,
-    usagePercentage, hardLimitEnforced, thresholdType, unit, hint: string(item.hint), state: liveRiskState(item.state),
-  };
 }
 
 /** 显式映射订单生命周期节点。 */
