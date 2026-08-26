@@ -48,7 +48,7 @@ systemd 部署默认只监听 `127.0.0.1:13000`。如果需要直接通过服务
 - `observedAt` 与 `dataFreshnessSeconds`，让值班人员能判断页面是否陈旧。
 
 当前后端未提供该聚合接口时，页面会明确切换到产品预览数据，不会将模拟内容标记为真实实盘状态。前端类型契约位于 `app/lib/types.ts` 的 `LiveOperationsSnapshot`。
-风险卡片不会自行推算业务阈值：`warningThreshold`、`hardLimit`、`usagePercentage`、`hardLimitEnforced` 和 `state` 必须由 Trading 返回。进度条可以在视觉上封顶，但文字保留大于 100% 的真实占用率；目标为 0 的计数直接展示超出数量，不执行除法。
+风险卡片优先使用 Trading 返回的 `warningThreshold`、`hardLimit`、`usagePercentage`、`hardLimitEnforced`、`thresholdType` 和 `state`。金额配置当前作为只读运营目标展示，不代表 Trading 会按该金额拦截交易；进度条可以在视觉上封顶，但文字保留大于 100% 的真实目标占用率。滚动发布期间若旧 Trading 只返回 `current/limit/state`，Console 会把 `limit` 兼容解释为不强制执行的运营目标，按 80% 生成提醒线并重新计算展示状态；目标为 0 时直接展示超出数量，不执行除法。
 
 ## 基础服务监控
 
