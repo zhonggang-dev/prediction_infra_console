@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { consoleApi } from "../lib/console-api";
 import { demoLiveOperations } from "../lib/demo-live";
+import { calculateMaximumDrawdown } from "../lib/pnl-metrics";
 import type { ApiMode, DailyPnLReport, EdgeDistribution, LiveEvent, LiveHealth, LiveOperationsSnapshot, LiveOrder, LivePosition, LiveRiskMetric, LiveWalletSummary } from "../lib/types";
 import { ConsoleShell } from "./console-shell";
 import { DailyPnLDashboard } from "./daily-pnl-dashboard";
@@ -127,10 +128,8 @@ export function LiveTradingPage({ previewObservedAt }: { previewObservedAt: stri
   const effectiveOrderId = walletOrders.some((order) => order.orderId === selectedOrderId) ? selectedOrderId : walletOrders[0]?.orderId;
   const selectedOrder = walletOrders.find((order) => order.orderId === effectiveOrderId);
   const filteredEvents = activeSnapshot ? filterEvents(activeSnapshot.events, eventFilter) : [];
-  const walletPnLReport = useMemo(() => {
-    if (!pnlReport || !effectiveWalletId) return undefined;
-    return { ...pnlReport, items: pnlReport.items.filter((point) => point.executionAccountId === effectiveWalletId) };
-  }, [effectiveWalletId, pnlReport]);
+  const currentPositionValue = walletPositions.reduce((total, position) => total + position.marketValue, 0);
+  const maximumDrawdown = useMemo(() => calculateMaximumDrawdown(pnlReport, effectiveWalletId), [effectiveWalletId, pnlReport]);
 
   return <ConsoleShell>
     <header className="page-head live-page-head">
@@ -151,8 +150,8 @@ export function LiveTradingPage({ previewObservedAt }: { previewObservedAt: stri
     {mode === "live" && pnlMode === "unavailable" && !pnlLoading && <div className="notice live-error-notice"><div><strong>每日盈亏数据不可用</strong><p>实盘快照正常，但每日账本收益不会使用演示值替代。原因：{pnlError}</p></div><div className="notice-actions"><button className="button" onClick={() => void loadPnL(pnlDays)}>重试盈亏数据</button><button className="button" onClick={showPreview}>查看产品预览</button></div></div>}
 
     {activeSnapshot && <LiveStatusBar snapshot={activeSnapshot} mode={mode} />}
-    <WalletPerformance wallets={activeSnapshot?.wallets ?? []} wallet={selectedWallet} selectedWalletId={effectiveWalletId} onWallet={setSelectedWalletId} loading={loading && !activeSnapshot} />
-    <DailyPnLDashboard report={walletPnLReport} loading={pnlLoading && !pnlReport} days={pnlDays} onDays={changePnLDays} preview={pnlMode === "demo"} />
+    <WalletPerformance wallets={activeSnapshot?.wallets ?? []} wallet={selectedWallet} selectedWalletId={effectiveWalletId} onWallet={setSelectedWalletId} loading={loading && !activeSnapshot} currentPositionValue={currentPositionValue} maximumDrawdown={maximumDrawdown} pnlDays={pnlReport?.days ?? pnlDays} />
+    <DailyPnLDashboard report={pnlReport} loading={pnlLoading && !pnlReport} days={pnlDays} onDays={changePnLDays} preview={pnlMode === "demo"} />
     <EdgeDistributionPanel distribution={edgeDistribution} loading={edgeLoading} error={edgeError} onRetry={() => void loadEdges()} />
 
     {!activeSnapshot && <section className="section panel live-data-state"><strong>{loading ? "正在读取真实实盘快照" : "没有可展示的真实实盘快照"}</strong><p>{loading ? "钱包指标将在服务端返回完整快照后显示。" : "请重试真实数据，或明确选择查看产品预览。"}</p></section>}
@@ -202,15 +201,17 @@ function LiveStatusBar({ snapshot, mode }: { snapshot: LiveOperationsSnapshot; m
 
 function StatusCheck({ label, health }: { label: string; health: LiveHealth }) { return <span className={health}><i />{label}</span>; }
 
-function WalletPerformance({ wallets, wallet, selectedWalletId, onWallet, loading }: { wallets: LiveWalletSummary[]; wallet?: LiveWalletSummary; selectedWalletId?: string; onWallet: (id: string) => void; loading: boolean }) {
+function WalletPerformance({ wallets, wallet, selectedWalletId, onWallet, loading, currentPositionValue, maximumDrawdown, pnlDays }: { wallets: LiveWalletSummary[]; wallet?: LiveWalletSummary; selectedWalletId?: string; onWallet: (id: string) => void; loading: boolean; currentPositionValue: number; maximumDrawdown: number | null; pnlDays: number }) {
   const metrics = [
     { label: "系统管理持仓", value: wallet ? String(wallet.positionCount) : "—", meta: "不含未纳管链上仓位", tone: "" },
+    { label: "当前持仓价值", value: wallet ? usd(currentPositionValue) : "—", meta: "系统管理持仓按最新标记价", tone: "" },
     { label: "Peak Cash Used", value: wallet ? usd(wallet.peakCashUsed) : "—", meta: "历史最大同时在场成本（含买入费）", tone: "" },
     { label: "累计投入成本", value: wallet ? usd(wallet.cumulativeInvestedCost) : "—", meta: "已确认买入累计成本", tone: "" },
     { label: "Realized PnL", value: wallet ? signedUsd(wallet.realizedPnl) : "—", meta: "累计已实现盈亏", tone: wallet ? pnlTone(wallet.realizedPnl) : "" },
     { label: "Unrealized PnL", value: wallet ? signedUsd(wallet.unrealizedPnl) : "—", meta: "当前系统持仓盯市", tone: wallet ? pnlTone(wallet.unrealizedPnl) : "" },
     { label: "Total PnL", value: wallet ? signedUsd(wallet.totalPnl) : "—", meta: "Realized + Unrealized", tone: wallet ? pnlTone(wallet.totalPnl) : "" },
     { label: "Return", value: wallet?.return === null || wallet?.return === undefined ? "—" : signedPct(wallet.return), meta: "Total PnL / Peak Cash Used", tone: wallet?.return === null || wallet?.return === undefined ? "" : pnlTone(wallet.return) },
+    { label: "最大回撤", value: maximumDrawdown === null ? "—" : maximumDrawdown > 0 ? `−${usd(maximumDrawdown)}` : usd(0), meta: `近 ${pnlDays} 天累计已实现 PnL`, tone: maximumDrawdown && maximumDrawdown > 0 ? "negative" : "" },
   ];
   return <section className="section wallet-performance" aria-labelledby="wallet-performance-title">
     <div className="section-head wallet-performance-head"><div><h2 className="section-title" id="wallet-performance-title">钱包核心指标</h2><p className="section-caption">单钱包累计口径；全局线程与风险状态不随选择器变化</p></div><label className="wallet-selector"><span>选择钱包</span><select className="select" value={selectedWalletId ?? ""} onChange={(event) => onWallet(event.target.value)} disabled={!wallets.length} aria-label="选择实盘钱包">{wallets.length ? wallets.map((item) => <option value={item.executionAccountId} key={item.executionAccountId}>{item.executionAccountId}</option>) : <option value="">{loading ? "正在读取钱包" : "暂无真实钱包"}</option>}</select></label></div>

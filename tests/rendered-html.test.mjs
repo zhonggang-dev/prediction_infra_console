@@ -54,14 +54,16 @@ test("服务端可渲染实盘监控页面", async () => {
   assert.match(html, /从机会扫描到成交入账/);
   assert.match(html, /选择钱包/);
   assert.match(html, /系统管理持仓/);
+  assert.match(html, /当前持仓价值/);
   assert.match(html, /Peak Cash Used/);
   assert.match(html, /累计投入成本/);
   assert.match(html, /Realized PnL/);
   assert.match(html, /Unrealized PnL/);
   assert.match(html, /Total PnL/);
   assert.match(html, /Return/);
-  assert.match(html, /每日钱包策略盈亏/);
-  assert.match(html, /净已实现盈亏/);
+  assert.match(html, /最大回撤/);
+  assert.match(html, /钱包 PnL 对比/);
+  assert.match(html, /多选钱包比较累计已实现 PnL/);
   assert.match(html, /模型 Edge 分布/);
   assert.match(html, /模型概率 − 盘口中间价/);
   assert.match(html, /正在读取真实实盘快照/);
