@@ -27,7 +27,7 @@ test("钱包没有账本数据时不伪造零回撤", () => {
 });
 
 function point(day: string, realizedPnl: number, strategyId: string): DailyPnLPoint {
-  return { day, executionAccountId: wallet, modelId: "forecast-v2", strategyId, realizedPnl: String(realizedPnl), closedTradeCount: 1, closedShares: "1" };
+  return { day, executionAccountId: wallet, modelId: "forecast-v2", strategyId, realizedPnl: String(realizedPnl), closedTradeCount: 1, closedShares: "1", redemptionCount: 0, redemptionPnl: "0" };
 }
 
 function pnlReport(items: DailyPnLPoint[]): DailyPnLReport {

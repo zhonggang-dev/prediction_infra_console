@@ -7,6 +7,8 @@ type WalletDailyPnL = {
   realizedPnl: number;
   closedTradeCount: number;
   closedShares: number;
+  redemptionCount: number;
+  redemptionPnl: number;
 };
 
 type WalletPnLSeries = {
@@ -34,6 +36,7 @@ export function DailyPnLDashboard({ report, loading, days, onDays, preview = fal
     .sort((left, right) => numeric(right.point?.realizedPnl) - numeric(left.point?.realizedPnl));
   const todayNet = today.reduce((total, row) => total + numeric(row.point?.realizedPnl), 0);
   const todayTrades = today.reduce((total, row) => total + (row.point?.closedTradeCount ?? 0), 0);
+  const todayRedemptions = today.reduce((total, row) => total + (row.point?.redemptionCount ?? 0), 0);
   const profitable = today.filter((row) => numeric(row.point?.realizedPnl) > 0).length;
   const best = today.find((row) => numeric(row.point?.realizedPnl) > 0);
   const worst = [...today].reverse().find((row) => numeric(row.point?.realizedPnl) < 0);
@@ -52,13 +55,13 @@ export function DailyPnLDashboard({ report, loading, days, onDays, preview = fal
 
   return <section className="section pnl-dashboard" aria-labelledby="daily-pnl-title">
     <div className="section-head pnl-section-head">
-      <div><div className="pnl-title-line"><h2 className="section-title" id="daily-pnl-title">钱包 PnL 对比</h2>{preview && <span className="pnl-preview-chip">预览数据</span>}</div><p className="section-caption">多选钱包比较累计已实现 PnL · 手续费已计入 · UTC 自然日</p></div>
+      <div><div className="pnl-title-line"><h2 className="section-title" id="daily-pnl-title">钱包 PnL 对比</h2>{preview && <span className="pnl-preview-chip">预览数据</span>}</div><p className="section-caption">多选钱包比较累计已实现 PnL · 来自已确认并入账的成交与结算（SELL 平仓 + REDEEM 赎回）· 手续费已计入 · UTC 自然日</p></div>
       <div className="pnl-range" aria-label="盈亏时间范围">{[7, 14, 30].map((value) => <button key={value} aria-pressed={days === value} className={days === value ? "active" : ""} onClick={() => onDays(value)}>{value} 天</button>)}</div>
     </div>
-    {loading ? <DailyPnLSkeleton /> : !report || !allWalletsChart.rows.length ? <div className="panel pnl-empty"><strong>还没有可展示的钱包 PnL</strong><span>启用策略绑定后，即使当天没有平仓也会在这里显示 $0.00。</span></div> : <>
+    {loading ? <DailyPnLSkeleton /> : !report || !allWalletsChart.rows.length ? <div className="panel pnl-empty"><strong>还没有可展示的钱包 PnL</strong><span>启用策略绑定后，即使当天没有平仓或赎回也会在这里显示 $0.00。</span></div> : <>
       <WalletComparisonSelector rows={allWalletsChart.rows} selectedWalletIDs={selectedWalletSet} onToggle={toggleWallet} onSelectAll={() => setSelectionOverride(null)} />
       <div className="pnl-hero">
-        <div className="pnl-net"><span>今日净已实现</span><strong className={todayNet < 0 ? "negative" : "positive"}>{signedMoney(todayNet)}</strong><small>{today.length} 个钱包 · {todayTrades} 笔平仓</small></div>
+        <div className="pnl-net"><span>今日净已实现</span><strong className={todayNet < 0 ? "negative" : "positive"}>{signedMoney(todayNet)}</strong><small>{today.length} 个钱包 · {todayTrades} 笔平仓 · {todayRedemptions} 笔赎回</small></div>
         <div className="pnl-hero-facts">
           <PnlFact label="盈利钱包" value={`${profitable} / ${today.length}`} />
           <PnlFact label="今日领跑钱包" value={best ? shortID(best.executionAccountId, 6) : "—"} meta={best ? signedMoney(best.point?.realizedPnl) : "暂无盈利"} tone="positive" />
@@ -68,9 +71,9 @@ export function DailyPnLDashboard({ report, loading, days, onDays, preview = fal
       <div className="pnl-layout">
         <WalletPnLLineChart chart={chart} report={report} />
         <div className="panel pnl-today-panel">
-          <div className="pnl-panel-head"><div><strong>今日钱包明细</strong><span>{report.toDay} · UTC</span></div><span className="pnl-live-dot"><i />{preview ? "预览数据" : "账本数据"}</span></div>
+          <div className="pnl-panel-head"><div><strong>今日钱包明细</strong><span>{report.toDay} · UTC</span></div><span className="pnl-live-dot"><i />{preview ? "预览数据" : "成交与结算账本"}</span></div>
           <div className="pnl-today-list">{today.map((row, index) => { const value = numeric(row.point?.realizedPnl); return <div className="pnl-today-item" key={row.key}>
-            <span className="pnl-rank">{String(index + 1).padStart(2, "0")}</span><div><strong title={row.executionAccountId}>{shortID(row.executionAccountId, 8)}</strong><span>{listLabel(row.strategyIds)}</span><small>{listLabel(row.modelIds)}</small></div><div><strong className={value < 0 ? "negative" : value > 0 ? "positive" : "muted"}>{signedMoney(value)}</strong><small>{row.point?.closedTradeCount ? `${row.point.closedTradeCount} 笔平仓 · ${quantity(row.point.closedShares)} shares` : "今日无平仓"}</small></div>
+            <span className="pnl-rank">{String(index + 1).padStart(2, "0")}</span><div><strong title={row.executionAccountId}>{shortID(row.executionAccountId, 8)}</strong><span>{listLabel(row.strategyIds)}</span><small>{listLabel(row.modelIds)}</small></div><div><strong className={value < 0 ? "negative" : value > 0 ? "positive" : "muted"}>{signedMoney(value)}</strong><small>{settlementLabel(row.point)}</small></div>
           </div>; })}</div>
         </div>
       </div>
@@ -150,7 +153,7 @@ function WalletPnLLineChart({ chart, report }: { chart: PnLChart; report: DailyP
         </svg>
         <div className={`pnl-chart-tooltip ${safeHoverIndex > chart.days.length / 2 ? "align-right" : ""}`} style={{ left: `${hoverLeft}%` }} role="status">
           <strong>{hoveredDay} <span>UTC · 累计</span></strong>
-          {lineData.map(({ row, points }) => { const index = colorIndex(report, row.executionAccountId); const daily = row.points.get(hoveredDay); const cumulative = points[safeHoverIndex]?.value ?? 0; return <div key={row.key}><i style={{ backgroundColor: SERIES_COLORS[index % SERIES_COLORS.length] }} /><span>{shortID(row.executionAccountId, 5)}<small>{listLabel(row.strategyIds)}</small></span><b className={cumulative < 0 ? "negative" : cumulative > 0 ? "positive" : ""}>{signedMoney(cumulative)}</b><em>当日 {signedMoney(daily?.realizedPnl)} · {daily?.closedTradeCount ?? 0} 笔</em></div>; })}
+          {lineData.map(({ row, points }) => { const index = colorIndex(report, row.executionAccountId); const daily = row.points.get(hoveredDay); const cumulative = points[safeHoverIndex]?.value ?? 0; return <div key={row.key}><i style={{ backgroundColor: SERIES_COLORS[index % SERIES_COLORS.length] }} /><span>{shortID(row.executionAccountId, 5)}<small>{listLabel(row.strategyIds)}</small></span><b className={cumulative < 0 ? "negative" : cumulative > 0 ? "positive" : ""}>{signedMoney(cumulative)}</b><em>当日 {signedMoney(daily?.realizedPnl)} · {daily?.closedTradeCount ?? 0} 笔平仓{daily?.redemptionCount ? ` · ${daily.redemptionCount} 笔赎回` : ""}</em></div>; })}
         </div>
       </div>
     </div>
@@ -172,10 +175,12 @@ function buildPnLChart(report?: DailyPnLReport): PnLChart {
   for (const point of report.items) {
     daySet.add(point.day);
     const row = series.get(point.executionAccountId) ?? { executionAccountId: point.executionAccountId, modelIds: new Set<string>(), strategyIds: new Set<string>(), points: new Map<string, WalletDailyPnL>() };
-    const daily = row.points.get(point.day) ?? { realizedPnl: 0, closedTradeCount: 0, closedShares: 0 };
+    const daily = row.points.get(point.day) ?? { realizedPnl: 0, closedTradeCount: 0, closedShares: 0, redemptionCount: 0, redemptionPnl: 0 };
     daily.realizedPnl += numeric(point.realizedPnl);
     daily.closedTradeCount += point.closedTradeCount;
     daily.closedShares += numeric(point.closedShares);
+    daily.redemptionCount += point.redemptionCount;
+    daily.redemptionPnl += numeric(point.redemptionPnl);
     row.points.set(point.day, daily);
     row.modelIds.add(point.modelId);
     row.strategyIds.add(point.strategyId);
@@ -225,3 +230,13 @@ const weekday = (value: string) => weekdayFormatter.format(utcDay(value));
 const dateRange = (from: string, to: string) => `${shortDay(from)} — ${shortDay(to)} · ${weekday(to)}更新`;
 const shortID = (value: string, edge = 8) => value.length > edge * 2 + 1 ? `${value.slice(0, edge)}…${value.slice(-edge)}` : value;
 const listLabel = (values: string[]) => values.join(" / ");
+
+/** 今日明细同时说明平仓与赎回来源；REDEEM 单独标注，避免被误读为卖出成交。 */
+function settlementLabel(point?: WalletDailyPnL) {
+  if (!point || (!point.closedTradeCount && !point.redemptionCount)) return "今日无平仓或赎回";
+  const parts: string[] = [];
+  if (point.closedTradeCount) parts.push(`${point.closedTradeCount} 笔平仓`);
+  if (point.redemptionCount) parts.push(`${point.redemptionCount} 笔赎回 ${signedMoney(point.redemptionPnl)}`);
+  parts.push(`${quantity(point.closedShares)} shares`);
+  return parts.join(" · ");
+}

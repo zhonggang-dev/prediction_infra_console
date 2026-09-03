@@ -1,4 +1,4 @@
-import type { DailyPnLReport, TradeHistoryPage, TradeHistoryParams, TradeRecord } from "./types";
+import type { DailyPnLReport, LedgerActivity, LedgerActivityPage, LedgerActivityParams, TradeHistoryPage, TradeHistoryParams, TradeRecord } from "./types";
 
 const utc = (offsetMinutes: number) => new Date(Date.now() - offsetMinutes * 60_000).toISOString();
 
@@ -54,6 +54,65 @@ export function demoTradeHistory(params: TradeHistoryParams = {}): TradeHistoryP
   };
 }
 
+/** 演示用的链上赎回结算：不是 CLOB 卖出成交，因此没有成交价、订单 ID 与流动性角色。 */
+const demoRedemptions: LedgerActivity[] = [{
+  activityKey: "redemption:lot-redemption:0x9a3f5c71:lot-01K2Q7KA", activityType: "REDEEM", venue: "polymarket",
+  executionAccountId: "acct-forecast-v2-multfactor-v2", modelId: "forecast-v2", strategyId: "multfactor_v2",
+  marketId: "pm-7c21", marketLabel: "Will the July jobs report beat consensus?", conditionId: "0x8d7a7c21f01439c8", tokenId: "71300847c21",
+  outcomeName: "NO", lotId: "lot-01K2Q7KA", shares: "40", totalFee: "0", netCashDelta: "40", costBasis: "2.08", settlementPayout: "40",
+  realizedPnl: "37.92", transactionHash: "0x9a3f5c71e2b4d5f60a8c9e1d2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2",
+  occurredAt: utc(320), confirmedAt: utc(322), appliedAt: utc(320),
+}];
+
+/** 把演示成交映射成统一账本活动；SELL 的成本 = 净收入 − 已实现盈亏。 */
+function activityFromTrade(item: TradeRecord): LedgerActivity {
+  return {
+    activityKey: `fill:${item.fillKey}`, activityType: item.side, venue: item.venue,
+    executionAccountId: item.executionAccountId, modelId: item.modelId, strategyId: item.strategyId,
+    marketId: item.marketId, marketLabel: item.marketLabel, conditionId: item.conditionId, tokenId: item.tokenId,
+    outcomeName: item.outcomeName, lotId: item.lotId, orderId: item.orderId, venueOrderId: item.venueOrderId,
+    venueTradeId: item.venueTradeId, orderStatus: item.orderStatus, liquidityRole: item.liquidityRole,
+    shares: item.shares, price: item.price, grossNotional: item.grossNotional, totalFee: item.totalFee, netCashDelta: item.netCashDelta,
+    costBasis: item.side === "SELL" ? decimal(Number(item.netCashDelta) - Number(item.realizedPnl)) : undefined,
+    realizedPnl: item.realizedPnl, transactionHash: item.transactionHash,
+    occurredAt: item.matchedAt, confirmedAt: item.confirmedAt, appliedAt: item.confirmedAt,
+  };
+}
+
+/** 演示账本活动遵循与服务端相同的过滤和汇总口径：已实现盈亏 = SELL 平仓 + REDEEM，赎回不计入卖出金额。 */
+export function demoLedgerActivities(params: LedgerActivityParams = {}): LedgerActivityPage {
+  const needle = params.query?.trim().toLowerCase();
+  const from = params.from ? new Date(params.from).getTime() : undefined;
+  const to = params.to ? new Date(params.to).getTime() : undefined;
+  const filtered = [...demoTrades.map(activityFromTrade), ...demoRedemptions]
+    .filter((item) => {
+      const occurred = new Date(item.occurredAt).getTime();
+      if (from !== undefined && occurred < from) return false;
+      if (to !== undefined && occurred > to) return false;
+      if (params.activityType && item.activityType !== params.activityType) return false;
+      if (params.modelId && item.modelId !== params.modelId) return false;
+      if (params.strategyId && item.strategyId !== params.strategyId) return false;
+      if (params.executionAccountId && item.executionAccountId !== params.executionAccountId) return false;
+      return !needle || Object.values(item).join(" ").toLowerCase().includes(needle);
+    })
+    .sort((left, right) => new Date(right.occurredAt).getTime() - new Date(left.occurredAt).getTime());
+  const offset = params.offset ?? 0;
+  const limit = params.limit ?? 20;
+  const sum = (pick: (item: LedgerActivity) => string | undefined, type?: LedgerActivity["activityType"]) =>
+    decimal(filtered.reduce((total, item) => total + (type && item.activityType !== type ? 0 : Number(pick(item) ?? 0)), 0));
+  const count = (type?: LedgerActivity["activityType"]) => filtered.filter((item) => (type ? item.activityType === type : true)).length;
+  return {
+    items: filtered.slice(offset, offset + limit), total: filtered.length, limit, offset,
+    summary: {
+      activityCount: filtered.length, tradeCount: count("BUY") + count("SELL"), redemptionCount: count("REDEEM"),
+      buyNotional: sum((item) => item.grossNotional, "BUY"), sellNotional: sum((item) => item.grossNotional, "SELL"),
+      redeemPayout: sum((item) => item.settlementPayout, "REDEEM"), netCashFlow: sum((item) => item.netCashDelta),
+      totalFee: sum((item) => item.totalFee), realizedPnl: sum((item) => item.realizedPnl),
+      sellRealizedPnl: sum((item) => item.realizedPnl, "SELL"), redeemRealizedPnl: sum((item) => item.realizedPnl, "REDEEM"),
+    },
+  };
+}
+
 const demoPnLSeries = [
   { account: "acct-forecast-v2-multfactor-v2", model: "forecast-v2", strategy: "multfactor_v2", today: 2.1837, cycle: [1.24, -0.42, 0, 2.71, 0.86, -1.18, 1.92] },
   { account: "acct-forecast-v2-multfactor-v1", model: "forecast-v2", strategy: "multfactor_v1", today: -0.7954, cycle: [-0.31, 0.72, 1.08, -1.44, 0, 0.48, -0.22] },
@@ -79,6 +138,7 @@ export function demoDailyPnL(requestedDays = 14): DailyPnLReport {
         day: day.toISOString().slice(0, 10), executionAccountId: series.account,
         modelId: series.model, strategyId: series.strategy, realizedPnl: decimal(value),
         closedTradeCount: trades, closedShares: decimal(trades * (8.5 + seriesIndex * 2.25)),
+        redemptionCount: 0, redemptionPnl: "0",
       };
     });
   }).flat();

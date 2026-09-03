@@ -123,6 +123,15 @@ function resolveTarget(path: string[], method: string): ProxyTarget | undefined 
       serviceName: "Trading Execution",
     };
   }
+  if (first === "ledger-activities" && method === "GET" && path.length === 1) {
+    return {
+      baseUrl: process.env.TRADING_EXECUTION_BASE_URL,
+      token: process.env.TRADING_EXECUTION_API_TOKEN,
+      endpoint: "/api/v1/ledger-activities",
+      stream: false,
+      serviceName: "Trading Execution",
+    };
+  }
   if (first === "daily-pnl" && method === "GET" && path.length === 1) {
     return {
       baseUrl: process.env.TRADING_EXECUTION_BASE_URL,

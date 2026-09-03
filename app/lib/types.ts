@@ -82,7 +82,7 @@ export interface ServiceMetricsOverview {
 
 export type TradeSide = "BUY" | "SELL";
 
-/** 前端交易记录仅对应 Go 账本中已确认、已入账的真实 Fill。 */
+/** 兼容保留：对应 Go 账本中已确认、已入账的真实 Fill（/trades）。 */
 export interface TradeRecord {
   fillKey: string;
   venue: string;
@@ -141,15 +141,93 @@ export interface TradeHistoryParams {
   query?: string;
 }
 
-/** UTC 自然日内，按执行账户和开仓策略归因的净已实现盈亏。 */
+export type LedgerActivityType = "BUY" | "SELL" | "REDEEM";
+
+/**
+ * 统一账本活动：BUY / SELL 为已确认并入账的 CLOB 真实成交，REDEEM 为 auto redeem 入账后按原始批次拆分的赎回结算。
+ * REDEEM 不是卖出成交，没有成交价、订单 ID 与流动性角色，这些字段为空并在页面上显示为 —。
+ */
+export interface LedgerActivity {
+  activityKey: string;
+  activityType: LedgerActivityType;
+  venue: string;
+  executionAccountId: string;
+  modelId: string;
+  strategyId: string;
+  marketId: string;
+  marketLabel?: string;
+  conditionId?: string;
+  tokenId: string;
+  outcomeName?: string;
+  lotId?: string;
+  orderId?: string;
+  venueOrderId?: string;
+  venueTradeId?: string;
+  orderStatus?: string;
+  liquidityRole?: string;
+  shares: string;
+  price?: string;
+  grossNotional?: string;
+  totalFee: string;
+  netCashDelta: string;
+  costBasis?: string;
+  settlementPayout?: string;
+  realizedPnl: string;
+  transactionHash?: string;
+  occurredAt: string;
+  confirmedAt: string;
+  appliedAt: string;
+}
+
+/** 已实现盈亏 = SELL 平仓 PnL + REDEEM PnL；赎回到账单独统计，不计入卖出金额。 */
+export interface LedgerActivitySummary {
+  activityCount: number;
+  tradeCount: number;
+  redemptionCount: number;
+  buyNotional: string;
+  sellNotional: string;
+  redeemPayout: string;
+  netCashFlow: string;
+  totalFee: string;
+  realizedPnl: string;
+  sellRealizedPnl: string;
+  redeemRealizedPnl: string;
+}
+
+export interface LedgerActivityPage {
+  items: LedgerActivity[];
+  summary: LedgerActivitySummary;
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+export interface LedgerActivityParams {
+  limit?: number;
+  offset?: number;
+  from?: string;
+  to?: string;
+  activityType?: "" | LedgerActivityType;
+  modelId?: string;
+  strategyId?: string;
+  executionAccountId?: string;
+  query?: string;
+}
+
+/** UTC 自然日内，按执行账户和开仓策略归因的净已实现盈亏（SELL 平仓 + REDEEM 赎回）。 */
 export interface DailyPnLPoint {
   day: string;
   executionAccountId: string;
   modelId: string;
   strategyId: string;
+  /** SELL 平仓 PnL + REDEEM 赎回 PnL。 */
   realizedPnl: string;
+  /** 只统计 SELL 平仓笔数；赎回单独记入 redemptionCount。 */
   closedTradeCount: number;
+  /** 包含赎回份额。 */
   closedShares: string;
+  redemptionCount: number;
+  redemptionPnl: string;
 }
 
 export interface DailyPnLReport {

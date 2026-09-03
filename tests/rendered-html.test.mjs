@@ -38,12 +38,13 @@ test("服务端可渲染独立的市场页面", async () => {
   assert.match(html, /已选市场/);
 });
 
-test("服务端可渲染真实交易记录页面", async () => {
+test("服务端可渲染交易与结算记录页面", async () => {
   const response = await render("/trades");
   assert.equal(response.status, 200);
   const html = await response.text();
-  assert.match(html, /交易记录/);
-  assert.match(html, /已确认并写入资金与仓位账本/);
+  assert.match(html, /交易与结算记录/);
+  assert.match(html, /已确认并入账的成交与结算/);
+  assert.match(html, /REDEEM · 赎回结算/);
 });
 
 test("服务端可渲染实盘监控页面", async () => {
@@ -64,6 +65,7 @@ test("服务端可渲染实盘监控页面", async () => {
   assert.match(html, /最大回撤/);
   assert.match(html, /钱包 PnL 对比/);
   assert.match(html, /多选钱包比较累计已实现 PnL/);
+  assert.match(html, /SELL 平仓 \+ REDEEM 赎回/);
   assert.match(html, /模型 Edge 分布/);
   assert.match(html, /模型概率 − 盘口中间价/);
   assert.match(html, /正在读取真实实盘快照/);
@@ -104,6 +106,13 @@ test("服务监控聚合接口允许两个后端独立离线", async () => {
 
 test("交易记录接口未配置执行服务时安全失败", async () => {
   const response = await withoutBackendConfig(() => render("/api/console/trades?limit=20&offset=0"));
+  assert.equal(response.status, 503);
+  const payload = await response.json();
+  assert.equal(payload.code, "BACKEND_NOT_CONFIGURED");
+});
+
+test("账本活动接口未配置执行服务时安全失败", async () => {
+  const response = await withoutBackendConfig(() => render("/api/console/ledger-activities?limit=20&offset=0&activity_type=REDEEM"));
   assert.equal(response.status, 503);
   const payload = await response.json();
   assert.equal(payload.code, "BACKEND_NOT_CONFIGURED");

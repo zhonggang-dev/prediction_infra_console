@@ -1,9 +1,9 @@
 "use client";
 
 import { demoData, demoOverview } from "./demo-data";
-import { demoDailyPnL, demoTradeHistory } from "./demo-trades";
+import { demoDailyPnL, demoLedgerActivities, demoTradeHistory } from "./demo-trades";
 import { normalizeLiveRisk } from "./live-risk";
-import type { ApiMode, ApiResult, BacktestCreateParams, ConsoleList, ConsoleResource, ConsoleRow, DailyPnLPoint, DailyPnLReport, EdgeDistribution, EdgeDistributionBin, EdgeDistributionSeries, LiveEvent, LiveFunnelStage, LiveHealth, LiveOperationsSnapshot, LiveOrder, LiveOrderStep, LivePosition, LiveRiskMetric, LiveStageState, LiveWalletSummary, LiveWorker, OverviewData, ServiceMetricsOverview, ServiceRuntimeHealth, ServiceRuntimeMetrics, TradeHistoryPage, TradeHistoryParams, TradeHistorySummary, TradeRecord, TradeSide } from "./types";
+import type { ApiMode, ApiResult, BacktestCreateParams, ConsoleList, ConsoleResource, ConsoleRow, DailyPnLPoint, DailyPnLReport, EdgeDistribution, EdgeDistributionBin, EdgeDistributionSeries, LedgerActivity, LedgerActivityPage, LedgerActivityParams, LedgerActivitySummary, LedgerActivityType, LiveEvent, LiveFunnelStage, LiveHealth, LiveOperationsSnapshot, LiveOrder, LiveOrderStep, LivePosition, LiveRiskMetric, LiveStageState, LiveWalletSummary, LiveWorker, OverviewData, ServiceMetricsOverview, ServiceRuntimeHealth, ServiceRuntimeMetrics, TradeHistoryPage, TradeHistoryParams, TradeHistorySummary, TradeRecord, TradeSide } from "./types";
 
 type RawRecord = Record<string, unknown>;
 type ListPayload = { items?: RawRecord[]; total?: number; limit?: number; offset?: number };
@@ -87,12 +87,47 @@ function mapTradeSummary(item: RawRecord | undefined): TradeHistorySummary {
   };
 }
 
+/** 统一账本活动只接受 BUY / SELL / REDEEM，未知类型直接拒绝，避免把赎回或异常事件误标成成交。 */
+function ledgerActivityType(value: unknown): LedgerActivityType {
+  const raw = String(value ?? "").toUpperCase();
+  if (raw !== "BUY" && raw !== "SELL" && raw !== "REDEEM") throw new ConsoleApiError(`账本活动接口返回了未知活动类型 ${raw || "(空)"}`, "live");
+  return raw;
+}
+
+function mapLedgerActivity(item: RawRecord): LedgerActivity {
+  const occurredAt = optionalTime(item.occurred_at);
+  if (!occurredAt) throw new ConsoleApiError("账本活动接口缺少 occurred_at", "live");
+  return {
+    activityKey: string(item.activity_key), activityType: ledgerActivityType(item.activity_type), venue: string(item.venue),
+    executionAccountId: string(item.execution_account_id), modelId: string(item.model_id), strategyId: string(item.strategy_id),
+    marketId: string(item.market_id), marketLabel: optional(item.market_label), conditionId: optional(item.condition_id),
+    tokenId: string(item.token_id), outcomeName: optional(item.outcome_name), lotId: optional(item.lot_id),
+    orderId: optional(item.order_id), venueOrderId: optional(item.venue_order_id), venueTradeId: optional(item.venue_trade_id),
+    orderStatus: optional(item.order_status), liquidityRole: optional(item.liquidity_role),
+    shares: string(item.shares, "0"), price: optional(item.price), grossNotional: optional(item.gross_notional),
+    totalFee: string(item.total_fee, "0"), netCashDelta: string(item.net_cash_delta, "0"),
+    costBasis: optional(item.cost_basis), settlementPayout: optional(item.settlement_payout), realizedPnl: string(item.realized_pnl, "0"),
+    transactionHash: optional(item.transaction_hash), occurredAt,
+    confirmedAt: optionalTime(item.confirmed_at) ?? occurredAt, appliedAt: optionalTime(item.applied_at) ?? occurredAt,
+  };
+}
+
+function mapLedgerSummary(item: RawRecord | undefined): LedgerActivitySummary {
+  return {
+    activityCount: number(item?.activity_count), tradeCount: number(item?.trade_count), redemptionCount: number(item?.redemption_count),
+    buyNotional: string(item?.buy_notional, "0"), sellNotional: string(item?.sell_notional, "0"), redeemPayout: string(item?.redeem_payout, "0"),
+    netCashFlow: string(item?.net_cash_flow, "0"), totalFee: string(item?.total_fee, "0"), realizedPnl: string(item?.realized_pnl, "0"),
+    sellRealizedPnl: string(item?.sell_realized_pnl, "0"), redeemRealizedPnl: string(item?.redeem_realized_pnl, "0"),
+  };
+}
+
 function mapDailyPnLPoint(item: RawRecord): DailyPnLPoint {
   return {
     day: string(item.day), executionAccountId: string(item.execution_account_id),
     modelId: string(item.model_id), strategyId: string(item.strategy_id),
     realizedPnl: string(item.realized_pnl, "0"), closedTradeCount: number(item.closed_trade_count),
     closedShares: string(item.closed_shares, "0"),
+    redemptionCount: number(item.redemption_count), redemptionPnl: string(item.redemption_pnl, "0"),
   };
 }
 
@@ -384,6 +419,23 @@ export const consoleApi = {
     };
     return { data, mode: result.mode };
   },
+  /** 统一账本活动：成交（BUY / SELL）与赎回结算（REDEEM）共用同一分页与汇总口径。 */
+  async ledgerActivities(params: LedgerActivityParams = {}) {
+    const query = new URLSearchParams({ limit: String(params.limit ?? 20), offset: String(params.offset ?? 0) });
+    if (params.from) query.set("from", params.from);
+    if (params.to) query.set("to", params.to);
+    if (params.activityType) query.set("activity_type", params.activityType);
+    if (params.modelId) query.set("model_id", params.modelId);
+    if (params.strategyId) query.set("strategy_id", params.strategyId);
+    if (params.executionAccountId) query.set("execution_account_id", params.executionAccountId);
+    if (params.query) query.set("q", params.query);
+    const result = await request<RawRecord>(`ledger-activities?${query}`);
+    const data: LedgerActivityPage = {
+      items: records(result.data.items).map(mapLedgerActivity), summary: mapLedgerSummary(result.data.summary as RawRecord | undefined),
+      total: number(result.data.total), limit: number(result.data.limit) || 20, offset: number(result.data.offset),
+    };
+    return { data, mode: result.mode };
+  },
   async dailyPnL(days = 14) {
     const result = await request<RawRecord>(`daily-pnl?${new URLSearchParams({ days: String(days) })}`);
     return { data: mapDailyPnLReport(result.data), mode: result.mode };
@@ -399,6 +451,7 @@ export const consoleApi = {
   createBacktest: (params: BacktestCreateParams) => request<RawRecord>("backtest-datasets", { method: "POST", body: JSON.stringify(params), headers: { "Idempotency-Key": crypto.randomUUID() } }),
   demoOverview: (): ApiResult<OverviewData> => ({ data: demoOverview, mode: "demo" }),
   demoTradeHistory: (params: TradeHistoryParams = {}): ApiResult<TradeHistoryPage> => ({ data: demoTradeHistory(params), mode: "demo" }),
+  demoLedgerActivities: (params: LedgerActivityParams = {}): ApiResult<LedgerActivityPage> => ({ data: demoLedgerActivities(params), mode: "demo" }),
   demoDailyPnL: (days = 14): ApiResult<DailyPnLReport> => ({ data: demoDailyPnL(days), mode: "demo" }),
   demoList: (resource: ConsoleResource, params: { limit?: number; offset?: number } = {}): ApiResult<ConsoleList> => {
     const all = demoData[resource]; const offset = params.offset ?? 0; const limit = params.limit ?? 20;
