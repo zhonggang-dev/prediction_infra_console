@@ -484,6 +484,7 @@ function mapGeneratedMarket(item: RawRecord): ConsoleGeneratedMarket {
     generationRequestId: optional(item.generation_request_id), sourceMarketId: string(item.source_market_id), eventInstanceId: string(item.event_instance_id),
     status: string(item.status) as ConsoleGeneratedMarket["status"], phase: string(item.phase), nextRunAt: optionalTime(item.next_run_at),
     attemptCount: number(item.attempt_count), lastReasonCode: string(item.last_reason_code, "—"), lastFinishedAt: optionalTime(item.last_finished_at),
+    resolvedOutcomeId: optional(item.resolved_outcome_id), resolvedOutcomeName: optional(item.resolved_outcome_name), resolutionQuote: optional(item.resolution_quote),
   };
 }
 
