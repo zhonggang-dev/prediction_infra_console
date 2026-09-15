@@ -27,6 +27,9 @@ export interface ConsoleGeneratedMarket {
   attemptCount: number;
   lastReasonCode: string;
   lastFinishedAt?: string;
+  resolvedOutcomeId?: string;
+  resolvedOutcomeName?: string;
+  resolutionQuote?: string;
 }
 
 export interface GeneratedMarketList {
