@@ -1,10 +1,10 @@
 import {
-  Activity, Archive, ArrowRight, Box, ChartNoAxesCombined, Gauge, Grid2X2, Menu, ReceiptText, RefreshCw, Send, Settings, SlidersHorizontal, type LucideProps,
+  Activity, Archive, ArrowRight, Box, ChartNoAxesCombined, Files, Gauge, Grid2X2, Menu, ReceiptText, RefreshCw, Search, Send, Settings, SlidersHorizontal, type LucideProps,
 } from "lucide-react";
 
-type IconName = "grid" | "pulse" | "markets" | "box" | "trend" | "live" | "trades" | "archive" | "send" | "settings" | "menu" | "refresh" | "arrow";
+type IconName = "grid" | "pulse" | "markets" | "box" | "trend" | "live" | "trades" | "archive" | "send" | "settings" | "menu" | "refresh" | "arrow" | "questions" | "search";
 
-const icons = { grid: Grid2X2, pulse: Gauge, markets: SlidersHorizontal, box: Box, trend: ChartNoAxesCombined, live: Activity, trades: ReceiptText, archive: Archive, send: Send, settings: Settings, menu: Menu, refresh: RefreshCw, arrow: ArrowRight };
+const icons = { grid: Grid2X2, pulse: Gauge, markets: SlidersHorizontal, box: Box, trend: ChartNoAxesCombined, live: Activity, trades: ReceiptText, archive: Archive, send: Send, settings: Settings, menu: Menu, refresh: RefreshCw, arrow: ArrowRight, questions: Files, search: Search };
 
 /** 使用统一的 Lucide 图标，保持控制台图形语言一致。 */
 export function Icon({ name, ...props }: { name: IconName } & LucideProps) {
