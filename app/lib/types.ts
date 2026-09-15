@@ -12,6 +12,7 @@ export interface ConsoleGeneratedMarket {
   resolutionRules: string;
   outcomes: unknown[];
   domainHints: string[];
+  topicPaths: string[];
   primaryDomain: string;
   tags: string[];
   questionType: string;
