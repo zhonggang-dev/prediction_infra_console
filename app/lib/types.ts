@@ -1,6 +1,41 @@
 export type ConsolePageName = "overview" | "markets" | "sandboxes" | "predictions" | "backtests" | "delivery" | "settings";
 export type ApiMode = "live" | "demo" | "unavailable";
 export type ConsoleResource = "selected-markets" | "sandboxes" | "predictions" | "backtest-datasets" | "orderbook-series" | "outbox-events";
+export type QuestionStatus = "PENDING" | "RUNNING" | "RESOLVED" | "DEFERRED" | "UNRESOLVED" | "FINAL_UNRESOLVED" | "ANNUL" | "MECE_FAIL";
+
+export interface ConsoleGeneratedMarket {
+  generatedMarketId: string;
+  marketId: string;
+  conditionId: string;
+  question: string;
+  description: string;
+  resolutionRules: string;
+  outcomes: unknown[];
+  primaryDomain: string;
+  tags: string[];
+  questionType: string;
+  forecastTargetKind: string;
+  endAt?: string;
+  createdAt: string;
+  updatedAt: string;
+  generationRequestId?: string;
+  sourceMarketId: string;
+  eventInstanceId: string;
+  status: QuestionStatus;
+  phase: "PRE_END" | "POST_END" | string;
+  nextRunAt?: string;
+  attemptCount: number;
+  lastReasonCode: string;
+  lastFinishedAt?: string;
+}
+
+export interface GeneratedMarketList {
+  items: ConsoleGeneratedMarket[];
+  total: number;
+  limit: number;
+  offset: number;
+  statusCounts: Record<string, number>;
+}
 
 export interface OverviewData {
   selectedMarketTotal: number;

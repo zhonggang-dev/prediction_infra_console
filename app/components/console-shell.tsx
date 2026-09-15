@@ -9,6 +9,7 @@ import { Icon } from "./icons";
 
 const navigation = [
   { href: "/", label: "运行概览", icon: "grid" as const },
+  { href: "/questions", label: "题目库", icon: "questions" as const },
   { href: "/observability", label: "服务监控", icon: "pulse" as const },
   { href: "/markets", label: "已选市场", icon: "markets" as const },
   { href: "/sandboxes", label: "Sandbox", icon: "box" as const },

@@ -10,6 +10,7 @@ const headings: Record<ConsoleResource, string[]> = {
   sandboxes: ["Sandbox", "关联市场", "状态", "提交时间"],
   predictions: ["模型", "市场标识", "状态", "接收时间"],
   "backtest-datasets": ["数据集", "范围", "状态", "请求时间"],
+  "orderbook-series": ["序列", "策略", "状态", "最新采集"],
   "outbox-events": ["事件类型", "关联记录", "交付状态", "创建时间"],
 };
 
