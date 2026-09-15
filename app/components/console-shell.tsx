@@ -9,14 +9,15 @@ import { Icon } from "./icons";
 
 const navigation = [
   { href: "/", label: "运行概览", icon: "grid" as const },
-  { href: "/questions", label: "题目库", icon: "questions" as const },
   { href: "/observability", label: "服务监控", icon: "pulse" as const },
+  { href: "/questions", label: "题目库", icon: "questions" as const },
   { href: "/markets", label: "已选市场", icon: "markets" as const },
   { href: "/sandboxes", label: "Sandbox", icon: "box" as const },
   { href: "/predictions", label: "预测结果", icon: "trend" as const },
   { href: "/live", label: "实盘监控", icon: "live" as const },
   { href: "/trades", label: "交易与结算", icon: "trades" as const },
   { href: "/backtests", label: "回测数据集", icon: "archive" as const },
+  { href: "http://172.21.20.221:8501/", label: "PM Backtest", icon: "trend" as const },
   { href: "/delivery", label: "消息交付", icon: "send" as const },
   { href: "/settings", label: "系统设置", icon: "settings" as const },
 ];
