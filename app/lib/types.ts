@@ -11,6 +11,7 @@ export interface ConsoleGeneratedMarket {
   description: string;
   resolutionRules: string;
   outcomes: unknown[];
+  domainHints: string[];
   primaryDomain: string;
   tags: string[];
   questionType: string;
@@ -38,6 +39,7 @@ export interface GeneratedMarketList {
   limit: number;
   offset: number;
   statusCounts: Record<string, number>;
+  domainOptions: string[];
 }
 
 export interface OverviewData {

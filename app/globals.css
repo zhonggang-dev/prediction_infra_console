@@ -147,6 +147,7 @@ tbody tr:hover { background: #f7faf6; }
 .question-primary { max-width: 430px; white-space: normal; }
 .question-primary strong { display: -webkit-box; overflow: hidden; color: var(--ink); font-size: 12px; line-height: 1.35; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .question-primary small { display: block; margin-top: 4px; overflow: hidden; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.domain-badges { display: flex; flex-wrap: wrap; gap: 4px; }.domain-badges span { padding: 3px 6px; border: 1px solid #d7e4dc; border-radius: 999px; color: #47675b; background: #f4f8f5; font-size: 9px; white-space: nowrap; }
 .question-detail { padding: 18px; border-bottom: 1px solid var(--line); background: #fbfcfa; }
 .question-drawer-backdrop { position: fixed; z-index: 70; inset: 0; border: 0; background: rgba(8, 27, 20, .38); }
 .question-drawer { position: fixed; z-index: 80; top: 0; right: 0; width: min(720px, 72vw); height: 100vh; overflow-y: auto; border-left: 1px solid var(--line); background: #fbfcfa; box-shadow: -18px 0 42px rgba(16, 39, 32, .16); }
@@ -156,6 +157,7 @@ tbody tr:hover { background: #f7faf6; }
 .question-detail-copy h3 { margin: 0; font-size: 18px; line-height: 1.35; }
 .question-detail-copy h4, .question-outcomes h4 { margin: 10px 0 0; color: var(--muted); font-size: 10px; letter-spacing: .08em; text-transform: uppercase; }
 .question-detail-copy p { margin: 0; color: var(--ink-soft); font-size: 12px; white-space: pre-wrap; }
+.resolution-rule-sections { display: grid; gap: 8px; }.resolution-rule-sections section { padding: 10px 12px; border: 1px solid #e2e9e4; border-radius: 5px; background: #fff; }.resolution-rule-sections h5 { margin: 0 0 5px; color: #176c58; font-size: 11px; }.resolution-rule-sections p { line-height: 1.55; }
 .question-final-answer { margin: 10px 0 4px; padding: 12px; border: 1px solid #9fcab9; border-radius: 5px; display: grid; gap: 5px; background: var(--mint-soft); }.question-final-answer span { color: var(--muted); font-size: 10px; font-weight: 700; letter-spacing: .08em; }.question-final-answer strong { color: #176c58; font-size: 14px; }.question-final-answer q { color: var(--ink-soft); font-size: 11px; line-height: 1.45; }
 .question-detail .detail-grid { margin-top: 20px; }
 .question-identity-help { margin: 13px 0 0; padding: 9px 10px; border-left: 2px solid #9fcab9; color: var(--muted); background: #f1f7f3; font-size: 10px; }
