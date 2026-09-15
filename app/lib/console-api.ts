@@ -479,7 +479,7 @@ function mapGeneratedMarket(item: RawRecord): ConsoleGeneratedMarket {
   return {
     generatedMarketId: string(item.generated_market_id), marketId: string(item.market_id), conditionId: string(item.condition_id),
     question: string(item.question), description: string(item.description), resolutionRules: string(item.resolution_rules),
-    outcomes: Array.isArray(item.outcomes) ? item.outcomes : [], domainHints: Array.isArray(item.domain_hints) ? item.domain_hints.map(String) : [], primaryDomain: string(item.primary_domain),
+    outcomes: Array.isArray(item.outcomes) ? item.outcomes : [], domainHints: Array.isArray(item.domain_hints) ? item.domain_hints.map(String) : [], topicPaths: Array.isArray(item.topic_paths) ? item.topic_paths.map(String) : [], primaryDomain: string(item.primary_domain),
     tags: Array.isArray(item.tags) ? item.tags.map(String) : [], questionType: string(item.question_type),
     forecastTargetKind: string(item.forecast_target_kind), endAt: optionalTime(item.end_at), createdAt: string(item.created_at), updatedAt: string(item.updated_at),
     generationRequestId: optional(item.generation_request_id), sourceMarketId: string(item.source_market_id), eventInstanceId: string(item.event_instance_id),
