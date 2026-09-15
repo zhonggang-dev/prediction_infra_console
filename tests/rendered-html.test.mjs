@@ -28,6 +28,8 @@ test("服务端可渲染 Prediction Console 首页", async () => {
   const html = await response.text();
   assert.match(html, /Prediction Console/);
   assert.match(html, /运行概览/);
+  assert.match(html, /href="\/observability"[^>]*>.*服务监控.*href="\/questions"[^>]*>.*题目库/s);
+  assert.match(html, /href="http:\/\/172\.21\.20\.221:8501\/"[^>]*>.*PM Backtest/s);
   assert.doesNotMatch(html, /Your site is taking shape/);
 });
 
