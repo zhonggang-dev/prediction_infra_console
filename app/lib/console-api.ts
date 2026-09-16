@@ -431,6 +431,7 @@ export const consoleApi = {
       items: records(result.data.items).map(mapGeneratedQA), total: number(result.data.total),
       limit: number(result.data.limit) || 20, offset: number(result.data.offset),
       statusCounts: numericRecord(result.data.status_counts),
+      marketCompatibleCounts: numericRecord(result.data.market_compatible_counts),
       domainOptions: Array.isArray(result.data.domain_options) ? result.data.domain_options.map(String) : [],
       questionTypeOptions: Array.isArray(result.data.question_type_options) ? result.data.question_type_options.map(String) : [],
     };
@@ -508,15 +509,17 @@ function mapGeneratedMarket(item: RawRecord): ConsoleGeneratedMarket {
 }
 
 function mapGeneratedQA(item: RawRecord): ConsoleGeneratedQA {
+  const temporalContract = jsonValue(item.temporal_contract);
+  const temporal = record(temporalContract);
   return {
     generatedQaId: string(item.generated_qa_id), sourceQaId: string(item.source_qa_id),
-    question: string(item.question), context: string(item.context), resolutionCriteria: string(item.resolution_or_evaluation_criteria), answerType: string(item.answer_type),
+    question: string(item.question), context: string(item.context), resolutionCriteria: string(item.resolution_criteria), answerType: string(item.answer_type),
     options: Array.isArray(item.options) ? item.options : [], answerSpec: jsonValue(item.answer_spec),
-    decisionSpec: optionalJSON(item.decision_spec), temporalContract: jsonValue(item.temporal_contract),
+    decisionSpec: optionalJSON(item.decision_spec), temporalContract,
     grounding: jsonValue(item.grounding), forecastability: jsonValue(item.forecastability),
     taskFamily: string(item.task_family), marketCompatible: item.market_compatible === true,
     groundTruthKind: string(item.ground_truth_kind), domainL1: string(item.domain_l1), industryL2: string(item.industry_l2),
-    topicPath: string(item.topic_path), availableAfter: optionalTime(item.available_after),
+    topicPath: string(item.topic_path), endAt: optionalTime(temporal.observation_end), availableAfter: optionalTime(item.available_after),
     generationRequestId: optional(item.generation_request_id), semanticKey: string(item.semantic_key),
     eventClusterKey: string(item.event_cluster_key), status: string(item.status) as ConsoleGeneratedQA["status"], phase: string(item.phase),
     createdAt: string(item.created_at), updatedAt: string(item.updated_at),
