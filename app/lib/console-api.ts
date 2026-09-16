@@ -3,7 +3,7 @@
 import { demoData, demoOverview } from "./demo-data";
 import { demoDailyPnL, demoLedgerActivities, demoTradeHistory } from "./demo-trades";
 import { normalizeLiveRisk } from "./live-risk";
-import type { ApiMode, ApiResult, BacktestCreateParams, ConsoleGeneratedMarket, ConsoleList, ConsoleResource, ConsoleRow, DailyPnLPoint, DailyPnLReport, EdgeDistribution, EdgeDistributionBin, EdgeDistributionSeries, GeneratedMarketList, LedgerActivity, LedgerActivityPage, LedgerActivityParams, LedgerActivitySummary, LedgerActivityType, LiveEvent, LiveFunnelStage, LiveHealth, LiveOperationsSnapshot, LiveOrder, LiveOrderStep, LivePosition, LiveRiskMetric, LiveStageState, LiveWalletSummary, LiveWorker, OverviewData, ServiceMetricsOverview, ServiceRuntimeHealth, ServiceRuntimeMetrics, TradeHistoryPage, TradeHistoryParams, TradeHistorySummary, TradeRecord, TradeSide } from "./types";
+import type { ApiMode, ApiResult, BacktestCreateParams, ConsoleGeneratedMarket, ConsoleGeneratedQA, ConsoleList, ConsoleResource, ConsoleRow, DailyPnLPoint, DailyPnLReport, EdgeDistribution, EdgeDistributionBin, EdgeDistributionSeries, GeneratedMarketList, GeneratedQAList, LedgerActivity, LedgerActivityPage, LedgerActivityParams, LedgerActivitySummary, LedgerActivityType, LiveEvent, LiveFunnelStage, LiveHealth, LiveOperationsSnapshot, LiveOrder, LiveOrderStep, LivePosition, LiveRiskMetric, LiveStageState, LiveWalletSummary, LiveWorker, OverviewData, ServiceMetricsOverview, ServiceRuntimeHealth, ServiceRuntimeMetrics, TradeHistoryPage, TradeHistoryParams, TradeHistorySummary, TradeRecord, TradeSide } from "./types";
 
 type RawRecord = Record<string, unknown>;
 type ListPayload = { items?: RawRecord[]; total?: number; limit?: number; offset?: number };
@@ -418,6 +418,24 @@ export const consoleApi = {
     };
     return { data, mode: result.mode };
   },
+  async generatedQAs(params: { limit?: number; offset?: number; q?: string; status?: string; domain?: string; questionType?: string; endFrom?: string; endTo?: string } = {}) {
+    const query = new URLSearchParams({ limit: String(params.limit ?? 20), offset: String(params.offset ?? 0) });
+    if (params.q) query.set("q", params.q);
+    if (params.status) query.set("status", params.status);
+    if (params.domain) query.set("domain", params.domain);
+    if (params.questionType) query.set("question_type", params.questionType);
+    if (params.endFrom) query.set("end_from", `${params.endFrom}T00:00:00Z`);
+    if (params.endTo) query.set("end_to", `${params.endTo}T23:59:59Z`);
+    const result = await request<RawRecord>(`generated-qas?${query}`);
+    const data: GeneratedQAList = {
+      items: records(result.data.items).map(mapGeneratedQA), total: number(result.data.total),
+      limit: number(result.data.limit) || 20, offset: number(result.data.offset),
+      statusCounts: numericRecord(result.data.status_counts),
+      domainOptions: Array.isArray(result.data.domain_options) ? result.data.domain_options.map(String) : [],
+      questionTypeOptions: Array.isArray(result.data.question_type_options) ? result.data.question_type_options.map(String) : [],
+    };
+    return { data, mode: result.mode };
+  },
   async tradeHistory(params: TradeHistoryParams = {}) {
     const query = new URLSearchParams({ limit: String(params.limit ?? 20), offset: String(params.offset ?? 0) });
     if (params.from) query.set("from", params.from);
@@ -487,6 +505,30 @@ function mapGeneratedMarket(item: RawRecord): ConsoleGeneratedMarket {
     attemptCount: number(item.attempt_count), lastReasonCode: string(item.last_reason_code, "—"), lastFinishedAt: optionalTime(item.last_finished_at),
     resolvedOutcomeId: optional(item.resolved_outcome_id), resolvedOutcomeName: optional(item.resolved_outcome_name), resolutionQuote: optional(item.resolution_quote),
   };
+}
+
+function mapGeneratedQA(item: RawRecord): ConsoleGeneratedQA {
+  return {
+    generatedQaId: string(item.generated_qa_id), sourceQaId: string(item.source_qa_id),
+    question: string(item.question), context: string(item.context), resolutionCriteria: string(item.resolution_or_evaluation_criteria), answerType: string(item.answer_type),
+    options: Array.isArray(item.options) ? item.options : [], answerSpec: jsonValue(item.answer_spec),
+    decisionSpec: optionalJSON(item.decision_spec), temporalContract: jsonValue(item.temporal_contract),
+    grounding: jsonValue(item.grounding), forecastability: jsonValue(item.forecastability),
+    taskFamily: string(item.task_family), marketCompatible: item.market_compatible === true,
+    groundTruthKind: string(item.ground_truth_kind), domainL1: string(item.domain_l1), industryL2: string(item.industry_l2),
+    topicPath: string(item.topic_path), availableAfter: optionalTime(item.available_after),
+    generationRequestId: optional(item.generation_request_id), semanticKey: string(item.semantic_key),
+    eventClusterKey: string(item.event_cluster_key), status: string(item.status) as ConsoleGeneratedQA["status"], phase: string(item.phase),
+    createdAt: string(item.created_at), updatedAt: string(item.updated_at),
+  };
+}
+
+function jsonValue(value: unknown): unknown {
+  return value === undefined || value === null ? {} : value;
+}
+
+function optionalJSON(value: unknown): unknown {
+  return value === undefined || value === null ? undefined : value;
 }
 
 function numericRecord(value: unknown): Record<string, number> {
