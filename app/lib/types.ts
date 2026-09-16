@@ -62,6 +62,7 @@ export interface ConsoleGeneratedQA {
   domainL1: string;
   industryL2: string;
   topicPath: string;
+  endAt?: string;
   availableAfter?: string;
   generationRequestId?: string;
   semanticKey: string;
@@ -78,6 +79,7 @@ export interface GeneratedQAList {
   limit: number;
   offset: number;
   statusCounts: Record<string, number>;
+  marketCompatibleCounts: Record<string, number>;
   domainOptions: string[];
   questionTypeOptions: string[];
 }
