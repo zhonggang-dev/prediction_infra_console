@@ -43,6 +43,45 @@ export interface GeneratedMarketList {
   domainOptions: string[];
 }
 
+export interface ConsoleGeneratedQA {
+  generatedQaId: string;
+  sourceQaId: string;
+  question: string;
+  context: string;
+  resolutionCriteria: string;
+  answerType: string;
+  options: unknown[];
+  answerSpec: unknown;
+  decisionSpec?: unknown;
+  temporalContract: unknown;
+  grounding: unknown;
+  forecastability: unknown;
+  taskFamily: string;
+  marketCompatible: boolean;
+  groundTruthKind: string;
+  domainL1: string;
+  industryL2: string;
+  topicPath: string;
+  availableAfter?: string;
+  generationRequestId?: string;
+  semanticKey: string;
+  eventClusterKey: string;
+  status: QuestionStatus;
+  phase: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface GeneratedQAList {
+  items: ConsoleGeneratedQA[];
+  total: number;
+  limit: number;
+  offset: number;
+  statusCounts: Record<string, number>;
+  domainOptions: string[];
+  questionTypeOptions: string[];
+}
+
 export interface OverviewData {
   selectedMarketTotal: number;
   sandboxTotal: number;

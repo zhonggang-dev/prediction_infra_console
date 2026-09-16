@@ -1,4 +1,4 @@
-const CONSOLE_RESOURCES = new Set(["overview", "selection-runs", "selected-markets", "sandboxes", "predictions", "orderbook-series", "outbox-events", "generated-markets"]);
+const CONSOLE_RESOURCES = new Set(["overview", "selection-runs", "selected-markets", "sandboxes", "predictions", "orderbook-series", "outbox-events", "generated-markets", "generated-qas"]);
 const BACKTEST_FILES = new Set(["sandboxes.parquet", "predictions.parquet", "clob_orderbooks.parquet", "settlements.parquet", "manifest.json"]);
 const DATASET_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
 
