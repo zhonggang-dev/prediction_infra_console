@@ -12,20 +12,20 @@ import { Status } from "./status";
 
 const statusOptions = [["", "全部状态"], ["PENDING", "等待中"]];
 const answerTypeLabels: Record<string, string> = {
-  action_plan: "行动方案",
-  allocation_plan: "资源分配",
-  boolean: "是 / 否",
-  categorical: "分类选择",
-  datetime_duration: "日期或时长",
-  experiment_plan: "实验方案",
-  monitoring_policy: "监测规则",
-  numeric_bucket: "数值区间",
-  numeric_open: "开放数值",
-  ranking_entity: "实体排序",
-  risk_register: "风险清单",
-  scenario_matrix: "情景矩阵",
-  threshold: "阈值判断",
-  trajectory: "趋势轨迹",
+  action_plan: "Action Plan",
+  allocation_plan: "Allocation Plan",
+  boolean: "Boolean",
+  categorical: "Categorical",
+  datetime_duration: "Date or Duration",
+  experiment_plan: "Experiment Plan",
+  monitoring_policy: "Monitoring Policy",
+  numeric_bucket: "Numeric Bucket",
+  numeric_open: "Open Numeric",
+  ranking_entity: "Entity Ranking",
+  risk_register: "Risk Register",
+  scenario_matrix: "Scenario Matrix",
+  threshold: "Threshold",
+  trajectory: "Trajectory",
 };
 
 type QuestionFilters = {
@@ -92,9 +92,9 @@ export function QuestionLibraryPage() {
         <label className="question-status-filter"><span>状态</span><select className="select" value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value })}>{statusOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
         <label className="question-type-filter"><span>题型</span><select className="select" value={draft.questionType} onChange={(event) => setDraft({ ...draft, questionType: event.target.value })}><option value="">全部题型</option>{(result?.questionTypeOptions ?? []).map((type) => <option key={type} value={type}>{answerTypeLabel(type)}</option>)}</select></label>
         <label className="question-domain-l1-filter"><span>一级领域</span><select className="select" value={draft.domainL1} onChange={(event) => setDraft({ ...draft, domainL1: event.target.value, domainPath: "" })}><option value="">全部一级领域</option>{primaryDomains.map((domain) => <option key={domain} value={domain}>{domain}</option>)}</select></label>
-        <label className="question-domain-l2-filter"><span>二级领域</span><select className="select" value={draft.domainPath} disabled={!draft.domainL1} onChange={(event) => setDraft({ ...draft, domainPath: event.target.value })}><option value="">全部二级领域</option>{secondaryDomains.map((path) => <option key={path} value={path}>{secondaryDomain(path)}</option>)}</select></label>
-        <label className="question-date-filter"><span>end_at 起始</span><input className="input" type="date" value={draft.endFrom} onChange={(event) => setDraft({ ...draft, endFrom: event.target.value })} /></label>
-        <label className="question-date-filter"><span>end_at 结束</span><input className="input" type="date" value={draft.endTo} onChange={(event) => setDraft({ ...draft, endTo: event.target.value })} /></label>
+        <label className="question-domain-l2-filter"><span>二级领域</span><select className="select" value={draft.domainPath} disabled={!draft.domainL1} onChange={(event) => setDraft({ ...draft, domainPath: event.target.value })}><option value="">{draft.domainL1 ? "全部二级领域" : "请先选择一级领域"}</option>{secondaryDomains.map((path) => <option key={path} value={path}>{secondaryDomain(path)}</option>)}</select></label>
+        <label className="question-date-filter"><span>observation_end 起始</span><input className="input" type="date" value={draft.endFrom} onChange={(event) => setDraft({ ...draft, endFrom: event.target.value })} /></label>
+        <label className="question-date-filter"><span>observation_end 结束</span><input className="input" type="date" value={draft.endTo} onChange={(event) => setDraft({ ...draft, endTo: event.target.value })} /></label>
         <div className="question-filter-actions"><button className="button" onClick={() => { setDraft(emptyFilters); setFilters(emptyFilters); setPage(0); }}>重置</button><button className="button primary question-search-action" onClick={search}><Icon name="search" /> 检索</button></div>
       </div>
       {error && <div className="notice error"><div><strong>题目查询失败</strong><p>{error}</p></div></div>}
@@ -123,7 +123,7 @@ function OverviewMetric({ label, value, tone }: { label: string; value: number; 
 }
 
 function QuestionTable({ items, onSelect }: { items: ConsoleGeneratedQA[]; onSelect: (item: ConsoleGeneratedQA) => void }) {
-  return <div className="table-scroll"><table className="question-table"><colgroup><col className="question-col" /><col className="status-col" /><col className="domain-col" /><col className="type-col" /><col className="time-col" /></colgroup><thead><tr><th>题目</th><th>状态</th><th>领域</th><th>题型</th><th>end_at</th></tr></thead><tbody>{items.map((item) => <tr key={item.generatedQaId} onClick={() => onSelect(item)}><td className="question-primary"><strong>{item.question}</strong><small>{item.sourceQaId}</small></td><td><Status value={item.status} /></td><td><div className="domain-path"><strong>{item.domainL1}</strong><span>{item.industryL2}</span></div></td><td><span className="question-type-badge">{answerTypeLabel(item.answerType)}</span></td><td className="mono muted">{formatTime(item.endAt)}</td></tr>)}</tbody></table></div>;
+  return <div className="table-scroll"><table className="question-table"><colgroup><col className="question-col" /><col className="status-col" /><col className="domain-col" /><col className="type-col" /><col className="time-col" /></colgroup><thead><tr><th>题目</th><th>状态</th><th>领域</th><th>题型</th><th>observation_end</th></tr></thead><tbody>{items.map((item) => <tr key={item.generatedQaId} onClick={() => onSelect(item)}><td className="question-primary"><strong>{item.question}</strong><small>{item.sourceQaId}</small></td><td><Status value={item.status} /></td><td><div className="domain-path"><strong>{item.domainL1}</strong><span>{item.industryL2}</span></div></td><td><span className="question-type-badge">{answerTypeLabel(item.answerType)}</span></td><td className="mono muted">{formatTime(item.endAt)}</td></tr>)}</tbody></table></div>;
 }
 
 function QuestionDetail({ item, onClose }: { item: ConsoleGeneratedQA; onClose: () => void }) {
@@ -145,7 +145,7 @@ function QuestionDetail({ item, onClose }: { item: ConsoleGeneratedQA; onClose: 
       ["记录系统", text(answerSpec.record_system)],
     ]} /><TextList title="约束" values={stringList(answerSpec.constraints)} /></DetailSection>
     {Object.keys(decisionSpec).length > 0 && <DetailSection title="决策约束"><FactGrid values={[["决策负责人", text(decisionSpec.decision_owner)]]} /><TextList title="目标" values={stringList(decisionSpec.objectives)} /><TextList title="约束" values={stringList(decisionSpec.constraints)} /><TextList title="输出章节" values={stringList(decisionSpec.required_sections)} /><TextList title="情景" values={stringList(decisionSpec.scenarios)} /><TextList title="评价指标" values={stringList(decisionSpec.evaluation_metrics)} /></DetailSection>}
-    <DetailSection title="时间合同"><div className="timeline-list"><TimeRow label="信息截止" value={temporal.as_of_at} /><TimeRow label="观察开始" value={temporal.observation_start} /><TimeRow label="观察结束 (end_at)" value={temporal.observation_end} /><TimeRow label="答案发布时间" value={temporal.answer_available_after} /><TimeRow label="评价可用时间" value={temporal.evaluation_available_after} /></div></DetailSection>
+    <DetailSection title="时间合同"><div className="timeline-list"><TimeRow label="信息截止" value={temporal.as_of_at} /><TimeRow label="观察开始" value={temporal.observation_start} /><TimeRow label="observation_end" value={temporal.observation_end} /><TimeRow label="answer_available_after" value={temporal.answer_available_after} /><TimeRow label="evaluation_available_after" value={temporal.evaluation_available_after} /></div></DetailSection>
     <DetailSection title="证据依据"><SourceLinks values={stringList(grounding.source_urls)} /><TextList title="已验证事实" values={stringList(grounding.verified_facts)} /><TextList title="情景假设" values={stringList(grounding.scenario_assumptions)} />{text(grounding.evidence_excerpt) && <div className="evidence-excerpt"><span>证据摘录</span><p>{text(grounding.evidence_excerpt)}</p></div>}</DetailSection>
     <DetailSection title="可预测性"><FactGrid values={[["当前未知原因", text(forecastability.why_not_known_now)], ["预测依据", text(forecastability.basis)], ["信息价值", text(forecastability.information_value)]]} /><TextList title="不确定因素" values={stringList(forecastability.uncertainty_drivers)} /></DetailSection>
     <details className="question-audit"><summary>审计标识</summary><div className="detail-grid"><DetailValue label="内部 ID" value={item.generatedQaId} /><DetailValue label="QA ID" value={item.sourceQaId} /><DetailValue label="生成请求" value={item.generationRequestId || "—"} /><DetailValue label="语义键" value={item.semanticKey} /><DetailValue label="事件键" value={item.eventClusterKey || "—"} /><DetailValue label="Ground Truth" value={item.groundTruthKind} /></div></details>
