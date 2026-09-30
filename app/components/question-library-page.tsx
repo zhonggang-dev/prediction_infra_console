@@ -125,10 +125,11 @@ function OverviewMetric({ label, value, tone }: { label: string; value: number; 
 }
 
 function QuestionTable({ items, onSelect }: { items: ConsoleGeneratedQA[]; onSelect: (item: ConsoleGeneratedQA) => void }) {
-  return <div className="table-scroll"><table className="question-table"><colgroup><col className="question-col" /><col className="status-col" /><col className="domain-col" /><col className="type-col" /><col className="time-col" /></colgroup><thead><tr><th>题目</th><th>状态</th><th>领域</th><th>题型</th><th>observation_end</th></tr></thead><tbody>{items.map((item) => <tr key={item.generatedQaId} onClick={() => onSelect(item)}><td className="question-primary"><strong>{item.question}</strong><small>{item.sourceQaId}</small></td><td><Status value={item.status} label={statusDisplayLabel(item)} /><small className="question-phase">{phaseLabel(item.phase)}</small></td><td><div className="domain-path"><strong>{item.domainL1}</strong><span>{item.industryL2}</span></div></td><td><span className="question-type-badge">{answerTypeLabel(item.answerType)}</span></td><td className="mono muted">{formatTime(item.observationEnd)}</td></tr>)}</tbody></table></div>;
+  return <div className="table-scroll"><table className="question-table"><colgroup><col className="question-col" /><col className="status-col" /><col className="domain-col" /><col className="type-col" /><col className="time-col" /></colgroup><thead><tr><th>题目</th><th>状态</th><th>领域</th><th>题型</th><th>observation_end</th></tr></thead><tbody>{items.map((item) => <tr key={item.generatedQaId} onClick={() => onSelect(item)}><td className="question-primary"><strong>{item.question}</strong><small>{item.sourceQaId}</small></td><td><Status value={item.status} label={statusDisplayLabel(item)} /></td><td><div className="domain-path"><strong>{item.domainL1}</strong><span>{item.industryL2}</span></div></td><td><span className="question-type-badge">{answerTypeLabel(item.answerType)}</span></td><td className="mono muted">{formatTime(item.observationEnd)}</td></tr>)}</tbody></table></div>;
 }
 
 function QuestionDetail({ item, onClose }: { item: ConsoleGeneratedQA; onClose: () => void }) {
+  const [activeTab, setActiveTab] = useState<"definition" | "timing" | "result">("definition");
   const answerSpec = asRecord(item.answerSpec);
   const decisionSpec = asRecord(item.decisionSpec);
   const temporal = asRecord(item.temporalContract);
@@ -146,19 +147,35 @@ function QuestionDetail({ item, onClose }: { item: ConsoleGeneratedQA; onClose: 
   return <div className="question-detail">
     <div className="question-detail-head"><div><p className="eyebrow">Question Detail</p><h2 className="section-title">题目详情</h2></div><button className="button" onClick={onClose}>关闭</button></div>
     <div className="question-detail-meta"><Status value={item.status} label={statusDisplayLabel(item)} /><span>{answerTypeLabel(item.answerType)}</span><span>{phaseLabel(item.phase)}</span><span>{item.marketCompatible ? "预测市场题" : "决策分析题"}</span><span>{formatTopicPath(item.topicPath)}</span></div>
-    <section className="question-detail-copy"><h3>{item.question}</h3><p>{item.context}</p></section>
-    <DetailSection title={item.marketCompatible ? "最终答案" : "事后参考答案"}><ResultPanel kind={resultKind} value={resultValue} /></DetailSection>
+    <div className="question-detail-tabs" role="tablist" aria-label="题目详情视图">
+      {([["definition", "题目定义"], ["timing", "时间与依据"], ["result", "结果与审计"]] as const).map(([value, label]) => <button key={value} type="button" role="tab" aria-selected={activeTab === value} className={activeTab === value ? "active" : ""} onClick={() => setActiveTab(value)}>{label}</button>)}
+    </div>
+    {activeTab === "definition" && <DefinitionTab item={item} answerSpec={answerSpec} decisionSpec={decisionSpec} ruleSections={ruleSections} />}
+    {activeTab === "timing" && <TimingTab item={item} temporal={temporal} grounding={grounding} forecastability={forecastability} />}
+    {activeTab === "result" && <ResultAuditTab item={item} latestRun={latestRun} hasFinalResult={hasFinalResult} resultKind={resultKind} resultValue={resultValue} />}
+  </div>;
+}
+
+function DefinitionTab({ item, answerSpec, decisionSpec, ruleSections }: { item: ConsoleGeneratedQA; answerSpec: Record<string, unknown>; decisionSpec: Record<string, unknown>; ruleSections: Array<{ key: string; title: string; content: string }> }) {
+  return <div className="question-detail-tab-panel" role="tabpanel">
+    <section className="question-detail-copy"><h3>{item.question}</h3>{item.context && <p>{item.context}</p>}</section>
     <DetailSection title="结算或评价规则"><div className="resolution-rule-sections">{ruleSections.map((section) => <section key={section.key}>{section.title && <h5>{section.title}</h5>}<p>{section.content}</p></section>)}</div></DetailSection>
-    <DetailSection title="选项与答案空间"><OptionsList options={item.options} /><FactGrid values={[
-      ["答案类型", answerTypeLabel(text(answerSpec.type) || item.answerType)],
-      ["单位", text(answerSpec.unit)], ["精度", text(answerSpec.precision)],
-      ["答案数量", text(answerSpec.cardinality)], ["有效范围", display(answerSpec.valid_range)],
-      ["记录系统", text(answerSpec.record_system)],
-    ]} /><TextList title="约束" values={stringList(answerSpec.constraints)} /></DetailSection>
-    {Object.keys(decisionSpec).length > 0 && <DetailSection title="决策约束"><FactGrid values={[["决策负责人", text(decisionSpec.decision_owner)]]} /><TextList title="目标" values={stringList(decisionSpec.objectives)} /><TextList title="约束" values={stringList(decisionSpec.constraints)} /><TextList title="输出章节" values={stringList(decisionSpec.required_sections)} /><TextList title="情景" values={stringList(decisionSpec.scenarios)} /><TextList title="评价指标" values={stringList(decisionSpec.evaluation_metrics)} /></DetailSection>}
-    <DetailSection title="调度与时间合同"><div className="timeline-list"><TimeRow label="信息截止" value={temporal.as_of_at} /><TimeRow label="观察开始" value={temporal.observation_start} /><TimeRow label="observation_end" value={item.observationEnd ?? temporal.observation_end} /><TimeRow label="available_after" value={item.availableAfter} /><TimeRow label="下次调度" value={item.nextRunAt} /><TimeRow label="Hard Stop" value={item.effectiveHardStopAt} /><FactGrid values={[["阶段", phaseLabel(item.phase)], ["尝试次数", String(item.attemptCount)], ["最近完成", formatTime(item.lastFinishedAt)], ["原因码", item.lastReasonCode]]} /></div></DetailSection>
-    <DetailSection title="证据依据"><SourceLinks values={stringList(grounding.source_urls)} /><TextList title="已验证事实" values={stringList(grounding.verified_facts)} /><TextList title="情景假设" values={stringList(grounding.scenario_assumptions)} />{text(grounding.evidence_excerpt) && <div className="evidence-excerpt"><span>题目原始证据摘录</span><p>{text(grounding.evidence_excerpt)}</p></div>}{hasContent(item.latestEvidence) && <JsonBlock title="最近一次冻结证据" value={item.latestEvidence} />}</DetailSection>
+    <DetailSection title="选项与答案空间"><OptionsList options={item.options} /><FactGrid values={[["答案类型", answerTypeLabel(text(answerSpec.type) || item.answerType)], ["单位", text(answerSpec.unit)], ["精度", text(answerSpec.precision)], ["答案数量", text(answerSpec.cardinality)], ["有效范围", display(answerSpec.valid_range)], ["记录系统", text(answerSpec.record_system)]]} /><TextList title="约束" values={stringList(answerSpec.constraints)} /></DetailSection>
+    {Object.keys(decisionSpec).length > 0 && <details className="question-detail-disclosure"><summary>决策约束</summary><div className="question-detail-disclosure-body"><FactGrid values={[["决策负责人", text(decisionSpec.decision_owner)]]} /><TextList title="目标" values={stringList(decisionSpec.objectives)} /><TextList title="约束" values={stringList(decisionSpec.constraints)} /><TextList title="输出章节" values={stringList(decisionSpec.required_sections)} /><TextList title="情景" values={stringList(decisionSpec.scenarios)} /><TextList title="评价指标" values={stringList(decisionSpec.evaluation_metrics)} /></div></details>}
+  </div>;
+}
+
+function TimingTab({ item, temporal, grounding, forecastability }: { item: ConsoleGeneratedQA; temporal: Record<string, unknown>; grounding: Record<string, unknown>; forecastability: Record<string, unknown> }) {
+  return <div className="question-detail-tab-panel" role="tabpanel">
+    <DetailSection title="调度与时间合同"><div className="timeline-list"><TimeRow label="信息截止" value={temporal.as_of_at} /><TimeRow label="观察开始" value={temporal.observation_start} /><TimeRow label="observation_end" value={item.observationEnd ?? temporal.observation_end} /><TimeRow label="available_after" value={item.availableAfter} /><TimeRow label="下次调度" value={item.nextRunAt} /><TimeRow label="Hard Stop" value={item.effectiveHardStopAt} /></div><FactGrid values={[["阶段", phaseLabel(item.phase)], ["尝试次数", String(item.attemptCount)], ["最近完成", formatTime(item.lastFinishedAt)], ["原因码", item.lastReasonCode]]} /></DetailSection>
+    <DetailSection title="来源与证据"><SourceLinks values={stringList(grounding.source_urls)} /><TextList title="已验证事实" values={stringList(grounding.verified_facts)} /><TextList title="情景假设" values={stringList(grounding.scenario_assumptions)} />{text(grounding.evidence_excerpt) && <div className="evidence-excerpt"><span>题目原始证据摘录</span><p>{text(grounding.evidence_excerpt)}</p></div>}{hasContent(item.latestEvidence) && <JsonBlock title="最近一次冻结证据" value={item.latestEvidence} />}</DetailSection>
     <DetailSection title="可预测性"><FactGrid values={[["当前未知原因", text(forecastability.why_not_known_now)], ["预测依据", text(forecastability.basis)], ["信息价值", text(forecastability.information_value)]]} /><TextList title="不确定因素" values={stringList(forecastability.uncertainty_drivers)} /></DetailSection>
+  </div>;
+}
+
+function ResultAuditTab({ item, latestRun, hasFinalResult, resultKind, resultValue }: { item: ConsoleGeneratedQA; latestRun: Record<string, unknown>; hasFinalResult: boolean; resultKind?: string; resultValue: unknown }) {
+  return <div className="question-detail-tab-panel" role="tabpanel">
+    {hasFinalResult && <DetailSection title={item.marketCompatible ? "最终答案" : "事后参考答案"}><ResultPanel kind={resultKind} value={resultValue} /></DetailSection>}
     <DetailSection title="最近运行"><FactGrid values={[["运行状态", text(latestRun.execution_status)], ["触发方式", text(latestRun.trigger)], ["Worker 版本", text(latestRun.worker_version)], ["模型", text(latestRun.model)], ["提示词版本", text(latestRun.prompt_version)], ["开始时间", formatTime(optionalTime(latestRun.started_at))], ["结束时间", formatTime(optionalTime(latestRun.finished_at))], ["执行错误", text(latestRun.error)]]} />{Object.keys(latestRun).length === 0 && <p className="question-empty-value">暂无运行记录</p>}</DetailSection>
     <details className="question-audit"><summary>审计标识</summary><div className="detail-grid"><DetailValue label="内部 ID" value={item.generatedQaId} /><DetailValue label="QA ID" value={item.sourceQaId} /><DetailValue label="生成请求" value={item.generationRequestId || "—"} /><DetailValue label="语义键" value={item.semanticKey} /><DetailValue label="事件键" value={item.eventClusterKey || "—"} /><DetailValue label="Ground Truth" value={item.groundTruthKind} /><DetailValue label="最近原因码" value={item.lastReasonCode} /></div></details>
   </div>;
