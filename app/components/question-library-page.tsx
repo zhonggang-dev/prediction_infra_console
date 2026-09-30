@@ -10,7 +10,11 @@ import { ConsoleShell } from "./console-shell";
 import { Icon } from "./icons";
 import { Status } from "./status";
 
-const statusOptions = [["", "全部状态"], ["PENDING", "等待中"]];
+const statusOptions = [
+  ["", "全部状态"], ["PENDING", "等待中"], ["RUNNING", "运行中"], ["RESOLVED", "已解决"],
+  ["DEFERRED", "已延期"], ["UNRESOLVED", "未解决"], ["FINAL_UNRESOLVED", "最终未解决"],
+  ["ANNUL", "已作废"], ["MECE_FAIL", "结构失败"],
+];
 const answerTypeLabels: Record<string, string> = {
   action_plan: "Action Plan",
   allocation_plan: "Allocation Plan",
@@ -83,7 +87,7 @@ export function QuestionLibraryPage() {
       <button className="button" onClick={() => setRefreshKey((value) => value + 1)}><Icon name="refresh" /> 刷新数据</button>
     </header>
     <section className="question-summary">
-      <span>共 <strong>{result?.total ?? "—"}</strong> 道题</span><span>当前页 <strong>{result?.items.length ?? "—"}</strong> 道</span><span>排序 <strong>最新创建优先</strong></span><span>数据源 <strong>QA Producer</strong></span>
+      <span>共 <strong>{result?.total ?? "—"}</strong> 道题</span><span>当前页 <strong>{result?.items.length ?? "—"}</strong> 道</span><span>排序 <strong>最新创建优先</strong></span><span>数据源 <strong>QA Producer</strong></span>{result && <span>题型 <strong>{result.marketCompatibleCounts.market ?? 0} 预测 / {result.marketCompatibleCounts.decision ?? 0} 决策</strong></span>}
     </section>
     {result && <QuestionOverview result={result} />}
     <section className="panel question-panel">
@@ -106,15 +110,13 @@ export function QuestionLibraryPage() {
 }
 
 function QuestionOverview({ result }: { result: GeneratedQAList }) {
-  const pending = result.statusCounts.PENDING ?? 0;
-  const market = result.marketCompatibleCounts.market ?? 0;
-  const decision = result.marketCompatibleCounts.decision ?? 0;
   return <section className="question-overview panel">
     <div className="question-overview-total"><strong>{result.total}</strong><span>题目总数</span></div>
-    <OverviewMetric label="等待结算" value={pending} tone="amber" />
-    <OverviewMetric label="预测市场题" value={market} tone="mint" />
-    <OverviewMetric label="决策分析题" value={decision} tone="ink" />
-    <OverviewMetric label="答案类型" value={result.questionTypeOptions.length} tone="neutral" />
+    <OverviewMetric label="等待中" value={result.statusCounts.PENDING ?? 0} tone="amber" />
+    <OverviewMetric label="运行中" value={result.statusCounts.RUNNING ?? 0} tone="ink" />
+    <OverviewMetric label="已解决" value={result.statusCounts.RESOLVED ?? 0} tone="mint" />
+    <OverviewMetric label="已延期" value={result.statusCounts.DEFERRED ?? 0} tone="neutral" />
+    <OverviewMetric label="未解决" value={result.statusCounts.UNRESOLVED ?? 0} tone="neutral" />
   </section>;
 }
 
@@ -123,7 +125,7 @@ function OverviewMetric({ label, value, tone }: { label: string; value: number; 
 }
 
 function QuestionTable({ items, onSelect }: { items: ConsoleGeneratedQA[]; onSelect: (item: ConsoleGeneratedQA) => void }) {
-  return <div className="table-scroll"><table className="question-table"><colgroup><col className="question-col" /><col className="status-col" /><col className="domain-col" /><col className="type-col" /><col className="time-col" /></colgroup><thead><tr><th>题目</th><th>状态</th><th>领域</th><th>题型</th><th>observation_end</th></tr></thead><tbody>{items.map((item) => <tr key={item.generatedQaId} onClick={() => onSelect(item)}><td className="question-primary"><strong>{item.question}</strong><small>{item.sourceQaId}</small></td><td><Status value={item.status} /></td><td><div className="domain-path"><strong>{item.domainL1}</strong><span>{item.industryL2}</span></div></td><td><span className="question-type-badge">{answerTypeLabel(item.answerType)}</span></td><td className="mono muted">{formatTime(item.endAt)}</td></tr>)}</tbody></table></div>;
+  return <div className="table-scroll"><table className="question-table"><colgroup><col className="question-col" /><col className="status-col" /><col className="domain-col" /><col className="type-col" /><col className="time-col" /></colgroup><thead><tr><th>题目</th><th>状态</th><th>领域</th><th>题型</th><th>observation_end</th></tr></thead><tbody>{items.map((item) => <tr key={item.generatedQaId} onClick={() => onSelect(item)}><td className="question-primary"><strong>{item.question}</strong><small>{item.sourceQaId}</small></td><td><Status value={item.status} label={statusDisplayLabel(item)} /><small className="question-phase">{phaseLabel(item.phase)}</small></td><td><div className="domain-path"><strong>{item.domainL1}</strong><span>{item.industryL2}</span></div></td><td><span className="question-type-badge">{answerTypeLabel(item.answerType)}</span></td><td className="mono muted">{formatTime(item.observationEnd)}</td></tr>)}</tbody></table></div>;
 }
 
 function QuestionDetail({ item, onClose }: { item: ConsoleGeneratedQA; onClose: () => void }) {
@@ -133,10 +135,19 @@ function QuestionDetail({ item, onClose }: { item: ConsoleGeneratedQA; onClose: 
   const grounding = asRecord(item.grounding);
   const forecastability = asRecord(item.forecastability);
   const ruleSections = formatResolutionRules(item.resolutionCriteria);
+  const latestRun = asRecord(item.latestRun);
+  const hasFinalResult = item.status === "RESOLVED";
+  const resultKind = hasFinalResult ? item.latestResultKind : undefined;
+  const resultValue = hasFinalResult
+    ? resultKind === "factual_answer" ? (item.latestFactualAnswer ?? item.canonicalAnswer ?? item.resolvedOptionId ?? item.latestResult)
+      : resultKind === "decision_reference" ? (item.latestDecisionReference ?? item.latestResult)
+        : item.canonicalAnswer ?? item.latestResult
+    : undefined;
   return <div className="question-detail">
     <div className="question-detail-head"><div><p className="eyebrow">Question Detail</p><h2 className="section-title">题目详情</h2></div><button className="button" onClick={onClose}>关闭</button></div>
-    <div className="question-detail-meta"><Status value={item.status} /><span>{answerTypeLabel(item.answerType)}</span><span>{phaseLabel(item.phase)}</span><span>{item.marketCompatible ? "预测市场题" : "决策分析题"}</span><span>{formatTopicPath(item.topicPath)}</span></div>
+    <div className="question-detail-meta"><Status value={item.status} label={statusDisplayLabel(item)} /><span>{answerTypeLabel(item.answerType)}</span><span>{phaseLabel(item.phase)}</span><span>{item.marketCompatible ? "预测市场题" : "决策分析题"}</span><span>{formatTopicPath(item.topicPath)}</span></div>
     <section className="question-detail-copy"><h3>{item.question}</h3><p>{item.context}</p></section>
+    <DetailSection title={item.marketCompatible ? "最终答案" : "事后参考答案"}><ResultPanel kind={resultKind} value={resultValue} /></DetailSection>
     <DetailSection title="结算或评价规则"><div className="resolution-rule-sections">{ruleSections.map((section) => <section key={section.key}>{section.title && <h5>{section.title}</h5>}<p>{section.content}</p></section>)}</div></DetailSection>
     <DetailSection title="选项与答案空间"><OptionsList options={item.options} /><FactGrid values={[
       ["答案类型", answerTypeLabel(text(answerSpec.type) || item.answerType)],
@@ -145,10 +156,11 @@ function QuestionDetail({ item, onClose }: { item: ConsoleGeneratedQA; onClose: 
       ["记录系统", text(answerSpec.record_system)],
     ]} /><TextList title="约束" values={stringList(answerSpec.constraints)} /></DetailSection>
     {Object.keys(decisionSpec).length > 0 && <DetailSection title="决策约束"><FactGrid values={[["决策负责人", text(decisionSpec.decision_owner)]]} /><TextList title="目标" values={stringList(decisionSpec.objectives)} /><TextList title="约束" values={stringList(decisionSpec.constraints)} /><TextList title="输出章节" values={stringList(decisionSpec.required_sections)} /><TextList title="情景" values={stringList(decisionSpec.scenarios)} /><TextList title="评价指标" values={stringList(decisionSpec.evaluation_metrics)} /></DetailSection>}
-    <DetailSection title="时间合同"><div className="timeline-list"><TimeRow label="信息截止" value={temporal.as_of_at} /><TimeRow label="观察开始" value={temporal.observation_start} /><TimeRow label="observation_end" value={temporal.observation_end} /><TimeRow label="answer_available_after" value={temporal.answer_available_after} /><TimeRow label="evaluation_available_after" value={temporal.evaluation_available_after} /></div></DetailSection>
-    <DetailSection title="证据依据"><SourceLinks values={stringList(grounding.source_urls)} /><TextList title="已验证事实" values={stringList(grounding.verified_facts)} /><TextList title="情景假设" values={stringList(grounding.scenario_assumptions)} />{text(grounding.evidence_excerpt) && <div className="evidence-excerpt"><span>证据摘录</span><p>{text(grounding.evidence_excerpt)}</p></div>}</DetailSection>
+    <DetailSection title="调度与时间合同"><div className="timeline-list"><TimeRow label="信息截止" value={temporal.as_of_at} /><TimeRow label="观察开始" value={temporal.observation_start} /><TimeRow label="observation_end" value={item.observationEnd ?? temporal.observation_end} /><TimeRow label="available_after" value={item.availableAfter} /><TimeRow label="下次调度" value={item.nextRunAt} /><TimeRow label="Hard Stop" value={item.effectiveHardStopAt} /><FactGrid values={[["阶段", phaseLabel(item.phase)], ["尝试次数", String(item.attemptCount)], ["最近完成", formatTime(item.lastFinishedAt)], ["原因码", item.lastReasonCode]]} /></div></DetailSection>
+    <DetailSection title="证据依据"><SourceLinks values={stringList(grounding.source_urls)} /><TextList title="已验证事实" values={stringList(grounding.verified_facts)} /><TextList title="情景假设" values={stringList(grounding.scenario_assumptions)} />{text(grounding.evidence_excerpt) && <div className="evidence-excerpt"><span>题目原始证据摘录</span><p>{text(grounding.evidence_excerpt)}</p></div>}{item.latestEvidence !== undefined && <JsonBlock title="最近一次冻结证据" value={item.latestEvidence} />}</DetailSection>
     <DetailSection title="可预测性"><FactGrid values={[["当前未知原因", text(forecastability.why_not_known_now)], ["预测依据", text(forecastability.basis)], ["信息价值", text(forecastability.information_value)]]} /><TextList title="不确定因素" values={stringList(forecastability.uncertainty_drivers)} /></DetailSection>
-    <details className="question-audit"><summary>审计标识</summary><div className="detail-grid"><DetailValue label="内部 ID" value={item.generatedQaId} /><DetailValue label="QA ID" value={item.sourceQaId} /><DetailValue label="生成请求" value={item.generationRequestId || "—"} /><DetailValue label="语义键" value={item.semanticKey} /><DetailValue label="事件键" value={item.eventClusterKey || "—"} /><DetailValue label="Ground Truth" value={item.groundTruthKind} /></div></details>
+    <DetailSection title="最近运行"><FactGrid values={[["运行状态", text(latestRun.execution_status)], ["触发方式", text(latestRun.trigger)], ["Worker 版本", text(latestRun.worker_version)], ["模型", text(latestRun.model)], ["提示词版本", text(latestRun.prompt_version)], ["开始时间", formatTime(optionalTime(latestRun.started_at))], ["结束时间", formatTime(optionalTime(latestRun.finished_at))], ["执行错误", text(latestRun.error)]]} />{Object.keys(latestRun).length === 0 && <p className="question-empty-value">暂无运行记录</p>}</DetailSection>
+    <details className="question-audit"><summary>审计标识</summary><div className="detail-grid"><DetailValue label="内部 ID" value={item.generatedQaId} /><DetailValue label="QA ID" value={item.sourceQaId} /><DetailValue label="生成请求" value={item.generationRequestId || "—"} /><DetailValue label="语义键" value={item.semanticKey} /><DetailValue label="事件键" value={item.eventClusterKey || "—"} /><DetailValue label="Ground Truth" value={item.groundTruthKind} /><DetailValue label="最近原因码" value={item.lastReasonCode} /></div></details>
   </div>;
 }
 
@@ -178,6 +190,15 @@ function SourceLinks({ values }: { values: string[] }) {
   return <div className="source-links"><h5>来源</h5>{links.map((value) => <a href={value} target="_blank" rel="noreferrer" key={value}>{value}</a>)}</div>;
 }
 
+function ResultPanel({ kind, value }: { kind?: string; value: unknown }) {
+  if (value === undefined || value === null || value === "") return <p className="question-empty-value">尚未形成最终产物</p>;
+  return <div className="answer-panel"><FactGrid values={[["结果类型", resultKindLabel(kind)], ["结果", compactValue(value)]]} /><JsonBlock title="结构化结果" value={value} /></div>;
+}
+
+function JsonBlock({ title, value }: { title: string; value: unknown }) {
+  return <div className="json-block"><span>{title}</span><pre>{formatValue(value)}</pre></div>;
+}
+
 function TimeRow({ label, value }: { label: string; value: unknown }) {
   if (!value) return null;
   return <div><span>{label}</span><strong>{formatTime(String(value))}</strong></div>;
@@ -185,13 +206,18 @@ function TimeRow({ label, value }: { label: string; value: unknown }) {
 
 function DetailValue({ label, value }: { label: string; value: string }) { return <div><div className="detail-key">{label}</div><div className="detail-value">{value}</div></div>; }
 function answerTypeLabel(value: string) { return answerTypeLabels[value] ?? value.replaceAll("_", " "); }
-function phaseLabel(value: string) { return value === "POST_END" ? "结束后" : value === "PRE_END" ? "结束前" : value; }
+function phaseLabel(value: string) { return ({ OBSERVING: "观察中", AWAITING_PUBLICATION: "等待发布", ANSWERABLE: "可调度", TERMINAL: "已终态", PRE_END: "结束前", POST_END: "结束后" } as Record<string, string>)[value] ?? value; }
+function resultKindLabel(value?: string) { return value === "factual_answer" ? "事实答案" : value === "decision_reference" ? "事后参考答案" : value || "—"; }
+function statusDisplayLabel(item: ConsoleGeneratedQA) { return item.status === "RESOLVED" && !item.marketCompatible ? "参考答案已生成" : undefined; }
 function primaryDomain(value: string) { const index = value.indexOf("."); return index < 0 ? value : value.slice(0, index); }
 function secondaryDomain(value: string) { const index = value.indexOf("."); return index < 0 ? value : value.slice(index + 1); }
 function formatTime(value?: string) { return value ? `${new Date(value).toISOString().slice(0, 19).replace("T", " ")} UTC` : "—"; }
+function optionalTime(value: unknown) { return typeof value === "string" && !Number.isNaN(Date.parse(value)) ? value : undefined; }
 function asRecord(value: unknown): Record<string, unknown> { return value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {}; }
 function text(value: unknown) { return value === undefined || value === null || value === "" ? "—" : String(value); }
 function display(value: unknown) { return Array.isArray(value) ? value.map(String).join(" – ") : text(value); }
 function stringList(value: unknown) { return Array.isArray(value) ? value.map(String).filter(Boolean) : []; }
+function compactValue(value: unknown) { return typeof value === "string" || typeof value === "number" || typeof value === "boolean" ? String(value) : formatValue(value); }
+function formatValue(value: unknown) { if (typeof value === "string") return value; try { return JSON.stringify(value, null, 2) ?? "—"; } catch { return String(value); } }
 function safeSourceUrl(value: string) { try { const url = new URL(value); return url.protocol === "https:" || url.protocol === "http:"; } catch { return false; } }
 function optionObject(value: unknown) { if (typeof value !== "object" || value === null) return { id: "", name: String(value), canonical: "" }; const option = value as { option_id?: unknown; label?: unknown; canonical_value?: unknown }; return { id: String(option.option_id ?? ""), name: String(option.label ?? ""), canonical: typeof option.canonical_value === "string" || typeof option.canonical_value === "number" ? String(option.canonical_value) : "" }; }

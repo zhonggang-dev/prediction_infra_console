@@ -519,7 +519,14 @@ function mapGeneratedQA(item: RawRecord): ConsoleGeneratedQA {
     grounding: jsonValue(item.grounding), forecastability: jsonValue(item.forecastability),
     taskFamily: string(item.task_family), marketCompatible: item.market_compatible === true,
     groundTruthKind: string(item.ground_truth_kind), domainL1: string(item.domain_l1), industryL2: string(item.industry_l2),
-    topicPath: string(item.topic_path), endAt: optionalTime(temporal.observation_end), availableAfter: optionalTime(item.available_after),
+    topicPath: string(item.topic_path), observationEnd: optionalTime(item.observation_end ?? temporal.observation_end), availableAfter: optionalTime(item.available_after ?? temporal.answer_available_after ?? temporal.evaluation_available_after),
+    nextRunAt: optionalTime(item.next_run_at), effectiveHardStopAt: optionalTime(item.effective_hard_stop_at),
+    attemptCount: number(item.attempt_count), lastReasonCode: string(item.last_reason_code, "—"), lastFinishedAt: optionalTime(item.last_finished_at),
+    latestResultKind: optional(item.latest_result_kind), latestResult: jsonValueOrUndefined(item.latest_result),
+    latestFactualAnswer: jsonValueOrUndefined(item.latest_factual_answer), latestDecisionReference: jsonValueOrUndefined(item.latest_decision_reference),
+    resolvedOptionId: optional(item.resolved_option_id),
+    latestEvidence: jsonValueOrUndefined(item.latest_evidence), latestRun: jsonValueOrUndefined(item.latest_run),
+    canonicalAnswer: jsonValueOrUndefined(item.canonical_answer),
     generationRequestId: optional(item.generation_request_id), semanticKey: string(item.semantic_key),
     eventClusterKey: string(item.event_cluster_key), status: string(item.status) as ConsoleGeneratedQA["status"], phase: string(item.phase),
     createdAt: string(item.created_at), updatedAt: string(item.updated_at),
@@ -528,6 +535,10 @@ function mapGeneratedQA(item: RawRecord): ConsoleGeneratedQA {
 
 function jsonValue(value: unknown): unknown {
   return value === undefined || value === null ? {} : value;
+}
+
+function jsonValueOrUndefined(value: unknown): unknown {
+  return value === undefined || value === null ? undefined : value;
 }
 
 function optionalJSON(value: unknown): unknown {
