@@ -123,7 +123,7 @@ tbody tr:hover { background: #f7faf6; }
 .input:focus, .select:focus { border-color: var(--mint); box-shadow: 0 0 0 2px rgba(29,141,117,.12); }
 .question-summary { display: flex; gap: 26px; margin: -10px 0 22px; color: var(--muted); font-size: 12px; }
 .question-summary strong { color: var(--ink); font-variant-numeric: tabular-nums; }
-.question-overview { margin-bottom: 18px; display: grid; grid-template-columns: 1.15fr repeat(4, minmax(0, 1fr)); }
+.question-overview { margin-bottom: 18px; display: grid; grid-template-columns: 1.15fr repeat(5, minmax(0, 1fr)); }
 .question-overview > div { min-width: 0; min-height: 78px; padding: 15px 17px; border-right: 1px solid var(--line); display: flex; flex-direction: column; justify-content: center; }
 .question-overview > div:last-child { border-right: 0; }
 .question-overview-total { background: #f5f8f5; }
@@ -149,6 +149,7 @@ tbody tr:hover { background: #f7faf6; }
 .question-primary { white-space: normal; }
 .question-primary strong { display: -webkit-box; overflow: hidden; color: var(--ink); font-size: 12px; line-height: 1.4; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
 .question-primary small { display: block; margin-top: 4px; overflow: hidden; color: var(--muted); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
+.question-phase { margin-top: 5px !important; color: var(--muted); font-family: inherit !important; font-size: 9px !important; }
 .domain-path { min-width: 0; display: grid; gap: 2px; white-space: normal; }.domain-path strong { overflow: hidden; color: #365b4d; font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }.domain-path span { overflow: hidden; color: var(--muted); font-size: 9px; text-overflow: ellipsis; white-space: nowrap; }
 .question-type-badge { display: inline-flex; padding: 3px 7px; border: 1px solid #d7e4dc; border-radius: 3px; color: #47675b; background: #f4f8f5; font-size: 10px; white-space: nowrap; }
 .question-detail { height: 100%; padding: 0 26px 34px; overflow-y: auto; background: #fbfcfa; }
@@ -167,6 +168,10 @@ tbody tr:hover { background: #f7faf6; }
 .timeline-list { display: grid; }.timeline-list > div { min-height: 38px; border-bottom: 1px solid #edf0eb; display: flex; align-items: center; justify-content: space-between; gap: 18px; }.timeline-list > div:last-child { border-bottom: 0; }.timeline-list span { color: var(--muted); font-size: 10px; }.timeline-list strong { color: var(--ink-soft); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; }
 .source-links { display: grid; gap: 5px; }.source-links a { overflow: hidden; color: var(--mint); font-size: 10px; text-decoration: none; text-overflow: ellipsis; white-space: nowrap; }.source-links a:hover { text-decoration: underline; }
 .evidence-excerpt { padding: 10px 12px; border-left: 2px solid #9fcab9; background: #f1f7f3; }.evidence-excerpt span { color: var(--muted); font-size: 9px; }.evidence-excerpt p { margin: 4px 0 0; color: var(--ink-soft); font-size: 11px; line-height: 1.55; }
+.answer-panel { display: grid; gap: 10px; }
+.json-block { min-width: 0; padding: 10px 12px; border: 1px solid #e2e9e4; border-radius: 5px; background: #fff; }
+.json-block > span { color: var(--muted); font-size: 9px; }
+.json-block pre { max-height: 260px; margin: 6px 0 0; overflow: auto; color: var(--ink-soft); font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 10px; line-height: 1.55; white-space: pre-wrap; overflow-wrap: anywhere; }
 .question-empty-value { margin: 0; color: var(--muted); font-size: 11px; }
 .question-audit { margin-top: 22px; padding-top: 15px; border-top: 1px solid var(--line); }.question-audit summary { cursor: pointer; color: var(--muted); font-size: 10px; }.question-audit .detail-grid { margin-top: 13px; }
 .question-pagination { min-height: 54px; padding: 9px 14px; border-top: 1px solid var(--line); display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 11px; }
@@ -563,7 +568,7 @@ tbody tr:hover { background: #f7faf6; }
   .question-filter-actions { grid-column: span 6; }
   .question-search-action { justify-content: center; }
   .question-overview { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-  .question-overview > div:nth-child(3) { border-right: 0; }
+  .question-overview > div:nth-child(3n) { border-right: 0; }
 }
 @media (max-width: 620px) {
   .page-head { display: block; }.page-head > .button { margin-top: 14px; }.metric-grid, .pipeline, .form-grid, .detail-grid { grid-template-columns: 1fr; }.metric, .metric:nth-child(2) { border-right: 0; border-bottom: 1px solid var(--line); }.metric:last-child { border-bottom: 0; }.pipeline-step, .pipeline-step:nth-child(2) { border-right: 0; border-bottom: 1px solid var(--line); }.pipeline-step:last-child { border-bottom: 0; }.pipeline-step::after { display: none; }.input { min-width: 100%; }.filters { display: grid; }.top-actions .button:not(.icon-button) { display: none; }
