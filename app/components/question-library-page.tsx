@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
 import { consoleApi } from "../lib/console-api";
+import { readAnswerAudit } from "../lib/answer-audit";
 import { formatResolutionRules } from "../lib/resolution-rules";
 import { formatTopicPath } from "../lib/topic-paths";
 import type { ConsoleGeneratedQA, GeneratedQAList } from "../lib/types";
@@ -141,7 +142,7 @@ function QuestionDetail({ item, onClose }: { item: ConsoleGeneratedQA; onClose: 
   const resultKind = hasFinalResult ? item.latestResultKind : undefined;
   const resultValue = hasFinalResult
     ? resultKind === "factual_answer" ? (item.latestFactualAnswer ?? item.canonicalAnswer ?? item.resolvedOptionId ?? item.latestResult)
-      : resultKind === "decision_reference" ? (item.latestDecisionReference ?? item.latestResult)
+      : resultKind === "decision_reference" ? (item.latestDecisionReference ?? asRecord(item.latestResult).reference ?? item.latestResult)
         : item.canonicalAnswer ?? item.latestResult
     : undefined;
   return <div className="question-detail">
@@ -174,8 +175,10 @@ function TimingTab({ item, temporal, grounding, forecastability }: { item: Conso
 }
 
 function ResultAuditTab({ item, latestRun, hasFinalResult, resultKind, resultValue }: { item: ConsoleGeneratedQA; latestRun: Record<string, unknown>; hasFinalResult: boolean; resultKind?: string; resultValue: unknown }) {
+  const audit = readAnswerAudit(item.latestResult);
   return <div className="question-detail-tab-panel" role="tabpanel">
-    {hasFinalResult && <DetailSection title={item.marketCompatible ? "最终答案" : "事后参考答案"}><ResultPanel kind={resultKind} value={resultValue} /></DetailSection>}
+    {hasFinalResult && <DetailSection title={item.marketCompatible ? "最终答案" : "事后参考答案"}><ResultPanel kind={resultKind} value={resultValue} /><FactGrid values={[["证据等级", audit.gradeLabel]]} /></DetailSection>}
+    {(audit.gate || audit.error) && <DetailSection title="最近一次判定"><FactGrid values={[["门禁", audit.gate], ["说明", audit.error]]} />{hasContent(audit.grading) && <JsonBlock title="来源评分" value={audit.grading} />}{hasContent(audit.coverage) && <JsonBlock title="章节覆盖" value={audit.coverage} />}</DetailSection>}
     <DetailSection title="最近运行"><FactGrid values={[["运行状态", text(latestRun.execution_status)], ["触发方式", text(latestRun.trigger)], ["Worker 版本", text(latestRun.worker_version)], ["模型", text(latestRun.model)], ["提示词版本", text(latestRun.prompt_version)], ["开始时间", formatTime(optionalTime(latestRun.started_at))], ["结束时间", formatTime(optionalTime(latestRun.finished_at))], ["执行错误", text(latestRun.error)]]} />{Object.keys(latestRun).length === 0 && <p className="question-empty-value">暂无运行记录</p>}</DetailSection>
     <details className="question-audit"><summary>审计标识</summary><div className="detail-grid"><DetailValue label="内部 ID" value={item.generatedQaId} /><DetailValue label="QA ID" value={item.sourceQaId} /><DetailValue label="生成请求" value={item.generationRequestId || "—"} /><DetailValue label="语义键" value={item.semanticKey} /><DetailValue label="事件键" value={item.eventClusterKey || "—"} /><DetailValue label="Ground Truth" value={item.groundTruthKind} /><DetailValue label="最近原因码" value={item.lastReasonCode} /></div></details>
   </div>;
