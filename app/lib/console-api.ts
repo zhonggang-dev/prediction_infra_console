@@ -2,6 +2,7 @@
 
 import { demoData, demoOverview } from "./demo-data";
 import { demoDailyPnL, demoLedgerActivities, demoTradeHistory } from "./demo-trades";
+import { decodeDatasetRotation, DatasetRotationContractError, type DatasetRotationData } from "./dataset-rotation";
 import { normalizeLiveRisk } from "./live-risk";
 import type { ApiMode, ApiResult, BacktestCreateParams, ConsoleGeneratedMarket, ConsoleGeneratedQA, ConsoleList, ConsoleResource, ConsoleRow, DailyPnLPoint, DailyPnLReport, EdgeDistribution, EdgeDistributionBin, EdgeDistributionSeries, GeneratedMarketList, GeneratedQAList, LedgerActivity, LedgerActivityPage, LedgerActivityParams, LedgerActivitySummary, LedgerActivityType, LiveEvent, LiveFunnelStage, LiveHealth, LiveOperationsSnapshot, LiveOrder, LiveOrderStep, LivePosition, LiveRiskMetric, LiveStageState, LiveWalletSummary, LiveWorker, OverviewData, ServiceMetricsOverview, ServiceRuntimeHealth, ServiceRuntimeMetrics, TradeHistoryPage, TradeHistoryParams, TradeHistorySummary, TradeRecord, TradeSide } from "./types";
 
@@ -483,6 +484,16 @@ export const consoleApi = {
     return { data: mapEdgeDistribution(result.data), mode: result.mode };
   },
   async liveOperations() { const result = await request<RawRecord>("live-operations"); return { data: mapLiveOperations(result.data), mode: result.mode }; },
+  async datasetRotation() {
+    const result = await request<unknown>("dataset-rotation");
+    try {
+      const data: DatasetRotationData = decodeDatasetRotation(result.data);
+      return { data, mode: result.mode };
+    } catch (error) {
+      if (error instanceof DatasetRotationContractError) throw new ConsoleApiError(error.message, "live");
+      throw error;
+    }
+  },
   createBacktest: (params: BacktestCreateParams) => request<RawRecord>("backtest-datasets", { method: "POST", body: JSON.stringify(params), headers: { "Idempotency-Key": crypto.randomUUID() } }),
   demoOverview: (): ApiResult<OverviewData> => ({ data: demoOverview, mode: "demo" }),
   demoTradeHistory: (params: TradeHistoryParams = {}): ApiResult<TradeHistoryPage> => ({ data: demoTradeHistory(params), mode: "demo" }),

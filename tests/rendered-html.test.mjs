@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-async function render(pathname = "/") {
+async function render(pathname = "/", init = {}) {
   const workerUrl = new URL("../dist/server/index.js", import.meta.url);
   workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}-${pathname}`);
   const { default: worker } = await import(workerUrl.href);
-  return worker.fetch(new Request(`http://localhost${pathname}`, { headers: { accept: "text/html" } }), { ASSETS: { fetch: async () => new Response("Not found", { status: 404 }) } }, { waitUntil() {}, passThroughOnException() {} });
+  return worker.fetch(new Request(`http://localhost${pathname}`, { headers: { accept: "text/html" }, ...init }), { ASSETS: { fetch: async () => new Response("Not found", { status: 404 }) } }, { waitUntil() {}, passThroughOnException() {} });
 }
 
 async function withoutBackendConfig(run) {
@@ -38,6 +38,14 @@ test("服务端可渲染独立的市场页面", async () => {
   assert.equal(response.status, 200);
   const html = await response.text();
   assert.match(html, /已选市场/);
+});
+
+test("服务端可渲染数据集轮换页面并显示导航入口", async () => {
+  const response = await render("/dataset-rotation");
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /数据集轮换/);
+  assert.match(html, /href="\/dataset-rotation"[^>]*>.*数据集轮换/s);
 });
 
 test("服务端可渲染交易与结算记录页面", async () => {
@@ -143,5 +151,17 @@ test("Edge 分布接口未配置执行服务时安全失败", async () => {
 
 test("BFF 拒绝非白名单回测路径", async () => {
   const response = await render("/api/console/backtest-datasets/example/files/secret.txt");
+  assert.equal(response.status, 404);
+});
+
+test("数据集轮换 BFF 未配置后端时安全失败", async () => {
+  const response = await withoutBackendConfig(() => render("/api/console/dataset-rotation"));
+  assert.equal(response.status, 503);
+  const payload = await response.json();
+  assert.equal(payload.code, "BACKEND_NOT_CONFIGURED");
+});
+
+test("数据集轮换 BFF 拒绝写请求", async () => {
+  const response = await render("/api/console/dataset-rotation", { method: "POST" });
   assert.equal(response.status, 404);
 });
