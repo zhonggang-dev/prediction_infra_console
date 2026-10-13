@@ -79,7 +79,7 @@ export function ServiceMetricsDashboard() {
       </div>
     </header>
 
-    {mode === "demo" && <div className="notice live-preview-notice"><div><strong>当前为演示数据</strong><p>{error} 接通服务后页面会自动切换为真实指标。</p></div></div>}
+    {mode === "demo" && <div className="notice live-preview-notice"><div><strong>Go 服务指标为演示数据</strong><p>{error} Redis 数据独立来自 Redis 实际接口，不受该演示状态影响。</p></div></div>}
 
     <section className="service-summary" aria-label="服务监控摘要">
       <Summary label="可用服务" value={`${summary.available} / 2`} meta={summary.available === 2 ? "全部通过就绪检查" : "存在不可用服务"} tone={summary.available === 2 ? "positive" : "warning"} />
@@ -293,8 +293,13 @@ function redisHealthClass(value: RedisMonitorData["instance"]["level"]): string 
 }
 
 function cleanupText(cleanup: RedisMonitorData["cleanup"]): string {
-  if (cleanup.status === "not_enabled") return `未接入（完成消息保留 ${cleanup.retentionDays} 天）`;
-  return cleanup.status;
+  const retention = `完成超过 ${cleanup.retentionDays} 天逐条清理`;
+  switch (cleanup.status) {
+    case "not_enabled": return `未接入（${retention}）`;
+    case "unknown": return `待首次执行（${retention}）`;
+    case "ok": return `已启用（${retention}）`;
+    case "degraded": return `部分可用（${retention}）`;
+  }
 }
 
 function redisErrors(errors: string[]): string[] {
