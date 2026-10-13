@@ -159,6 +159,15 @@ function resolveTarget(path: string[], method: string): ProxyTarget | undefined 
       serviceName: "Trading Execution",
     };
   }
+  if (first === "redis-monitor" && method === "GET" && path.length === 1) {
+    return {
+      baseUrl: process.env.PREDICTION_INFRA_BASE_URL,
+      token: process.env.CONSOLE_API_TOKEN,
+      endpoint: "/api/v1/console/redis-monitor",
+      stream: false,
+      serviceName: "Prediction Infra",
+    };
+  }
   if (!CONSOLE_RESOURCES.has(first) || path.length !== 1 || method !== "GET") return undefined;
   return {
     baseUrl: process.env.PREDICTION_INFRA_BASE_URL,

@@ -3,6 +3,7 @@
 import { demoData, demoOverview } from "./demo-data";
 import { demoDailyPnL, demoLedgerActivities, demoTradeHistory } from "./demo-trades";
 import { decodeDatasetRotation, DatasetRotationContractError, type DatasetRotationData } from "./dataset-rotation";
+import { decodeRedisMonitor, type RedisMonitorData } from "./redis-monitor";
 import { normalizeLiveRisk } from "./live-risk";
 import type { ApiMode, ApiResult, BacktestCreateParams, ConsoleGeneratedMarket, ConsoleGeneratedQA, ConsoleList, ConsoleResource, ConsoleRow, DailyPnLPoint, DailyPnLReport, EdgeDistribution, EdgeDistributionBin, EdgeDistributionSeries, GeneratedMarketList, GeneratedQAList, LedgerActivity, LedgerActivityPage, LedgerActivityParams, LedgerActivitySummary, LedgerActivityType, LiveEvent, LiveFunnelStage, LiveHealth, LiveOperationsSnapshot, LiveOrder, LiveOrderStep, LivePosition, LiveRiskMetric, LiveStageState, LiveWalletSummary, LiveWorker, OverviewData, ServiceMetricsOverview, ServiceRuntimeHealth, ServiceRuntimeMetrics, TradeHistoryPage, TradeHistoryParams, TradeHistorySummary, TradeRecord, TradeSide } from "./types";
 
@@ -396,6 +397,16 @@ export const consoleApi = {
     const result = await request<RawRecord>("service-metrics");
     const data: ServiceMetricsOverview = { observedAt: optionalTime(result.data.observed_at) ?? new Date().toISOString(), services: records(result.data.services).map(mapServiceMetrics) };
     return { data, mode: result.mode };
+  },
+  async redisMonitor() {
+    const result = await request<unknown>("redis-monitor");
+    try {
+      const data: RedisMonitorData = decodeRedisMonitor(result.data);
+      return { data, mode: result.mode };
+    } catch (error) {
+      if (error instanceof Error) throw new ConsoleApiError(error.message, "live");
+      throw error;
+    }
   },
   async list(resource: ConsoleResource, params: { limit?: number; offset?: number } = {}) {
     const query = new URLSearchParams({ limit: String(params.limit ?? 20), offset: String(params.offset ?? 0) });
