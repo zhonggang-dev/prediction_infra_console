@@ -88,8 +88,6 @@ export function ServiceMetricsDashboard() {
       <Summary label="内存占用" value={summary.memoryPercent === undefined ? "—" : `${decimal(summary.memoryPercent, 1)}%`} meta={`${bytes(summary.memoryBytes)} 当前使用`} />
     </section>
 
-    <RedisMonitorPanel data={redisData} error={redisError} loading={redisLoading} />
-
     <section className="section">
       <div className="section-head"><div><h2 className="section-title">服务实例</h2><p className="section-caption">指标窗口 60 秒 · 健康状态来自 readiness 检查</p></div><span className="mono muted">{utc(data?.observedAt)}</span></div>
       <div className="service-card-grid">
@@ -114,6 +112,8 @@ export function ServiceMetricsDashboard() {
         </div>
       </div>
     </section>
+
+    <RedisMonitorPanel data={redisData} error={redisError} loading={redisLoading} />
   </ConsoleShell>;
 }
 
@@ -153,22 +153,32 @@ function RedisMonitorPanel({ data, error, loading }: { data?: RedisMonitorData; 
       </div>
 
       <div className="redis-monitor-grid">
-        <div>
-          <div className="section-head"><div><h3 className="section-title">Stream 消息</h3><p className="section-caption">消息数、估算占用及消费组 lag / pending</p></div></div>
-          <div className="panel service-table-wrap"><table className="service-table redis-table"><thead><tr><th>业务类别</th><th>消息数</th><th>估算占用</th><th>消费组状态</th></tr></thead><tbody>
-            {data.streams.map((stream) => <tr key={stream.key}><td className="primary-cell">{redisCategoryLabel(stream.category)}</td><td className="mono">{integer(stream.length)}</td><td className="mono">{bytes(stream.estimatedBytes)}</td><td className="redis-groups">{stream.error ? <span className="negative">{streamErrorText(stream.error)}</span> : stream.groups.length ? stream.groups.map((group) => <span key={group.name}><strong>{group.name}</strong> · lag {nullableInteger(group.lag)} · pending {nullableInteger(group.pending)}</span>) : <span className="muted">无消费组</span>}</td></tr>)}
-            {!data.streams.length && <tr><td colSpan={4} className="muted">未发现 Stream</td></tr>}
-          </tbody></table></div>
-          {streamCategories.length > 0 && <p className="redis-footnote">Stream 分类合计：{streamCategories.map((category) => `${redisCategoryLabel(category.name)} ${bytes(category.estimatedBytes)}`).join(" · ")}</p>}
-        </div>
-        <div>
-          <div className="section-head"><div><h3 className="section-title">缓存与标记</h3><p className="section-caption">分项为 MEMORY USAGE 估算，不替代实例实际用量</p></div></div>
-          <div className="panel service-table-wrap"><table className="service-table redis-table"><thead><tr><th>业务类别</th><th>Key 数</th><th>估算占用</th></tr></thead><tbody>
-            {cacheCategories.map((category) => <tr key={category.name}><td className="primary-cell">{redisCategoryLabel(category.name)}</td><td className="mono">{integer(category.keyCount)}</td><td className="mono">{bytes(category.estimatedBytes)}</td></tr>)}
-            {!cacheCategories.length && <tr><td colSpan={3} className="muted">未发现非 Stream Key</td></tr>}
-          </tbody></table></div>
-          <p className="redis-footnote">清理状态：{cleanupText(data.cleanup)}{data.cleanup.message ? ` · ${data.cleanup.message}` : ""}</p>
-        </div>
+        <details className="redis-detail">
+          <summary>
+            <span className="redis-detail-title"><strong>Stream 消息</strong><small>消息数、估算占用及消费组 lag / pending</small></span>
+            <span className="redis-detail-action"><span className="redis-detail-closed">展开详情</span><span className="redis-detail-open">收起详情</span></span>
+          </summary>
+          <div className="redis-detail-body">
+            <div className="panel service-table-wrap"><table className="service-table redis-table"><thead><tr><th>业务类别</th><th>消息数</th><th>估算占用</th><th>消费组状态</th></tr></thead><tbody>
+              {data.streams.map((stream) => <tr key={stream.key}><td className="primary-cell">{redisCategoryLabel(stream.category)}</td><td className="mono">{integer(stream.length)}</td><td className="mono">{bytes(stream.estimatedBytes)}</td><td className="redis-groups">{stream.error ? <span className="negative">{streamErrorText(stream.error)}</span> : stream.groups.length ? stream.groups.map((group) => <span key={group.name}><strong>{group.name}</strong> · lag {nullableInteger(group.lag)} · pending {nullableInteger(group.pending)}</span>) : <span className="muted">无消费组</span>}</td></tr>)}
+              {!data.streams.length && <tr><td colSpan={4} className="muted">未发现 Stream</td></tr>}
+            </tbody></table></div>
+            {streamCategories.length > 0 && <p className="redis-footnote">Stream 分类合计：{streamCategories.map((category) => `${redisCategoryLabel(category.name)} ${bytes(category.estimatedBytes)}`).join(" · ")}</p>}
+          </div>
+        </details>
+        <details className="redis-detail">
+          <summary>
+            <span className="redis-detail-title"><strong>缓存与标记</strong><small>分项为 MEMORY USAGE 估算，不替代实例实际用量</small></span>
+            <span className="redis-detail-action"><span className="redis-detail-closed">展开详情</span><span className="redis-detail-open">收起详情</span></span>
+          </summary>
+          <div className="redis-detail-body">
+            <div className="panel service-table-wrap"><table className="service-table redis-table"><thead><tr><th>业务类别</th><th>Key 数</th><th>估算占用</th></tr></thead><tbody>
+              {cacheCategories.map((category) => <tr key={category.name}><td className="primary-cell">{redisCategoryLabel(category.name)}</td><td className="mono">{integer(category.keyCount)}</td><td className="mono">{bytes(category.estimatedBytes)}</td></tr>)}
+              {!cacheCategories.length && <tr><td colSpan={3} className="muted">未发现非 Stream Key</td></tr>}
+            </tbody></table></div>
+            <p className="redis-footnote">清理状态：{cleanupText(data.cleanup)}{data.cleanup.message ? ` · ${data.cleanup.message}` : ""}</p>
+          </div>
+        </details>
       </div>
     </>}
   </section>;
