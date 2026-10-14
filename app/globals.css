@@ -590,7 +590,7 @@ tbody tr:hover { background: #f7faf6; }
 .summary-cell > strong.critical { color: #ef9482; }
 .redis-monitor-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; min-height: 42px; color: var(--muted); font-size: 10px; }
 .redis-monitor-meta strong { color: var(--ink-soft); font-weight: 650; }.redis-monitor-meta .warning { color: #a86f21; }
-.redis-monitor-grid { min-width: 0; max-width: 100%; display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(300px, .75fr); gap: 16px; }
+.redis-monitor-grid { min-width: 0; max-width: 100%; display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(300px, .75fr); gap: 16px; align-items: start; }
 .redis-monitor-grid > div, .redis-monitor-grid > .redis-detail, .redis-monitor-grid .service-table-wrap { min-width: 0; max-width: 100%; }
 .redis-monitor-grid .service-table-wrap { overflow-x: auto; overscroll-behavior-inline: contain; }
 .redis-table { width: 100%; min-width: 560px; table-layout: fixed; }.redis-table th, .redis-table td { overflow-wrap: anywhere; }.redis-table th { background: #fbfcfa; }.redis-table td { height: 54px; }
