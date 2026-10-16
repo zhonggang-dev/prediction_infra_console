@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { ConsoleShell } from "./console-shell";
 import { Icon } from "./icons";
 import { ConsoleV2ApiError, ConsoleV2ContractError, type ConsoleV2Page, type ConsoleV2Result } from "../lib/console-v2";
@@ -47,6 +48,8 @@ export function V2ListPage<T>({ title, description, load, columns, rowKey, rende
   emptyDescription?: string;
   children?: React.ReactNode;
 }) {
+  const searchParams = useSearchParams();
+  const urlQuery = searchParams.get("q")?.trim() ?? "";
   const [draftQuery, setDraftQuery] = useState("");
   const [query, setQuery] = useState("");
   const [offset, setOffset] = useState(0);
@@ -55,6 +58,17 @@ export function V2ListPage<T>({ title, description, load, columns, rowKey, rende
   const [error, setError] = useState<string>();
   const [loading, setLoading] = useState(true);
   const serializedParams = useMemo(() => JSON.stringify(params), [params]);
+
+  // Keep deep links such as /trading/orders?q=... usable after client-side
+  // navigation while leaving the server render deterministic.
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDraftQuery(urlQuery);
+      setQuery(urlQuery);
+      setOffset(0);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [urlQuery]);
 
   useEffect(() => {
     let cancelled = false;

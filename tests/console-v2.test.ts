@@ -79,6 +79,8 @@ test("Trading filters and V2 detail rows expose only backend status values and k
   assert.doesNotMatch(trading, /value="PARTIAL"/);
   assert.match(resource, /查看详情/);
   assert.match(resource, /v2-action-cell/);
+  assert.match(resource, /useSearchParams/);
+  assert.match(resource, /searchParams\.get\("q"\)/);
   assert.match(trading, /BindingTable/);
   assert.match(trading, /CycleEvidence/);
   assert.match(trading, /OrderTraceEvidence/);
