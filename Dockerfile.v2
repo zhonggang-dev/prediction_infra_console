@@ -1,0 +1,29 @@
+FROM node:24-bookworm-slim AS build
+
+ARG PNPM_VERSION=11.19.0
+
+RUN npm install --global "pnpm@${PNPM_VERSION}"
+
+WORKDIR /app
+
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+RUN pnpm install --frozen-lockfile
+
+COPY . .
+RUN pnpm build:v2
+
+FROM node:24-bookworm-slim AS runtime
+
+ARG PNPM_VERSION=11.19.0
+
+RUN npm install --global "pnpm@${PNPM_VERSION}"
+
+ENV NODE_ENV=production
+WORKDIR /app
+
+COPY --from=build --chown=node:node /app /app
+
+USER node
+EXPOSE 13001
+
+CMD ["pnpm", "start:v2"]

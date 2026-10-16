@@ -1,14 +1,25 @@
-# Prediction Console
+# Prediction Console V2
 
-Prediction Infra 的独立 React 运维控制台。浏览器只请求同源 `/api/console/*`；BFF 在服务端携带令牌请求 Go 服务，因此任何令牌都不会进入浏览器包。
+Prediction Infra 的新版 React 运维控制台基础。它从线上 Console 的已提交版本独立复制，以 `13001` 和 `prediction-console-v2` 运行；旧版 `13000`、`prediction-console` 容器和原 systemd unit 不在本项目的启停范围内。浏览器只请求同源 `/api/console/*`；BFF 在服务端携带令牌请求 Go 服务，因此任何令牌都不会进入浏览器包。
+
+当前阶段只提供原有真实页面的分组入口与视觉基础，市场运行池、账户对账、新版回测数据产品等读模型尚未接入时会显示“待接入”，不会用空数据页或累计数量代替真实状态。
 
 ## 本地运行
 
 ```bash
 cp .env.example .env.local
 pnpm install
-pnpm dev
 ```
+
+新版本地入口默认只绑定 `127.0.0.1:13001`，与旧版开发命令隔离：
+
+```bash
+pnpm dev:v2
+pnpm build:v2
+pnpm start:v2
+```
+
+可以通过 `PREDICTION_CONSOLE_V2_BIND_ADDRESS` 和 `PREDICTION_CONSOLE_V2_PORT` 为本地新版进程显式设置私网地址和端口；启动前应先确认端口未被占用，不会自动终止占用者。
 
 未配置后端时，页面会明确显示连接错误；可手动进入演示数据模式预览界面，演示模式不会写入任何业务数据。
 
@@ -22,7 +33,22 @@ pnpm dev
 
 Console 的 BFF 会使用服务端环境变量访问 Go，浏览器不会得到这些令牌。BFF 本身必须由公司 SSO、VPN 或内网反向代理保护，不能携带真实令牌直接暴露到公网。反向代理还应限制 XXL-JOB 等内部路由，不要把它们转发给前端用户。
 
-systemd 部署默认只监听 `127.0.0.1:13000`。如果需要直接通过服务器内网地址访问，可复制 `deploy/service.env.example` 到 `/etc/prediction-console/service.env`，把 `PREDICTION_CONSOLE_BIND_ADDRESS` 设置为该服务器的明确内网 IP 后重启服务。不要设置成 `0.0.0.0`，避免绕过 VPN、SSO 或内网边界。
+新版 systemd 部署使用独立的 `prediction-console-v2.service`、`prediction-console-v2:current` 镜像、`/etc/prediction-console-v2` 配置目录和 `127.0.0.1:13001` 默认绑定。构建和安装步骤如下：
+
+```bash
+docker build -f Dockerfile.v2 -t prediction-console-v2:current .
+sudo install -m 0644 deploy/prediction-console-v2.service /etc/systemd/system/prediction-console-v2.service
+sudo install -d -m 0750 /etc/prediction-console-v2
+sudo install -m 0640 deploy/service.env.v2.example /etc/prediction-console-v2/service.env
+# 将只读后端变量写入 /etc/prediction-console-v2/env（不要提交真实值）
+sudo systemctl daemon-reload
+sudo systemctl enable --now prediction-console-v2.service
+curl http://127.0.0.1:13001/
+```
+
+如果需要直接通过服务器内网地址访问，编辑独立的 `/etc/prediction-console-v2/service.env`，把 `PREDICTION_CONSOLE_V2_BIND_ADDRESS` 设置为该服务器的明确内网 IP 后重启新版 unit。不要设置成 `0.0.0.0`，避免绕过 VPN、SSO 或内网边界。新版停止时只执行 `sudo systemctl stop prediction-console-v2.service`；不要把旧版 unit、容器或镜像名填入新版命令。
+
+新版的配置示例位于 `deploy/service.env.v2.example`，旧版 `deploy/service.env.example` 和 `deploy/prediction-console.service` 仅供旧入口使用。
 
 ## 服务端环境变量
 

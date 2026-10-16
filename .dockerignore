@@ -2,9 +2,12 @@
 .DS_Store
 .env*
 !.env.example
+.idea
 .next
 .vinext
 .wrangler
+.wrangler-v2
+*.tsbuildinfo
 dist
 node_modules
 outputs
