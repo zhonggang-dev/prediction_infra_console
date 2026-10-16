@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ConsoleShell } from "./console-shell";
 import { Icon } from "./icons";
 import { ConsoleV2ApiError, ConsoleV2ContractError, type ConsoleV2Page, type ConsoleV2Result } from "../lib/console-v2";
+import { workspaceHrefWithAppliedQuery } from "../lib/console-workspace";
 
 export type V2Params = Record<string, string | number | undefined>;
 
@@ -24,10 +25,103 @@ export function V2Frame({ eyebrow, title, description, observedAt, onRefresh, lo
   </ConsoleShell>;
 }
 
-export function V2Tabs({ tabs, active }: { tabs: Array<{ href: string; label: string; count?: string }>; active: string }) {
-  return <nav className="v2-tabs" aria-label="业务视图">
-    {tabs.map((tab) => <a key={tab.href} href={tab.href} className={tab.href === active ? "active" : ""} aria-current={tab.href === active ? "page" : undefined}>{tab.label}{tab.count && <small>{tab.count}</small>}</a>)}
+export function V2Tabs({ tabs, active, onSelect, ariaLabel = "业务视图", variant = "primary" }: { tabs: ReadonlyArray<{ href: string; label: string; count?: string }>; active: string; onSelect?: (href: string) => void; ariaLabel?: string; variant?: "primary" | "local" }) {
+  const selectTab = (href: string) => {
+    if (onSelect && variant === "local") syncQueryUrl(readPanelAppliedQuery(document.getElementById(panelId(href))));
+    onSelect?.(href);
+  };
+  const onKeyDown = (event: React.KeyboardEvent<HTMLButtonElement>, index: number) => {
+    if (!onSelect) return;
+    const next = event.key === "ArrowRight" || event.key === "ArrowDown" ? (index + 1) % tabs.length : event.key === "ArrowLeft" || event.key === "ArrowUp" ? (index - 1 + tabs.length) % tabs.length : event.key === "Home" ? 0 : event.key === "End" ? tabs.length - 1 : -1;
+    if (next < 0) return;
+    event.preventDefault();
+    selectTab(tabs[next].href);
+    document.getElementById(tabId(tabs[next].href))?.focus();
+  };
+  return <nav className={`v2-tabs ${variant === "local" ? "v2-tabs-local" : ""}`} aria-label={ariaLabel} role={onSelect ? "tablist" : undefined}>
+    {tabs.map((tab, index) => {
+      const selected = tab.href === active;
+      return onSelect
+        ? <button key={tab.href} id={tabId(tab.href)} type="button" role="tab" aria-selected={selected} aria-controls={panelId(tab.href)} tabIndex={selected ? 0 : -1} className={selected ? "active" : ""} onClick={() => selectTab(tab.href)} onKeyDown={(event) => onKeyDown(event, index)}>{tab.label}{tab.count && <small>{tab.count}</small>}</button>
+        : <a key={tab.href} href={tab.href} className={selected ? "active" : ""} aria-current={selected ? "page" : undefined}>{tab.label}{tab.count && <small>{tab.count}</small>}</a>;
+    })}
   </nav>;
+}
+
+export function useVisitedTabs<T extends string>(initial: T) {
+  const [active, setActive] = useState<T>(initial);
+  const [visited, setVisited] = useState<Set<T>>(() => new Set([initial]));
+  const select = useCallback((next: T) => {
+    setActive(next);
+    setVisited((current) => current.has(next) ? current : new Set([...current, next]));
+  }, []);
+  return { active, visited, select };
+}
+
+export function V2ContextLinks({ links }: { links: Array<{ href: string; label: string; external?: boolean }> }) {
+  return <nav className="v2-context-links" aria-label="相关页面">{links.map((link) => <a key={link.href} href={link.href} target={link.external ? "_blank" : undefined} rel={link.external ? "noreferrer" : undefined}>{link.label}<Icon name="arrow" /></a>)}</nav>;
+}
+
+type WorkspaceTab = { href: string; label: string; aliases?: readonly string[] };
+
+export function useWorkspaceTabs<T extends string>(tabs: ReadonlyArray<WorkspaceTab & { href: T }>, fallback: T) {
+  const [active, setActive] = useState<T>(fallback);
+  const [visited, setVisited] = useState<Set<T>>(() => new Set([fallback]));
+  const stableTabs = useMemo(() => tabs, [tabs]);
+  const markVisited = useCallback((next: T) => setVisited((current) => current.has(next) ? current : new Set([...current, next])), []);
+  useEffect(() => {
+    const resolvePath = (pathname: string): T => stableTabs.find((tab) => tab.href === pathname || tab.aliases?.includes(pathname))?.href ?? fallback;
+    const sync = () => {
+      const next = resolvePath(window.location.pathname);
+      setActive(next);
+      markVisited(next);
+    };
+    const timer = window.setTimeout(sync, 0);
+    window.addEventListener("popstate", sync);
+    return () => { window.clearTimeout(timer); window.removeEventListener("popstate", sync); };
+  }, [stableTabs, fallback, markVisited]);
+  const select = (href: T) => {
+    const tabAnchorTop = document.getElementById(tabId(href))?.getBoundingClientRect().top;
+    if (window.location.pathname !== href) {
+      const targetPanel = document.getElementById(panelId(href));
+      const targetSearch = readPanelAppliedQuery(targetPanel);
+      window.history.pushState({}, "", workspaceHrefWithAppliedQuery(href, window.location.href, targetSearch));
+    }
+    setActive(href);
+    markVisited(href);
+    const restoreTabAnchor = () => {
+      if (tabAnchorTop === undefined) return;
+      const nextTop = document.getElementById(tabId(href))?.getBoundingClientRect().top;
+      if (nextTop !== undefined) window.scrollBy({ top: nextTop - tabAnchorTop, behavior: "auto" });
+    };
+    window.requestAnimationFrame(restoreTabAnchor);
+    window.requestAnimationFrame(() => window.requestAnimationFrame(restoreTabAnchor));
+    const main = document.querySelector("main.main");
+    if (main && "ResizeObserver" in window) {
+      const observer = new ResizeObserver(restoreTabAnchor);
+      observer.observe(main);
+      window.setTimeout(() => observer.disconnect(), 1500);
+    }
+  };
+  return { active, visited, select };
+}
+
+export function V2WorkspacePanel({ active, href, visited, children }: { active: string; href: string; visited: boolean; children: React.ReactNode }) {
+  if (!visited) return null;
+  const selected = active === href;
+  return <section id={panelId(href)} className="v2-tab-panel" role="tabpanel" aria-hidden={!selected} hidden={!selected} aria-labelledby={tabId(href)}>{children}</section>;
+}
+
+function tabId(value: string) { return `v2-tab-${value.replace(/[^A-Za-z0-9_-]+/g, "-").replace(/^-|-$/g, "")}`; }
+function panelId(value: string) { return `v2-panel-${value.replace(/[^A-Za-z0-9_-]+/g, "-").replace(/^-|-$/g, "")}`; }
+
+function readPanelAppliedQuery(panel: HTMLElement | null) {
+  if (!panel) return "";
+  const input = Array.from(panel.querySelectorAll<HTMLElement>("[data-v2-search-applied]")).find((candidate) => {
+    const ownerPanel = candidate.closest<HTMLElement>("[role=\"tabpanel\"]");
+    return ownerPanel === panel || ownerPanel?.hidden === false;
+  });
+  return input?.getAttribute("data-v2-search-applied")?.trim() ?? "";
 }
 
 export function V2Notice({ title, description, error = false }: { title: string; description: string; error?: boolean }) {
@@ -49,26 +143,15 @@ export function V2ListPage<T>({ title, description, load, columns, rowKey, rende
   children?: React.ReactNode;
 }) {
   const searchParams = useSearchParams();
-  const urlQuery = searchParams.get("q")?.trim() ?? "";
-  const [draftQuery, setDraftQuery] = useState("");
-  const [query, setQuery] = useState("");
+  const initialQuery = searchParams.get("q")?.trim() ?? "";
+  const [draftQuery, setDraftQuery] = useState(initialQuery);
+  const [query, setQuery] = useState(initialQuery);
   const [offset, setOffset] = useState(0);
   const [result, setResult] = useState<ConsoleV2Page<T>>();
   const [selected, setSelected] = useState<T>();
   const [error, setError] = useState<string>();
   const [loading, setLoading] = useState(true);
   const serializedParams = useMemo(() => JSON.stringify(params), [params]);
-
-  // Keep deep links such as /trading/orders?q=... usable after client-side
-  // navigation while leaving the server render deterministic.
-  useEffect(() => {
-    const timer = window.setTimeout(() => {
-      setDraftQuery(urlQuery);
-      setQuery(urlQuery);
-      setOffset(0);
-    }, 0);
-    return () => window.clearTimeout(timer);
-  }, [urlQuery]);
 
   useEffect(() => {
     let cancelled = false;
@@ -100,16 +183,18 @@ export function V2ListPage<T>({ title, description, load, columns, rowKey, rende
   const submitSearch = (event: React.FormEvent) => {
     event.preventDefault();
     setOffset(0);
-    setQuery(draftQuery.trim());
+    const next = draftQuery.trim();
+    setQuery(next);
+    syncQueryUrl(next);
   };
   const activeItem = selected;
   return <section className="section v2-list-section">
     {description && <p className="section-caption">{description}</p>}
     <section className="panel v2-list-panel">
       <form className="filters v2-filterbar" onSubmit={submitSearch}>
-        <input className="input" value={draftQuery} onChange={(event) => setDraftQuery(event.target.value)} placeholder={searchPlaceholder} aria-label={`${title}搜索`} />
+        <input className="input" data-v2-search data-v2-search-applied={query} value={draftQuery} onChange={(event) => setDraftQuery(event.target.value)} placeholder={searchPlaceholder} aria-label={`${title}搜索`} />
         <button className="button primary" type="submit"><Icon name="search" /> 搜索</button>
-        {query && <button className="button" type="button" onClick={() => { setDraftQuery(""); setQuery(""); setOffset(0); }}>清除搜索</button>}
+        {query && <button className="button" type="button" onClick={() => { setDraftQuery(""); setQuery(""); setOffset(0); syncQueryUrl(""); }}>清除搜索</button>}
         {controls}
       </form>
       {children}
@@ -175,4 +260,12 @@ export function formatV2Bytes(value: number | null | undefined) {
 export function v2ErrorText(error: unknown) {
   if (error instanceof ConsoleV2ApiError || error instanceof ConsoleV2ContractError) return error.message;
   return error instanceof Error ? error.message : "数据请求失败";
+}
+
+function syncQueryUrl(query: string) {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  if (query) url.searchParams.set("q", query);
+  else url.searchParams.delete("q");
+  window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
 }

@@ -23,44 +23,22 @@ const navigationGroups: NavigationGroup[] = [
     items: [{ href: "/", label: "运行概览", icon: "grid" as const }],
   },
   {
-    label: "市场中心",
+    label: "业务运行",
     items: [
-      { href: "/markets/running", label: "运行市场", icon: "pulse" as const },
-      { href: "/markets/selection", label: "选盘批次与历史", icon: "markets" as const },
-      { href: "/markets/data", label: "行情与结算", icon: "trend" as const },
+      { href: "/markets", label: "市场工作区", icon: "markets" as const },
+      { href: "/predictions", label: "预测工作区", icon: "trend" as const },
+      { href: "/questions", label: "题目库", icon: "questions" as const },
+      { href: "/assets", label: "资料数据工作区", icon: "box" as const },
+      { href: "/trading/cycles", label: "交易工作区", icon: "trades" as const },
     ],
   },
   {
-    label: "预测中心",
+    label: "独立页面",
     items: [
-      { href: "/predictions", label: "预测结果", icon: "trend" as const },
-      { href: "/predictions/tasks", label: "Direct 任务", icon: "pulse" as const },
-    ],
-  },
-  {
-    label: "题目中心",
-    items: [{ href: "/questions", label: "题目库", icon: "questions" as const }],
-  },
-  {
-    label: "资料与数据",
-    items: [
-      { href: "/assets", label: "资料目录", icon: "box" as const },
-      { href: "/datasets", label: "数据集成员", icon: "archive" as const },
       { href: "/dataset-rotation", label: "数据集轮换", icon: "archive" as const },
-      { href: "/backtests", label: "回测数据产品", icon: "archive" as const },
-      { href: "http://172.21.20.221:8501/", label: "PM Backtest", icon: "trend" as const, external: true },
-    ],
-  },
-  {
-    label: "交易中心",
-    items: [
-      { href: "/trading/cycles", label: "决策周期", icon: "pulse" as const },
-      { href: "/trading/orders", label: "订单执行", icon: "trades" as const },
-      { href: "/trading/positions", label: "仓位", icon: "box" as const },
-      { href: "/trading/reconciliation", label: "账户对账", icon: "trades" as const },
-      { href: "/trading/redemptions", label: "赎回", icon: "archive" as const },
       { href: "/live", label: "实盘监控", icon: "live" as const },
       { href: "/trades", label: "交易与结算", icon: "trades" as const },
+      { href: "http://172.21.20.221:8501/", label: "PM Backtest", icon: "trend" as const, external: true },
     ],
   },
   {
@@ -78,7 +56,13 @@ const navigationGroups: NavigationGroup[] = [
 export function ConsoleShell({ children, timezone }: { children: React.ReactNode; timezone?: string }) {
   const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
-  const isActive = (href: string) => href.startsWith("/") && (href === "/" ? pathname === "/" : pathname.startsWith(href));
+  const isActive = (href: string) => {
+    if (!href.startsWith("/")) return false;
+    if (href === "/") return pathname === "/";
+    if (href === "/assets") return ["/assets", "/datasets", "/backtests"].some((prefix) => pathname.startsWith(prefix));
+    if (href === "/trading/cycles") return pathname.startsWith("/trading/");
+    return pathname === href || pathname.startsWith(`${href}/`);
+  };
 
   return <div className="console">
     <aside id="console-sidebar" className={`sidebar ${isOpen ? "open" : ""}`} aria-label="主导航">

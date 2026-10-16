@@ -2,20 +2,23 @@
 
 import { useMemo, useState } from "react";
 import { consoleV2, type ConsoleV2Asset, type ConsoleV2BacktestProduct, type ConsoleV2DatasetMember } from "../lib/console-v2";
-import { formatV2Bytes, formatV2Number, formatV2Time, V2Facts, V2Frame, V2ListPage, V2Tabs, v2Bool, v2Status, v2Unknown } from "./console-v2-resource";
+import { formatV2Bytes, formatV2Number, formatV2Time, V2ContextLinks, V2Facts, V2Frame, V2ListPage, V2Tabs, V2WorkspacePanel, useWorkspaceTabs, v2Bool, v2Status, v2Unknown } from "./console-v2-resource";
 
 export function AssetsV2Page({ view = "assets" }: { view?: "assets" | "datasets" | "backtests" }) {
-  const config = view === "datasets"
+  const tabs = [{ href: "/assets", label: "资料目录", aliases: ["/sandboxes"] }, { href: "/datasets", label: "数据集成员" }, { href: "/backtests", label: "回测产品" }] as const;
+  const initialHref = view === "datasets" ? "/datasets" : view === "backtests" ? "/backtests" : "/assets";
+  const workspace = useWorkspaceTabs(tabs, initialHref);
+  const config = workspace.active === "/datasets"
     ? { eyebrow: "Assets / Dataset Members", title: "数据集成员", description: "按版本、资料变体、用途和来源命名空间检索发布成员；训练集和测试集可能是同一版本的不同成员。" }
-    : view === "backtests"
+    : workspace.active === "/backtests"
       ? { eyebrow: "Assets / Backtest Products", title: "回测数据产品", description: "展示真实发布目录中的产品摘要；外部 Telonex 目录没有协议时会明确显示能力缺失，不提供无效创建表单。" }
       : { eyebrow: "Assets / Catalog", title: "资料目录", description: "统一展示 PM / Kalshi 市场归档、Generated Market 与原生 QA 资料；目录状态不等同交易就绪。" };
-  const tabs = [{ href: "/assets", label: "资料目录" }, { href: "/datasets", label: "数据集成员" }, { href: "/dataset-rotation", label: "数据集轮换" }, { href: "/backtests", label: "回测产品" }];
   return <V2Frame eyebrow={config.eyebrow} title={config.title} description={config.description}>
-    <V2Tabs tabs={tabs} active={view === "assets" ? "/assets" : view === "datasets" ? "/datasets" : "/backtests"} />
-    {view === "assets" && <AssetCatalog />}
-    {view === "datasets" && <DatasetMembers />}
-    {view === "backtests" && <BacktestProducts />}
+    <V2Tabs tabs={tabs} active={workspace.active} onSelect={(href) => workspace.select(href as typeof workspace.active)} />
+    <V2ContextLinks links={[{ href: "/dataset-rotation", label: "打开数据集轮换" }, { href: "http://172.21.20.221:8501/", label: "打开 PM Backtest", external: true }]} />
+    <V2WorkspacePanel active={workspace.active} href="/assets" visited={workspace.visited.has("/assets")}><AssetCatalog /></V2WorkspacePanel>
+    <V2WorkspacePanel active={workspace.active} href="/datasets" visited={workspace.visited.has("/datasets")}><DatasetMembers /></V2WorkspacePanel>
+    <V2WorkspacePanel active={workspace.active} href="/backtests" visited={workspace.visited.has("/backtests")}><BacktestProducts /></V2WorkspacePanel>
   </V2Frame>;
 }
 

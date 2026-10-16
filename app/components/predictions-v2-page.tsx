@@ -2,15 +2,18 @@
 
 import { useMemo, useState } from "react";
 import { consoleV2, type ConsoleV2Prediction, type ConsoleV2PredictionTask } from "../lib/console-v2";
-import { formatV2Time, V2Facts, V2Frame, V2ListPage, V2Tabs, v2Status, v2Unknown } from "./console-v2-resource";
+import { formatV2Time, V2Facts, V2Frame, V2ListPage, V2Tabs, V2WorkspacePanel, useWorkspaceTabs, v2Status, v2Unknown } from "./console-v2-resource";
 
 export function PredictionsV2Page({ tasks = false }: { tasks?: boolean }) {
-  const config = tasks
+  const tabs = [{ href: "/predictions", label: "结果" }, { href: "/predictions/tasks", label: "Direct 任务" }] as const;
+  const workspace = useWorkspaceTabs(tabs, tasks ? "/predictions/tasks" : "/predictions");
+  const config = workspace.active === "/predictions/tasks"
     ? { eyebrow: "Prediction / Direct", title: "Direct 任务", description: "来自持久化 Direct manifest 的期望任务；PENDING 表示该任务尚未完成，不外推所有 Ready 模型覆盖。" }
     : { eyebrow: "Prediction / Results", title: "预测结果", description: "真实结果按 Direct / Sandbox、来源、模型和执行模式检索；未出现在结果列表不等于任务失败。" };
   return <V2Frame eyebrow={config.eyebrow} title={config.title} description={config.description}>
-    <V2Tabs tabs={[{ href: "/predictions", label: "结果" }, { href: "/predictions/tasks", label: "Direct 任务" }]} active={tasks ? "/predictions/tasks" : "/predictions"} />
-    {tasks ? <PredictionTasks /> : <PredictionResults />}
+    <V2Tabs tabs={tabs} active={workspace.active} onSelect={(href) => workspace.select(href as typeof workspace.active)} />
+    <V2WorkspacePanel active={workspace.active} href="/predictions" visited={workspace.visited.has("/predictions")}><PredictionResults /></V2WorkspacePanel>
+    <V2WorkspacePanel active={workspace.active} href="/predictions/tasks" visited={workspace.visited.has("/predictions/tasks")}><PredictionTasks /></V2WorkspacePanel>
   </V2Frame>;
 }
 

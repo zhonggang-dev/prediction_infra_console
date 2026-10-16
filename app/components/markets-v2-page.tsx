@@ -2,33 +2,35 @@
 
 import { useMemo, useState } from "react";
 import { consoleV2, type ConsoleV2Generation, type ConsoleV2MarketData, type ConsoleV2RunningMarket, type ConsoleV2RunningPool, type ConsoleV2SelectedMarket, type ConsoleV2SelectionRun, type ConsoleV2Settlement } from "../lib/console-v2";
-import { formatV2Number, formatV2Time, V2Facts, V2Frame, V2ListPage, V2Tabs, v2Bool, v2Status, v2Unknown } from "./console-v2-resource";
+import { formatV2Number, formatV2Time, V2Facts, V2Frame, V2ListPage, V2Tabs, V2WorkspacePanel, useVisitedTabs, useWorkspaceTabs, v2Bool, v2Status, v2Unknown } from "./console-v2-resource";
 
 type MarketsView = "running" | "selection" | "data";
 
 export function MarketsV2Page({ view = "selection" }: { view?: MarketsView }) {
-  const config = view === "running"
+  const tabs = [{ href: "/markets/running", label: "运行市场" }, { href: "/markets/selection", label: "选盘批次与历史", aliases: ["/markets"] }, { href: "/markets/data", label: "行情与结算" }] as const;
+  const initialHref = view === "running" ? "/markets/running" : view === "data" ? "/markets/data" : "/markets/selection";
+  const workspace = useWorkspaceTabs(tabs, initialHref);
+  const config = workspace.active === "/markets/running"
     ? { eyebrow: "Markets / Running", title: "运行市场", description: "当前发布批次的成员与长期运行池分层展示；选盘历史不被当作当前活跃池。" }
-    : view === "data"
+    : workspace.active === "/markets/data"
       ? { eyebrow: "Markets / Data", title: "行情与市场结算", description: "CLOB 批次采样与来源市场终态分开查看；市场 resolved 不代表钱包已赎回。" }
       : { eyebrow: "Markets / Selection", title: "选盘批次与历史", description: "选盘批次、入选记录和当前运行市场拥有不同身份；同一市场的历史行不会累加为当前市场。" };
-  const tabs = [{ href: "/markets/running", label: "运行市场" }, { href: "/markets/selection", label: "选盘批次与历史" }, { href: "/markets/data", label: "行情与结算" }];
   return <V2Frame eyebrow={config.eyebrow} title={config.title} description={config.description}>
-    <V2Tabs tabs={tabs} active={`/markets/${view}`} />
-    {view === "running" && <RunningMarketViews />}
-    {view === "selection" && <SelectionViews />}
-    {view === "data" && <MarketDataViews />}
+    <V2Tabs tabs={tabs} active={workspace.active} onSelect={(href) => workspace.select(href as typeof workspace.active)} />
+    <V2WorkspacePanel active={workspace.active} href="/markets/running" visited={workspace.visited.has("/markets/running")}><RunningMarketViews /></V2WorkspacePanel>
+    <V2WorkspacePanel active={workspace.active} href="/markets/selection" visited={workspace.visited.has("/markets/selection")}><SelectionViews /></V2WorkspacePanel>
+    <V2WorkspacePanel active={workspace.active} href="/markets/data" visited={workspace.visited.has("/markets/data")}><MarketDataViews /></V2WorkspacePanel>
   </V2Frame>;
 }
 
 function RunningMarketViews() {
-  const [tab, setTab] = useState<"members" | "pool" | "generations">("members");
+  const workspace = useVisitedTabs<"members" | "pool" | "generations">("members");
   const tabs = [{ href: "members", label: "当前发布成员" }, { href: "pool", label: "长期运行池" }, { href: "generations", label: "发布批次" }];
   return <>
-    <div className="v2-local-tabs" role="tablist" aria-label="运行市场视图">{tabs.map((item) => <button key={item.href} className={tab === item.href ? "active" : ""} onClick={() => setTab(item.href as typeof tab)} role="tab" aria-selected={tab === item.href}>{item.label}</button>)}</div>
-    {tab === "members" && <RunningMembers />}
-    {tab === "pool" && <RunningPool />}
-    {tab === "generations" && <GenerationList />}
+    <V2Tabs tabs={tabs} active={workspace.active} onSelect={(href) => workspace.select(href as typeof workspace.active)} variant="local" ariaLabel="运行市场视图" />
+    <V2WorkspacePanel active={workspace.active} href="members" visited={workspace.visited.has("members")}><RunningMembers /></V2WorkspacePanel>
+    <V2WorkspacePanel active={workspace.active} href="pool" visited={workspace.visited.has("pool")}><RunningPool /></V2WorkspacePanel>
+    <V2WorkspacePanel active={workspace.active} href="generations" visited={workspace.visited.has("generations")}><GenerationList /></V2WorkspacePanel>
   </>;
 }
 
@@ -72,10 +74,12 @@ function GenerationList() {
 }
 
 function SelectionViews() {
-  const [tab, setTab] = useState<"runs" | "history">("runs");
+  const workspace = useVisitedTabs<"runs" | "history">("runs");
+  const tabs = [{ href: "runs", label: "选盘批次" }, { href: "history", label: "入选历史" }];
   return <>
-    <div className="v2-local-tabs" role="tablist" aria-label="选盘视图"><button className={tab === "runs" ? "active" : ""} onClick={() => setTab("runs")} role="tab" aria-selected={tab === "runs"}>选盘批次</button><button className={tab === "history" ? "active" : ""} onClick={() => setTab("history")} role="tab" aria-selected={tab === "history"}>入选历史</button></div>
-    {tab === "runs" ? <SelectionRuns /> : <SelectedMarkets />}
+    <V2Tabs tabs={tabs} active={workspace.active} onSelect={(href) => workspace.select(href as typeof workspace.active)} variant="local" ariaLabel="选盘视图" />
+    <V2WorkspacePanel active={workspace.active} href="runs" visited={workspace.visited.has("runs")}><SelectionRuns /></V2WorkspacePanel>
+    <V2WorkspacePanel active={workspace.active} href="history" visited={workspace.visited.has("history")}><SelectedMarkets /></V2WorkspacePanel>
   </>;
 }
 
@@ -102,10 +106,12 @@ function SelectedMarkets() {
 }
 
 function MarketDataViews() {
-  const [tab, setTab] = useState<"data" | "settlements">("data");
+  const workspace = useVisitedTabs<"data" | "settlements">("data");
+  const tabs = [{ href: "data", label: "CLOB 采样批次" }, { href: "settlements", label: "市场结算" }];
   return <>
-    <div className="v2-local-tabs" role="tablist" aria-label="行情与结算视图"><button className={tab === "data" ? "active" : ""} onClick={() => setTab("data")} role="tab" aria-selected={tab === "data"}>CLOB 采样批次</button><button className={tab === "settlements" ? "active" : ""} onClick={() => setTab("settlements")} role="tab" aria-selected={tab === "settlements"}>市场结算</button></div>
-    {tab === "data" ? <MarketDataList /> : <SettlementList />}
+    <V2Tabs tabs={tabs} active={workspace.active} onSelect={(href) => workspace.select(href as typeof workspace.active)} variant="local" ariaLabel="行情与结算视图" />
+    <V2WorkspacePanel active={workspace.active} href="data" visited={workspace.visited.has("data")}><MarketDataList /></V2WorkspacePanel>
+    <V2WorkspacePanel active={workspace.active} href="settlements" visited={workspace.visited.has("settlements")}><SettlementList /></V2WorkspacePanel>
   </>;
 }
 

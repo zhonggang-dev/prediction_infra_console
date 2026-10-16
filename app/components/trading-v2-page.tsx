@@ -2,28 +2,30 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { consoleV2, type ConsoleV2DecisionCycle, type ConsoleV2Order, type ConsoleV2PositionLot, type ConsoleV2ReconciliationIssue, type ConsoleV2ReconciliationRun, type ConsoleV2Redemption, type ConsoleV2Runtime } from "../lib/console-v2";
-import { formatV2Number, formatV2Time, V2Facts, V2Frame, V2ListPage, V2Tabs, v2Status, v2Unknown } from "./console-v2-resource";
+import { formatV2Number, formatV2Time, V2Facts, V2Frame, V2ListPage, V2Tabs, V2WorkspacePanel, useVisitedTabs, useWorkspaceTabs, v2Status, v2Unknown } from "./console-v2-resource";
 
 type TradingView = "cycles" | "orders" | "positions" | "reconciliation" | "redemptions";
 
 export function TradingV2Page({ view = "cycles" }: { view?: TradingView }) {
-  const config = view === "orders"
+  const tabs = [{ href: "/trading/cycles", label: "决策周期" }, { href: "/trading/orders", label: "订单执行" }, { href: "/trading/positions", label: "仓位" }, { href: "/trading/reconciliation", label: "账户对账" }, { href: "/trading/redemptions", label: "赎回" }] as const;
+  const initialHref = `/trading/${view}` as typeof tabs[number]["href"];
+  const workspace = useWorkspaceTabs(tabs, initialHref);
+  const config = workspace.active === "/trading/orders"
     ? { eyebrow: "Trading / Orders", title: "订单执行", description: "订单履历、确认成交和账本应用分别展示；页面只读。" }
-    : view === "positions"
+    : workspace.active === "/trading/positions"
       ? { eyebrow: "Trading / Positions", title: "仓位与 Lot", description: "按 lot 保留 model、strategy、execution account 归属；不把账户聚合成失去 binding 的单行仓位。" }
-      : view === "reconciliation"
+      : workspace.active === "/trading/reconciliation"
         ? { eyebrow: "Trading / Reconciliation", title: "账户对账", description: "对账运行与开放 issue 分层展示；查询失败不会被渲染成零差异，也不会触发恢复动作。" }
-        : view === "redemptions"
+        : workspace.active === "/trading/redemptions"
           ? { eyebrow: "Trading / Redemptions", title: "赎回", description: "市场终态、链上确认和账本应用分层展示；未确认或未应用不冒充到账。" }
           : { eyebrow: "Trading / Decision Cycles", title: "决策周期", description: "按持久化决策周期核对输入、输出、交付和订单链路；页面只读。" };
-  const tabs = [{ href: "/trading/cycles", label: "决策周期" }, { href: "/trading/orders", label: "订单执行" }, { href: "/trading/positions", label: "仓位" }, { href: "/trading/reconciliation", label: "账户对账" }, { href: "/trading/redemptions", label: "赎回" }];
   return <V2Frame eyebrow={config.eyebrow} title={config.title} description={config.description}>
-    <V2Tabs tabs={tabs} active={`/trading/${view}`} />
-    {view === "cycles" && <DecisionCycles />}
-    {view === "orders" && <Orders />}
-    {view === "positions" && <Positions />}
-    {view === "reconciliation" && <Reconciliation />}
-    {view === "redemptions" && <Redemptions />}
+    <V2Tabs tabs={tabs} active={workspace.active} onSelect={(href) => workspace.select(href as typeof workspace.active)} />
+    <V2WorkspacePanel active={workspace.active} href="/trading/cycles" visited={workspace.visited.has("/trading/cycles")}><DecisionCycles /></V2WorkspacePanel>
+    <V2WorkspacePanel active={workspace.active} href="/trading/orders" visited={workspace.visited.has("/trading/orders")}><Orders /></V2WorkspacePanel>
+    <V2WorkspacePanel active={workspace.active} href="/trading/positions" visited={workspace.visited.has("/trading/positions")}><Positions /></V2WorkspacePanel>
+    <V2WorkspacePanel active={workspace.active} href="/trading/reconciliation" visited={workspace.visited.has("/trading/reconciliation")}><Reconciliation /></V2WorkspacePanel>
+    <V2WorkspacePanel active={workspace.active} href="/trading/redemptions" visited={workspace.visited.has("/trading/redemptions")}><Redemptions /></V2WorkspacePanel>
   </V2Frame>;
 }
 
@@ -125,8 +127,9 @@ function Positions() {
 }
 
 function Reconciliation() {
-  const [tab, setTab] = useState<"runs" | "issues">("runs");
-  return <><div className="v2-local-tabs" role="tablist" aria-label="对账视图"><button className={tab === "runs" ? "active" : ""} onClick={() => setTab("runs")} role="tab" aria-selected={tab === "runs"}>Runs</button><button className={tab === "issues" ? "active" : ""} onClick={() => setTab("issues")} role="tab" aria-selected={tab === "issues"}>Issues</button></div>{tab === "runs" ? <ReconciliationRuns /> : <ReconciliationIssues />}</>;
+  const workspace = useVisitedTabs<"runs" | "issues">("runs");
+  const tabs = [{ href: "runs", label: "Runs" }, { href: "issues", label: "Issues" }];
+  return <><V2Tabs tabs={tabs} active={workspace.active} onSelect={(href) => workspace.select(href as typeof workspace.active)} variant="local" ariaLabel="对账视图" /><V2WorkspacePanel active={workspace.active} href="runs" visited={workspace.visited.has("runs")}><ReconciliationRuns /></V2WorkspacePanel><V2WorkspacePanel active={workspace.active} href="issues" visited={workspace.visited.has("issues")}><ReconciliationIssues /></V2WorkspacePanel></>;
 }
 
 function ReconciliationRuns() {

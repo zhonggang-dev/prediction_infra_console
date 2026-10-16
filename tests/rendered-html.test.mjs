@@ -1,5 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { workspaceHrefWithAppliedQuery } from "../app/lib/console-workspace.ts";
 
 async function render(pathname = "/", init = {}) {
   const workerUrl = new URL("../dist/server/index.js", import.meta.url);
@@ -40,6 +41,12 @@ async function withRedisUpstream(upstreamFetch, run) {
   }
 }
 
+test("工作区切换 URL 只携带目标面板已应用的查询", () => {
+  assert.equal(workspaceHrefWithAppliedQuery("/trading/orders", "http://localhost/trading/cycles?q=draft-not-applied", "v2-order"), "/trading/orders?q=v2-order");
+  assert.equal(workspaceHrefWithAppliedQuery("/trading/orders", "http://localhost/trading/cycles?q=draft-not-applied", " v2-order "), "/trading/orders?q=v2-order");
+  assert.equal(workspaceHrefWithAppliedQuery("/trading/orders?q=stale", "http://localhost/trading/cycles?q=cycle", ""), "/trading/orders");
+});
+
 test("服务端可渲染 Prediction Console 首页", async () => {
   const response = await render();
   assert.equal(response.status, 200);
@@ -47,19 +54,43 @@ test("服务端可渲染 Prediction Console 首页", async () => {
   assert.match(html, /Prediction Console/);
   assert.match(html, /新版/);
   assert.match(html, /运行概览/);
-  assert.match(html, /市场中心/);
-  assert.match(html, /预测中心/);
-  assert.match(html, /题目中心/);
-  assert.match(html, /资料与数据/);
-  assert.match(html, /交易中心/);
+  assert.match(html, /业务运行/);
+  assert.match(html, /市场工作区/);
+  assert.match(html, /预测工作区/);
+  assert.match(html, /资料数据工作区/);
+  assert.match(html, /交易工作区/);
+  assert.match(html, /独立页面/);
   assert.match(html, /系统运行/);
   assert.match(html, /href="\/observability"[^>]*>.*服务监控/s);
   assert.match(html, /href="\/questions"[^>]*>.*题目库/s);
-  assert.match(html, /运行市场/);
-  assert.match(html, /回测数据产品/);
-  assert.match(html, /href="\/backtests"/);
+  assert.match(html, /市场工作区/);
+  assert.doesNotMatch(html, /回测数据产品/);
+  assert.doesNotMatch(html, /href="\/backtests"/);
   assert.match(html, /href="http:\/\/172\.21\.20\.221:8501\/"[^>]*>.*PM Backtest/s);
   assert.doesNotMatch(html, /Your site is taking shape/);
+
+  for (const href of ["/markets", "/predictions", "/assets", "/trading/cycles"]) {
+    assert.equal((html.match(new RegExp(`<a[^>]*href="${href}"`, "g")) ?? []).length, 1, `sidebar should expose one ${href} entry`);
+  }
+});
+
+test("服务端直达工作区只渲染当前选中的面板", async () => {
+  const response = await render("/markets/data");
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /id="v2-tab-markets-data"[^>]*aria-selected="true"/);
+  assert.doesNotMatch(html, /id="v2-tab-markets-running"[^>]*aria-selected="true"/);
+  assert.match(html, /id="v2-panel-markets-data"[^>]*role="tabpanel"[^>]*aria-hidden="false"/);
+  assert.doesNotMatch(html, /id="v2-panel-markets-running"/);
+});
+
+test("服务端直达订单页应用 URL 查询并暴露 tab 语义", async () => {
+  const response = await render("/trading/orders?q=v2-order");
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /id="v2-tab-trading-orders"[^>]*role="tab"[^>]*aria-selected="true"[^>]*aria-controls="v2-panel-trading-orders"/);
+  assert.match(html, /id="v2-panel-trading-orders"[^>]*role="tabpanel"[^>]*aria-labelledby="v2-tab-trading-orders"/);
+  assert.match(html, /data-v2-search-applied="v2-order"[^>]*value="v2-order"/);
 });
 
 test("服务端可渲染独立的市场页面", async () => {
