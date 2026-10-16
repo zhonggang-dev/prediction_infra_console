@@ -389,8 +389,12 @@ export interface ConsoleV2ReconciliationIssue {
   severity?: string;
   status: string;
   reasonCode?: string;
-  entityType?: string;
-  entityId?: string;
+  orderId?: string;
+  venueOrderId?: string;
+  venueTradeId?: string;
+  marketId?: string;
+  conditionId?: string;
+  tokenId?: string;
   localValue?: string;
   remoteValue?: string;
   source?: string;
@@ -415,7 +419,9 @@ export interface ConsoleV2Redemption {
 }
 
 export interface ConsoleV2OrderTrace {
+  observedAt?: string;
   order: Record<string, unknown>;
+  deliveries: Array<Record<string, unknown>>;
   events: Array<Record<string, unknown>>;
   attempts: Array<Record<string, unknown>>;
   fills: Array<Record<string, unknown>>;
@@ -640,7 +646,7 @@ function decodeReconciliationRun(value: RawRecord): ConsoleV2ReconciliationRun {
 }
 
 function decodeReconciliationIssue(value: RawRecord): ConsoleV2ReconciliationIssue {
-  return { issueId: requiredText(value.issue_id, "reconciliation_issue.issue_id"), runId: optionalText(value.run_id), executionAccountId: optionalText(value.execution_account_id), issueType: optionalText(value.issue_type), resolution: optionalText(value.resolution), severity: optionalText(value.severity), status: requiredText(value.status, "reconciliation_issue.status"), reasonCode: optionalText(value.reason_code), entityType: optionalText(value.entity_type), entityId: optionalText(value.entity_id), localValue: optionalText(value.local_value), remoteValue: optionalText(value.remote_value), source: optionalText(value.source), observedAt: optionalTime(value.observed_at), resolvedAt: optionalTime(value.resolved_at) };
+  return { issueId: requiredText(value.issue_id, "reconciliation_issue.issue_id"), runId: optionalText(value.run_id), executionAccountId: optionalText(value.execution_account_id), issueType: optionalText(value.issue_type), resolution: optionalText(value.resolution), severity: optionalText(value.severity), status: requiredText(value.status, "reconciliation_issue.status"), reasonCode: optionalText(value.reason_code), orderId: optionalText(value.order_id), venueOrderId: optionalText(value.venue_order_id), venueTradeId: optionalText(value.venue_trade_id), marketId: optionalText(value.market_id), conditionId: optionalText(value.condition_id), tokenId: optionalText(value.token_id), localValue: optionalText(value.local_value), remoteValue: optionalText(value.remote_value), source: optionalText(value.source), observedAt: optionalTime(value.observed_at), resolvedAt: optionalTime(value.resolved_at) };
 }
 
 function decodeRedemption(value: RawRecord): ConsoleV2Redemption {
@@ -648,7 +654,7 @@ function decodeRedemption(value: RawRecord): ConsoleV2Redemption {
 }
 
 function decodeOrderTrace(value: RawRecord): ConsoleV2OrderTrace {
-  return { order: asRecord(value.order), events: arrayRecords(value.events), attempts: arrayRecords(value.attempts), fills: arrayRecords(value.fills), positionLots: arrayRecords(value.position_lots), reconciliationIssues: arrayRecords(value.reconciliation_issues) };
+  return { observedAt: optionalTime(value.observed_at), order: asRecord(value.order), deliveries: arrayRecords(value.deliveries), events: arrayRecords(value.events), attempts: arrayRecords(value.attempts), fills: arrayRecords(value.fills), positionLots: arrayRecords(value.position_lots), reconciliationIssues: arrayRecords(value.reconciliation_issues) };
 }
 
 function decodeRecord(value: RawRecord): Record<string, unknown> { return value; }

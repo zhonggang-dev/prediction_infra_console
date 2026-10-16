@@ -136,7 +136,7 @@ export function LiveTradingPage({ previewObservedAt }: { previewObservedAt: stri
     <header className="page-head live-page-head">
       <div>
         <p className="eyebrow">Live Trading / Command Center</p>
-        <div className="live-title-line"><h1>实盘监控</h1>{activeSnapshot ? <HealthBadge health={activeSnapshot.engine.health} label={healthLabel(activeSnapshot.engine.health)} pulse /> : <span className="health-badge unavailable"><i />{loading ? "读取中" : "数据不可用"}</span>}</div>
+        <div className="live-title-line"><h1>实盘监控</h1>{activeSnapshot ? <SnapshotStatusBadge snapshot={activeSnapshot} /> : <span className="health-badge unavailable"><i />{loading ? "读取中" : "数据不可用"}</span>}</div>
         <p className="description">从机会扫描到成交入账的全链路观测面；用于值班判断与追踪，不在此页面直接修改策略或发起交易。</p>
       </div>
       <div className="live-head-actions">
@@ -211,6 +211,11 @@ function LiveRuntimeSummary() {
   </section>;
 }
 
+function SnapshotStatusBadge({ snapshot }: { snapshot: LiveOperationsSnapshot }) {
+  const refreshIssue = snapshot.dataQuality.some((item) => item.id === "aggregator" && item.status !== "healthy");
+  return <span className={`health-badge ${refreshIssue ? "degraded" : "healthy"}`}><i />钱包快照{refreshIssue ? "可用，最近刷新有异常" : "可用"} · {snapshot.dataFreshnessSeconds} 秒前观测</span>;
+}
+
 function runtimeValue(value: unknown) {
   if (typeof value === "boolean") return value ? "enabled / running" : "disabled / stopped";
   return value === undefined || value === null || value === "" ? "未知" : String(value);
@@ -223,10 +228,10 @@ function formatRuntimeTime(value: unknown) {
 
 function LiveStatusBar({ snapshot, mode }: { snapshot: LiveOperationsSnapshot; mode: ApiMode }) {
   return <section className="live-status-bar">
-    <div><span className="live-status-kicker"><i className={snapshot.engine.health === "healthy" ? "pulse-dot" : "pulse-dot warning"} />{mode === "live" ? "LIVE" : "PREVIEW"}</span><strong>{snapshot.engine.venueName}</strong><small>{snapshot.engine.presetName} preset</small></div>
-    <div><span>RUN ID</span><strong className="mono">{snapshot.engine.runId}</strong><small>运行 {duration(snapshot.engine.startedAt, snapshot.observedAt)}</small></div>
-    <div><span>数据时间</span><strong>{utcTime(snapshot.observedAt)}</strong><small>{snapshot.dataFreshnessSeconds} 秒前完成聚合</small></div>
-    <div className="status-checks"><StatusCheck label="Venue" health={snapshot.engine.venueStatus} /><StatusCheck label="Ledger" health={snapshot.engine.ledgerStatus} /><StatusCheck label="Reconcile" health={snapshot.engine.reconciliationStatus} /></div>
+    <div><span className="live-status-kicker"><i className="pulse-dot" />{mode === "live" ? "实盘数据" : "产品预览"}</span><strong>{snapshot.engine.venueName}</strong><small>交易场所快照</small></div>
+    <div><span>快照范围</span><strong>{snapshot.wallets.length} 个钱包</strong><small>资金、仓位与账本摘要</small></div>
+    <div><span>观测时间</span><strong>{utcTime(snapshot.observedAt)}</strong><small>{snapshot.dataFreshnessSeconds} 秒前观测</small></div>
+    <div className="status-checks"><StatusCheck label="交易场所" health={snapshot.engine.venueStatus} /><StatusCheck label="账本" health={snapshot.engine.ledgerStatus} /><StatusCheck label="对账" health={snapshot.engine.reconciliationStatus} /></div>
   </section>;
 }
 
@@ -349,6 +354,5 @@ const signedPct = (value: number) => `${value >= 0 ? "+" : ""}${pct(value)}`;
 const utc = (value: string) => new Date(value).toISOString().replace("T", " ").replace(/\.\d{3}Z$/, " UTC");
 const utcTime = (value: string) => new Date(value).toISOString().slice(11, 19) + " UTC";
 const clock = (value: string) => new Date(value).toISOString().slice(11, 19);
-const duration = (value: string, observedAt: string) => { const minutes = Math.max(0, Math.floor((new Date(observedAt).getTime() - new Date(value).getTime()) / 60_000)); return `${Math.floor(minutes / 60)}h ${minutes % 60}m`; };
 const orderAge = (seconds: number) => seconds < 60 ? `${seconds}s` : seconds < 3600 ? `${Math.floor(seconds / 60)}m` : `${Math.floor(seconds / 3600)}h ${Math.floor(seconds % 3600 / 60)}m`;
 const riskValue = (value: number, unit: LiveRiskMetric["unit"]) => unit === "$" ? usd(value) : unit === "%" ? `${value.toFixed(1)}%` : unit === "minutes" ? `${value}m` : String(value);

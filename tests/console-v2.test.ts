@@ -72,12 +72,20 @@ test("V2 service metrics normalizes the Trading service identity", async () => {
 test("Trading filters and V2 detail rows expose only backend status values and keyboard actions", async () => {
   const trading = await readFile(new URL("../app/components/trading-v2-page.tsx", import.meta.url), "utf8");
   const resource = await readFile(new URL("../app/components/console-v2-resource.tsx", import.meta.url), "utf8");
+  const live = await readFile(new URL("../app/components/live-trading-page.tsx", import.meta.url), "utf8");
   for (const value of ["INPUT_RECORDED", "OUTPUT_RECORDED", "DELIVERY_PENDING", "DELIVERY_ATTENTION", "RECEIVED", "VALIDATING", "RESERVED", "SUBMITTING", "ACKNOWLEDGED", "LIVE", "PARTIALLY_FILLED", "FILLED", "REJECTED", "UNKNOWN", "CANCEL_PENDING", "CANCELLED", "RECONCILING", "MANUAL_REVIEW", "READY", "APPROVAL_SUBMITTING", "APPROVAL_SUBMITTED", "REDEEM_SUBMITTING", "REDEEM_SUBMITTED"]) assert.match(trading, new RegExp(value));
   assert.doesNotMatch(trading, /value="COMPLETED"/);
   assert.doesNotMatch(trading, /value="ACCEPTED"/);
   assert.doesNotMatch(trading, /value="PARTIAL"/);
   assert.match(resource, /查看详情/);
   assert.match(resource, /v2-action-cell/);
+  assert.match(trading, /BindingTable/);
+  assert.match(trading, /CycleEvidence/);
+  assert.match(trading, /OrderTraceEvidence/);
+  assert.match(trading, /confirmed_at/);
+  assert.match(trading, /applied_at/);
+  assert.match(live, /SnapshotStatusBadge/);
+  assert.doesNotMatch(live, /activeSnapshot\.engine\.health/);
 });
 
 test("V2 BFF is GET-only, allowlisted, authenticated server-side and bounded to the V2 upstream path", async () => {
