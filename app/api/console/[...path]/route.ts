@@ -17,7 +17,7 @@ export async function POST(request: Request, { params }: RouteParams) {
 
 async function forward(request: Request, path: string[]): Promise<Response> {
   if (request.method === "GET" && path.length === 1 && path[0] === "capabilities") {
-    return Response.json({ data: { console_read: Boolean(process.env.PREDICTION_INFRA_BASE_URL && process.env.CONSOLE_API_TOKEN), trade_read: Boolean(process.env.TRADING_EXECUTION_BASE_URL && process.env.TRADING_EXECUTION_API_TOKEN), live_read: Boolean(process.env.TRADING_EXECUTION_BASE_URL && process.env.TRADING_EXECUTION_LIVE_READ_ONLY_TOKEN), backtest_create: Boolean(process.env.PREDICTION_INFRA_BASE_URL && process.env.BACKTEST_DATASET_TOKEN) } });
+    return Response.json({ data: { console_read: Boolean(process.env.PREDICTION_INFRA_BASE_URL && process.env.CONSOLE_API_TOKEN), trade_read: Boolean(process.env.TRADING_EXECUTION_BASE_URL && process.env.TRADING_EXECUTION_API_TOKEN), live_read: Boolean(process.env.TRADING_EXECUTION_BASE_URL && process.env.TRADING_EXECUTION_LIVE_READ_ONLY_TOKEN), backtest_create: Boolean(process.env.PREDICTION_INFRA_BASE_URL && process.env.BACKTEST_DATASET_TOKEN), sandbox_download: Boolean(process.env.PREDICTION_INFRA_BASE_URL && process.env.SANDBOX_DOWNLOAD_TOKEN) } });
   }
   if (request.method === "GET" && path.length === 1 && path[0] === "service-metrics") {
     return aggregateServiceMetrics();

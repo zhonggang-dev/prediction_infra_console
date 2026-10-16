@@ -11,7 +11,7 @@ type Filters = { range: RangeKey; activityType: "" | LedgerActivityType; modelId
 
 const defaultFilters: Filters = { range: "24h", activityType: "", modelId: "", strategyId: "", executionAccountId: "", query: "" };
 const rangeLabels: Record<RangeKey, string> = { "24h": "最近 24 小时", "7d": "最近 7 天", "30d": "最近 30 天", all: "全部时间" };
-const activityLabels: Record<LedgerActivityType, string> = { BUY: "买入成交", SELL: "卖出成交", REDEEM: "赎回结算" };
+const activityLabels: Record<LedgerActivityType, string> = { BUY: "买入成交", SELL: "卖出成交", EXTERNAL_SELL: "外部卖出", REDEEM: "赎回结算" };
 
 /** 交易与结算记录：成交（BUY / SELL）与链上赎回结算（REDEEM）使用统一账本活动接口，避免与预测记录口径混淆。 */
 export function TradeRecordsPage() {
@@ -29,6 +29,7 @@ export function TradeRecordsPage() {
     let cancelled = false;
     const load = async () => {
       setLoading(true);
+      setData(undefined);
       setError(undefined);
       const params = toRequest(filters, offset);
       try {
@@ -56,7 +57,7 @@ export function TradeRecordsPage() {
 
   return <ConsoleShell>
     <header className="page-head">
-      <div><p className="eyebrow">Trading Execution / Ledger</p><h1>交易与结算记录</h1><p className="description">来自已确认并入账的成交与结算：BUY / SELL 为 Polymarket CLOB 真实成交，REDEEM 为链上赎回结算。订单已接受不等于成交；REDEEM 不是卖出成交。</p></div>
+      <div><p className="eyebrow">Trading Execution / Ledger</p><h1>交易与结算记录</h1><p className="description">来自已确认并入账的成交与结算：BUY / SELL 为 Polymarket CLOB 真实成交，EXTERNAL_SELL 为外部卖出记账，REDEEM 为链上赎回结算。订单已接受不等于成交；REDEEM 不是卖出成交。</p></div>
       <button className="button" onClick={() => setRefreshKey((value) => value + 1)} disabled={loading}><Icon name="refresh" /> 刷新数据</button>
     </header>
     {mode === "demo" && <Notice title="当前为演示数据" description="数据仅用于预览页面，不代表任何钱包的真实成交或赎回。" action="返回真实数据" onAction={() => setDemoEnabled(false)} />}
@@ -71,11 +72,12 @@ export function TradeRecordsPage() {
 
 function LedgerMetrics({ data, loading, range }: { data?: LedgerActivityPage; loading: boolean; range: string }) {
   if (loading) return <div className="trade-metrics">{Array.from({ length: 6 }, (_, index) => <div className="trade-metric" key={index}><div className="skeleton" /><div className="skeleton" /></div>)}</div>;
+  if (!data) return <div className="trade-metrics"><Metric label="活动笔数" value="—" meta={`${range} · 汇总不可用`} /><Metric label="买入金额" value="—" meta="未取得账本快照" tone="buy" /><Metric label="卖出金额" value="—" meta="未取得账本快照" tone="sell" /><Metric label="赎回到账" value="—" meta="未取得账本快照" tone="redeem" /><Metric label="已实现盈亏" value="—" meta="未取得账本快照" /><Metric label="手续费" value="—" meta="未取得账本快照" /></div>;
   const summary = data?.summary;
   return <div className="trade-metrics">
     <Metric label="活动笔数" value={String(summary?.activityCount ?? 0)} meta={`${range} · ${summary?.tradeCount ?? 0} 笔成交 · ${summary?.redemptionCount ?? 0} 笔赎回`} />
     <Metric label="买入金额" value={money(summary?.buyNotional)} meta="CLOB 真实成交名义金额" tone="buy" />
-    <Metric label="卖出金额" value={money(summary?.sellNotional)} meta="不含赎回到账" tone="sell" />
+    <Metric label="卖出金额" value={money(summary?.sellNotional)} meta="含 SELL 与外部卖出，不含赎回到账" tone="sell" />
     <Metric label="赎回到账" value={money(summary?.redeemPayout)} meta={`${summary?.redemptionCount ?? 0} 笔 REDEEM 结算入账`} tone="redeem" />
     <Metric label="已实现盈亏" value={signedMoney(summary?.realizedPnl)} meta={`平仓 ${signedMoney(summary?.sellRealizedPnl)} · 赎回 ${signedMoney(summary?.redeemRealizedPnl)}`} tone={sign(summary?.realizedPnl) < 0 ? "loss" : "profit"} />
     <Metric label="手续费" value={money(summary?.totalFee)} meta={`平台费与 Builder Fee · 净现金流 ${signedMoney(summary?.netCashFlow)}`} />
@@ -90,7 +92,7 @@ function LedgerFilters({ draft, setDraft, apply, reset, loading }: { draft: Filt
   const update = (key: keyof Filters, value: string) => setDraft((current) => ({ ...current, [key]: value } as Filters));
   return <form className="trade-filters" onSubmit={apply}>
     <label><span>时间范围</span><select className="select" value={draft.range} onChange={(event) => update("range", event.target.value)}><option value="24h">最近 24 小时</option><option value="7d">最近 7 天</option><option value="30d">最近 30 天</option><option value="all">全部时间</option></select></label>
-    <label><span>活动类型</span><select className="select" value={draft.activityType} onChange={(event) => update("activityType", event.target.value)}><option value="">全部类型</option><option value="BUY">BUY · 买入</option><option value="SELL">SELL · 卖出</option><option value="REDEEM">REDEEM · 赎回结算</option></select></label>
+    <label><span>活动类型</span><select className="select" value={draft.activityType} onChange={(event) => update("activityType", event.target.value)}><option value="">全部类型</option><option value="BUY">BUY · 买入</option><option value="SELL">SELL · 卖出</option><option value="EXTERNAL_SELL">EXTERNAL_SELL · 外部卖出</option><option value="REDEEM">REDEEM · 赎回结算</option></select></label>
     <label><span>模型</span><input className="input" value={draft.modelId} onChange={(event) => update("modelId", event.target.value)} placeholder="例如 forecast-v2" /></label>
     <label><span>策略</span><input className="input" value={draft.strategyId} onChange={(event) => update("strategyId", event.target.value)} placeholder="例如 multfactor_v2" /></label>
     <label className="account-filter"><span>执行账户</span><input className="input" value={draft.executionAccountId} onChange={(event) => update("executionAccountId", event.target.value)} placeholder="例如 wallet-6" /></label>
@@ -132,18 +134,19 @@ function LedgerTable({ data, loading, onPage }: { data?: LedgerActivityPage; loa
 }
 
 function ActivityBadge({ type }: { type: LedgerActivityType }) {
-  return <span className={`side-badge ${type.toLowerCase()}`} title={activityLabels[type]}>{type}</span>;
+  return <span className={`side-badge ${type.toLowerCase()}`} title={`${type} · ${activityLabels[type]}`}>{activityLabels[type]}</span>;
 }
 
 /** 成交详情：沿用 Fill 的订单、撮合与确认字段。 */
 function TradeDetail({ id, item }: { id: string; item: LedgerActivity }) {
   const confirmationSeconds = Math.max(0, (new Date(item.confirmedAt).getTime() - new Date(item.occurredAt).getTime()) / 1000);
   return <div className="trade-detail" id={id}>
-    <div className="trade-detail-head"><div><ActivityBadge type={item.activityType} /><strong>{quantity(item.shares)} shares · {item.outcomeName || "Outcome"}</strong></div><span className="status confirmed">已确认并入账</span></div>
+    <div className="trade-detail-head"><div><ActivityBadge type={item.activityType} /><strong>{item.activityType === "EXTERNAL_SELL" ? "外部卖出" : "成交"} {quantity(item.shares)} shares · {item.outcomeName || "Outcome"}</strong></div><span className="status confirmed">已确认并入账</span></div>
+    {item.activityType === "EXTERNAL_SELL" && <p className="v2-inline-note">这是外部卖出记账，可能没有本地订单或 CLOB Trade ID；金额与已实现 PnL 采用账本返回值。</p>}
     <div className="trade-detail-grid">
       <Detail label="内部订单 ID" value={item.orderId || "—"} mono /><Detail label="Polymarket Trade ID" value={item.venueTradeId || "—"} mono /><Detail label="Venue Order ID" value={item.venueOrderId || "—"} mono />
       <Detail label="持仓批次 Lot ID" value={item.lotId || "—"} mono /><Detail label="Token ID" value={item.tokenId} mono /><Detail label="Condition ID" value={item.conditionId || "—"} mono />
-      <Detail label="成交价" value={price(item.price)} mono /><Detail label="账本现金变化" value={signedMoney(item.netCashDelta)} tone={sign(item.netCashDelta) >= 0 ? "positive" : "negative"} /><Detail label="平仓成本" value={item.activityType === "SELL" ? money(item.costBasis) : "—"} />
+      <Detail label="成交价" value={price(item.price)} mono /><Detail label="账本现金变化" value={signedMoney(item.netCashDelta)} tone={sign(item.netCashDelta) >= 0 ? "positive" : "negative"} /><Detail label="平仓成本" value={item.activityType === "SELL" || item.activityType === "EXTERNAL_SELL" ? money(item.costBasis) : "—"} />
       <Detail label="流动性角色" value={item.liquidityRole || "—"} /><Detail label="订单最终状态" value={item.orderStatus || "—"} /><Detail label="确认耗时" value={`${confirmationSeconds.toFixed(0)} 秒`} />
       <Detail label="撮合时间（UTC）" value={utc(item.occurredAt)} mono /><Detail label="确认时间（UTC）" value={utc(item.confirmedAt)} mono /><Detail label="入账时间（UTC）" value={utc(item.appliedAt)} mono />
       <Detail label="链上交易哈希" value={item.transactionHash || "—"} mono wide />

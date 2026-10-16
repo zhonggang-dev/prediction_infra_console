@@ -2,7 +2,7 @@
 
 Prediction Infra 的新版 React 运维控制台基础。它从线上 Console 的已提交版本独立复制，以 `13001` 和 `prediction-console-v2` 运行；旧版 `13000`、`prediction-console` 容器和原 systemd unit 不在本项目的启停范围内。浏览器只请求同源 `/api/console/*`；BFF 在服务端携带令牌请求 Go 服务，因此任何令牌都不会进入浏览器包。
 
-当前阶段只提供原有真实页面的分组入口与视觉基础，市场运行池、账户对账、新版回测数据产品等读模型尚未接入时会显示“待接入”，不会用空数据页或累计数量代替真实状态。
+新版业务页按市场、预测、题目、资料与数据、交易、系统运行分组，使用 v2 只读 projection、服务端筛选和有界分页。后端资源未配置、依赖 503 或字段不满足契约时，页面会明确显示不可用/未知，不把空结果或累计历史数量当作当前状态。
 
 ## 本地运行
 
@@ -56,6 +56,7 @@ curl http://127.0.0.1:13001/
 | --- | --- |
 | `PREDICTION_INFRA_BASE_URL` | Go 服务地址，例如 `https://prediction.example.com` |
 | `CONSOLE_API_TOKEN` | 仅读取 `/api/v1/console/*` 的控制台令牌 |
+| `SANDBOX_DOWNLOAD_TOKEN` | 仅供服务端归档下载 BFF 使用的 Sandbox 下载令牌 |
 | `BACKTEST_DATASET_TOKEN` | 独立的回测数据集读写令牌 |
 | `TRADING_EXECUTION_BASE_URL` | Go 交易执行服务地址，例如 `https://execution.example.com` |
 | `TRADING_EXECUTION_API_TOKEN` | 仅读取交易执行服务 API 的 Bearer Token |
@@ -65,11 +66,10 @@ curl http://127.0.0.1:13001/
 
 ## 实盘监控聚合接口
 
-`/live` 页面通过同源 `GET /api/console/live-operations` 读取 Trading Execution 的 `GET /api/v1/live-operations`。BFF 使用独立的 `TRADING_EXECUTION_LIVE_READ_ONLY_TOKEN`，不会把令牌发送到浏览器。这个接口应返回一次自洽的只读快照，至少包含：
+`/live` 页面通过同源 `GET /api/console/live-operations` 读取 Trading Execution 的 `GET /api/v1/live-operations`，并链接到真实的 decision runtime/cycle 视图。BFF 使用独立的 `TRADING_EXECUTION_LIVE_READ_ONLY_TOKEN`，不会把令牌发送到浏览器。这个接口应返回一次自洽的只读快照，至少包含：
 
 - 引擎、CLOB、Ledger 与 Reconcile 健康状态；
-- CycleThread、MonitorThread、PredictionScheduler 的心跳和当前任务；
-- 当轮扫描到入账的交易漏斗；
+- 钱包 PnL、风险、订单、仓位与事件流所需的安全只读摘要；
 - 资金、服务端计算的预警线/硬上限/真实占用率、开放订单、持仓、订单生命周期和事件流；
 - `observedAt` 与 `dataFreshnessSeconds`，让值班人员能判断页面是否陈旧。
 
@@ -78,13 +78,7 @@ curl http://127.0.0.1:13001/
 
 ## 基础服务监控
 
-`/observability` 已直接嵌入 Console 导航，展示 Prediction Infra 和 Trading Execution 的近 1 分钟 QPS、5xx 比例、请求延迟、CPU、内存、Goroutine 与运行时长。浏览器只访问同源 `GET /api/console/service-metrics`，BFF 会并行调用：
-
-- Prediction Infra `GET /api/v1/console/service-metrics`；
-- Trading Execution `GET /api/v1/service-metrics`；
-- 两个服务各自的 `GET /health/ready`。
-
-一个服务离线不会遮蔽另一个服务。未连接后端时页面会明确标注演示模式。采集口径与接口字段见 [docs/service-observability.md](docs/service-observability.md)。
+`/observability` 已直接嵌入 Console 导航，展示 Prediction Infra 和 Trading Execution 的实际运行时内存、Goroutine、运行时长、观测时间与可用范围；没有权威采集的 QPS、CPU 或容器限额保持未知。两个服务和 Redis 独立读取，一个依赖失败不会把其他快照伪装成健康。采集口径与接口字段见 [docs/service-observability.md](docs/service-observability.md)。
 
 `TRADING_EXECUTION_API_TOKEN` 仅用于读取成交账本；`TRADING_EXECUTION_LIVE_READ_ONLY_TOKEN` 必须等于 Go 服务的 `LIVE_OPERATIONS_READ_ONLY_TOKEN`。生产环境不得把这两个权限不同的 Token 配成同一个值。
 

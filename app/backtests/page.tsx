@@ -1,3 +1,3 @@
-import { ConsolePage } from "../components/console-page";
+import { AssetsV2Page } from "../components/assets-v2-page";
 
-export default function BacktestsPage() { return <ConsolePage page="backtests" />; }
+export default function BacktestsPage() { return <AssetsV2Page view="backtests" />; }

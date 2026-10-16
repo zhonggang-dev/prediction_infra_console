@@ -45,7 +45,7 @@ test("服务端可渲染 Prediction Console 首页", async () => {
   assert.equal(response.status, 200);
   const html = await response.text();
   assert.match(html, /Prediction Console/);
-  assert.match(html, /V2 基础版/);
+  assert.match(html, /新版/);
   assert.match(html, /运行概览/);
   assert.match(html, /市场中心/);
   assert.match(html, /预测中心/);
@@ -55,9 +55,9 @@ test("服务端可渲染 Prediction Console 首页", async () => {
   assert.match(html, /系统运行/);
   assert.match(html, /href="\/observability"[^>]*>.*服务监控/s);
   assert.match(html, /href="\/questions"[^>]*>.*题目库/s);
-  assert.match(html, /运行市场.*待接入/s);
-  assert.match(html, /回测数据产品.*待接入/s);
-  assert.doesNotMatch(html, /href="\/backtests"/);
+  assert.match(html, /运行市场/);
+  assert.match(html, /回测数据产品/);
+  assert.match(html, /href="\/backtests"/);
   assert.match(html, /href="http:\/\/172\.21\.20\.221:8501\/"[^>]*>.*PM Backtest/s);
   assert.doesNotMatch(html, /Your site is taking shape/);
 });
@@ -66,7 +66,7 @@ test("服务端可渲染独立的市场页面", async () => {
   const response = await render("/markets");
   assert.equal(response.status, 200);
   const html = await response.text();
-  assert.match(html, /已选市场/);
+  assert.match(html, /选盘批次与历史/);
 });
 
 test("服务端可渲染数据集轮换页面并显示导航入口", async () => {
@@ -117,7 +117,7 @@ test("服务端可渲染双服务基础监控页面", async () => {
   assert.equal(response.status, 200);
   const html = await response.text();
   assert.match(html, /服务监控/);
-  assert.match(html, /Prediction Infra 与 Trading Execution/);
+  assert.match(html, /服务端采样的运行指标/);
   assert.match(html, /Redis 队列监控/);
   assert.match(html, /业务消息与缓存分开统计/);
 });
@@ -126,7 +126,7 @@ test("能力接口在未配置令牌时安全关闭写能力", async () => {
   const response = await withoutBackendConfig(() => render("/api/console/capabilities"));
   assert.equal(response.status, 200);
   assert.deepEqual(await response.json(), {
-    data: { console_read: false, trade_read: false, live_read: false, backtest_create: false },
+    data: { console_read: false, trade_read: false, live_read: false, backtest_create: false, sandbox_download: false },
   });
 });
 

@@ -1,3 +1,3 @@
-import { ConsolePage } from "../components/console-page";
+import { PredictionsV2Page } from "../components/predictions-v2-page";
 
-export default function PredictionsPage() { return <ConsolePage page="predictions" />; }
+export default function PredictionsPage() { return <PredictionsV2Page />; }

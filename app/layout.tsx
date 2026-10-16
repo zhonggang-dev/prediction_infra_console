@@ -8,18 +8,18 @@ export async function generateMetadata(): Promise<Metadata> {
   const protocol = requestHeaders.get("x-forwarded-proto") ?? (host.startsWith("localhost") || host.startsWith("127.0.0.1") ? "http" : "https");
   const image = new URL("/og-observability.png", `${protocol}://${host}`).toString();
   return {
-    title: "Prediction Console V2 · 服务监控与实盘运维",
+    title: "Prediction Console · 新版运维",
     description: "Prediction Infra 新版控制台基础，按市场、预测、资料和交易链路逐步接入",
     icons: { icon: "/favicon.svg" },
     openGraph: {
-      title: "Prediction Console V2 · 服务监控与实盘运维",
+      title: "Prediction Console · 新版运维",
       description: "Prediction Infra 新版控制台基础，按市场、预测、资料和交易链路逐步接入",
       type: "website",
-      images: [{ url: image, width: 1731, height: 909, alt: "Prediction Console V2 双服务基础监控" }],
+      images: [{ url: image, width: 1731, height: 909, alt: "新版双服务基础监控" }],
     },
     twitter: {
       card: "summary_large_image",
-      title: "Prediction Console V2 · 服务监控与实盘运维",
+      title: "Prediction Console · 新版运维",
       description: "Prediction Infra 新版控制台基础，按市场、预测、资料和交易链路逐步接入",
       images: [image],
     },

@@ -117,7 +117,7 @@ export function ServiceMetricsDashboard() {
   </ConsoleShell>;
 }
 
-function RedisMonitorPanel({ data, error, loading }: { data?: RedisMonitorData; error?: string; loading: boolean }) {
+export function RedisMonitorPanel({ data, error, loading }: { data?: RedisMonitorData; error?: string; loading: boolean }) {
   const cacheCategories = data?.keys.categories.filter((category) => category.kind === "cache") ?? [];
   const streamCategories = data?.keys.categories.filter((category) => category.kind === "stream") ?? [];
   const status = data ? redisStatus(data.status) : "等待采样";
