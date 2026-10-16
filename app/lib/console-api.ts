@@ -3,6 +3,7 @@
 import { demoData, demoOverview } from "./demo-data";
 import { demoDailyPnL, demoLedgerActivities, demoTradeHistory } from "./demo-trades";
 import { decodeDatasetRotation, DatasetRotationContractError, type DatasetRotationData } from "./dataset-rotation";
+import { decodeRedisMonitor, type RedisMonitorData } from "./redis-monitor";
 import { normalizeLiveRisk } from "./live-risk";
 import type { ApiMode, ApiResult, BacktestCreateParams, ConsoleGeneratedMarket, ConsoleGeneratedQA, ConsoleList, ConsoleResource, ConsoleRow, DailyPnLPoint, DailyPnLReport, EdgeDistribution, EdgeDistributionBin, EdgeDistributionSeries, GeneratedMarketList, GeneratedQAList, LedgerActivity, LedgerActivityPage, LedgerActivityParams, LedgerActivitySummary, LedgerActivityType, LiveEvent, LiveFunnelStage, LiveHealth, LiveOperationsSnapshot, LiveOrder, LiveOrderStep, LivePosition, LiveRiskMetric, LiveStageState, LiveWalletSummary, LiveWorker, OverviewData, ServiceMetricsOverview, ServiceRuntimeHealth, ServiceRuntimeMetrics, TradeHistoryPage, TradeHistoryParams, TradeHistorySummary, TradeRecord, TradeSide } from "./types";
 
@@ -73,7 +74,7 @@ function mapTrade(item: RawRecord): TradeRecord {
     executionAccountId: string(item.execution_account_id), modelId: string(item.model_id), strategyId: string(item.strategy_id),
     marketId: string(item.market_id), marketLabel: optional(item.market_label), conditionId: optional(item.condition_id),
     tokenId: string(item.token_id), outcomeName: optional(item.outcome_name), lotId: optional(item.lot_id),
-    side: (rawSide === "SELL" ? "SELL" : "BUY") as TradeSide, liquidityRole: string(item.liquidity_role),
+    side: (rawSide === "SELL" ? "SELL" : rawSide === "EXTERNAL_SELL" ? "EXTERNAL_SELL" : "BUY") as TradeSide, liquidityRole: string(item.liquidity_role),
     shares: string(item.shares, "0"), price: string(item.price, "0"), grossNotional: string(item.gross_notional, "0"),
     totalFee: string(item.total_fee, "0"), netCashDelta: string(item.net_cash_delta, "0"), realizedPnl: string(item.realized_pnl, "0"),
     transactionHash: optional(item.transaction_hash), matchedAt: string(item.matched_at), confirmedAt: string(item.confirmed_at),
@@ -88,10 +89,10 @@ function mapTradeSummary(item: RawRecord | undefined): TradeHistorySummary {
   };
 }
 
-/** 统一账本活动只接受 BUY / SELL / REDEEM，未知类型直接拒绝，避免把赎回或异常事件误标成成交。 */
+/** 统一账本活动只接受 BUY / SELL / EXTERNAL_SELL / REDEEM，未知类型直接拒绝。 */
 function ledgerActivityType(value: unknown): LedgerActivityType {
   const raw = String(value ?? "").toUpperCase();
-  if (raw !== "BUY" && raw !== "SELL" && raw !== "REDEEM") throw new ConsoleApiError(`账本活动接口返回了未知活动类型 ${raw || "(空)"}`, "live");
+  if (raw !== "BUY" && raw !== "SELL" && raw !== "EXTERNAL_SELL" && raw !== "REDEEM") throw new ConsoleApiError(`账本活动接口返回了未知活动类型 ${raw || "(空)"}`, "live");
   return raw;
 }
 
@@ -207,7 +208,7 @@ const optionalNumber = (value: unknown) => value === undefined || value === null
 const optionalTime = (value: unknown) => typeof value === "string" && !Number.isNaN(Date.parse(value)) ? value : undefined;
 const liveHealth = (value: unknown): LiveHealth => value === "healthy" || value === "stopped" ? value : "degraded";
 const stageState = (value: unknown): LiveStageState => value === "done" || value === "active" || value === "warning" ? value : "idle";
-const tradeSide = (value: unknown): TradeSide => String(value).toUpperCase() === "SELL" ? "SELL" : "BUY";
+const tradeSide = (value: unknown): TradeSide => String(value).toUpperCase() === "SELL" ? "SELL" : String(value).toUpperCase() === "EXTERNAL_SELL" ? "EXTERNAL_SELL" : "BUY";
 
 function requiredLiveString(value: unknown, field: string): string {
   if (typeof value !== "string" || !value.trim()) throw new ConsoleApiError(`实盘聚合接口缺少 ${field}`, "live");
@@ -390,12 +391,22 @@ function mapLiveOperations(item: RawRecord): LiveOperationsSnapshot {
 }
 
 export const consoleApi = {
-  capabilities: () => request<{ console_read: boolean; trade_read: boolean; live_read: boolean; backtest_create: boolean }>("capabilities"),
+  capabilities: () => request<{ console_read: boolean; trade_read: boolean; live_read: boolean; backtest_create: boolean; sandbox_download: boolean }>("capabilities"),
   async overview() { const result = await request<RawRecord>("overview"); return { data: mapOverview(result.data), mode: result.mode }; },
   async serviceMetrics() {
     const result = await request<RawRecord>("service-metrics");
     const data: ServiceMetricsOverview = { observedAt: optionalTime(result.data.observed_at) ?? new Date().toISOString(), services: records(result.data.services).map(mapServiceMetrics) };
     return { data, mode: result.mode };
+  },
+  async redisMonitor() {
+    const result = await request<unknown>("redis-monitor");
+    try {
+      const data: RedisMonitorData = decodeRedisMonitor(result.data);
+      return { data, mode: result.mode };
+    } catch (error) {
+      if (error instanceof Error) throw new ConsoleApiError(error.message, "live");
+      throw error;
+    }
   },
   async list(resource: ConsoleResource, params: { limit?: number; offset?: number } = {}) {
     const query = new URLSearchParams({ limit: String(params.limit ?? 20), offset: String(params.offset ?? 0) });
@@ -410,7 +421,7 @@ export const consoleApi = {
     if (params.domain) query.set("domain", params.domain);
     if (params.questionType) query.set("question_type", params.questionType);
     if (params.endFrom) query.set("end_from", `${params.endFrom}T00:00:00Z`);
-    if (params.endTo) query.set("end_to", `${params.endTo}T23:59:59Z`);
+    if (params.endTo) query.set("end_to", nextDayStart(params.endTo));
     const result = await request<RawRecord>(`generated-markets?${query}`);
     const data: GeneratedMarketList = {
       items: records(result.data.items).map(mapGeneratedMarket), total: number(result.data.total),
@@ -419,14 +430,15 @@ export const consoleApi = {
     };
     return { data, mode: result.mode };
   },
-  async generatedQAs(params: { limit?: number; offset?: number; q?: string; status?: string; domain?: string; questionType?: string; endFrom?: string; endTo?: string } = {}) {
+  async generatedQAs(params: { limit?: number; offset?: number; q?: string; status?: string; phase?: string; domain?: string; questionType?: string; endFrom?: string; endTo?: string } = {}) {
     const query = new URLSearchParams({ limit: String(params.limit ?? 20), offset: String(params.offset ?? 0) });
     if (params.q) query.set("q", params.q);
     if (params.status) query.set("status", params.status);
+    if (params.phase) query.set("phase", params.phase);
     if (params.domain) query.set("domain", params.domain);
     if (params.questionType) query.set("question_type", params.questionType);
     if (params.endFrom) query.set("end_from", `${params.endFrom}T00:00:00Z`);
-    if (params.endTo) query.set("end_to", `${params.endTo}T23:59:59Z`);
+    if (params.endTo) query.set("end_to", nextDayStart(params.endTo));
     const result = await request<RawRecord>(`generated-qas?${query}`);
     const data: GeneratedQAList = {
       items: records(result.data.items).map(mapGeneratedQA), total: number(result.data.total),
@@ -534,7 +546,7 @@ function mapGeneratedQA(item: RawRecord): ConsoleGeneratedQA {
     nextRunAt: optionalTime(item.next_run_at), effectiveHardStopAt: optionalTime(item.effective_hard_stop_at),
     attemptCount: number(item.attempt_count), lastReasonCode: string(item.last_reason_code, "—"), lastFinishedAt: optionalTime(item.last_finished_at),
     latestResultKind: optional(item.latest_result_kind), latestResult: jsonValueOrUndefined(item.latest_result),
-    latestFactualAnswer: jsonValueOrUndefined(item.latest_factual_answer), latestDecisionReference: jsonValueOrUndefined(item.latest_decision_reference),
+    latestFactualAnswer: jsonValueOrUndefined(item.latest_factual_answer), decisionReference: jsonValueOrUndefined(item.decision_reference),
     resolvedOptionId: optional(item.resolved_option_id),
     latestEvidence: jsonValueOrUndefined(item.latest_evidence), latestRun: jsonValueOrUndefined(item.latest_run),
     canonicalAnswer: jsonValueOrUndefined(item.canonical_answer),
@@ -550,6 +562,13 @@ function jsonValue(value: unknown): unknown {
 
 function jsonValueOrUndefined(value: unknown): unknown {
   return value === undefined || value === null ? undefined : value;
+}
+
+function nextDayStart(value: string): string {
+  const date = new Date(`${value}T00:00:00Z`);
+  if (Number.isNaN(date.getTime())) return `${value}T00:00:00Z`;
+  date.setUTCDate(date.getUTCDate() + 1);
+  return date.toISOString();
 }
 
 function optionalJSON(value: unknown): unknown {

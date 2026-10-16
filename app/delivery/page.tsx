@@ -1,3 +1,3 @@
-import { ConsolePage } from "../components/console-page";
+import { DeliveryV2Page } from "../components/system-v2-page";
 
-export default function DeliveryPage() { return <ConsolePage page="delivery" />; }
+export default function DeliveryPage() { return <DeliveryV2Page />; }

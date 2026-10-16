@@ -36,6 +36,7 @@ const answerTypeLabels: Record<string, string> = {
 type QuestionFilters = {
   q: string;
   status: string;
+  phase: string;
   questionType: string;
   domainL1: string;
   domainPath: string;
@@ -44,7 +45,7 @@ type QuestionFilters = {
 };
 
 const emptyFilters: QuestionFilters = {
-  q: "", status: "", questionType: "", domainL1: "", domainPath: "", endFrom: "", endTo: "",
+  q: "", status: "", phase: "", questionType: "", domainL1: "", domainPath: "", endFrom: "", endTo: "",
 };
 
 export function QuestionLibraryPage() {
@@ -58,21 +59,28 @@ export function QuestionLibraryPage() {
 
   useEffect(() => {
     let cancelled = false;
-    void consoleApi.generatedQAs({
-      q: filters.q,
-      status: filters.status,
-      questionType: filters.questionType,
-      domain: filters.domainPath || filters.domainL1,
-      endFrom: filters.endFrom,
-      endTo: filters.endTo,
-      offset: page * 20,
-      limit: 20,
-    }).then((response) => {
-      if (!cancelled) { setResult(response.data); setError(undefined); }
-    }).catch((requestError) => {
-      if (!cancelled) setError(requestError instanceof Error ? requestError.message : "题目查询失败");
-    });
-    return () => { cancelled = true; };
+    const timer = window.setTimeout(() => {
+      if (cancelled) return;
+      setResult(undefined);
+      setSelected(undefined);
+      setError(undefined);
+      void consoleApi.generatedQAs({
+        q: filters.q,
+        status: filters.status,
+        phase: filters.phase,
+        questionType: filters.questionType,
+        domain: filters.domainPath || filters.domainL1,
+        endFrom: filters.endFrom,
+        endTo: filters.endTo,
+        offset: page * 20,
+        limit: 20,
+      }).then((response) => {
+        if (!cancelled) { setResult(response.data); setError(undefined); }
+      }).catch((requestError) => {
+        if (!cancelled) { setResult(undefined); setSelected(undefined); setError(requestError instanceof Error ? requestError.message : "题目查询失败"); }
+      });
+    }, 0);
+    return () => { cancelled = true; window.clearTimeout(timer); };
   }, [filters, page, refreshKey]);
 
   const domainOptions = result?.domainOptions;
@@ -80,7 +88,17 @@ export function QuestionLibraryPage() {
   const secondaryDomains = draft.domainL1
     ? (domainOptions ?? []).filter((path) => primaryDomain(path) === draft.domainL1)
     : [];
-  const search = () => { setPage(0); setSelected(undefined); setFilters(draft); };
+  const search = () => {
+    if (draft.endFrom && draft.endTo && draft.endTo < draft.endFrom) {
+      setResult(undefined);
+      setSelected(undefined);
+      setError("observation_end 结束日期必须不早于起始日期；结束日期按 UTC 当天结束后的独占边界查询。");
+      return;
+    }
+    setPage(0);
+    setSelected(undefined);
+    setFilters(draft);
+  };
 
   return <ConsoleShell>
     <header className="page-head">
@@ -95,11 +113,12 @@ export function QuestionLibraryPage() {
       <div className="question-filters">
         <label className="question-search"><span>关键词</span><input className="input" placeholder="题目、QA ID、语义键或事件键" value={draft.q} onChange={(event) => setDraft({ ...draft, q: event.target.value })} onKeyDown={(event) => event.key === "Enter" && search()} /></label>
         <label className="question-status-filter"><span>状态</span><select className="select" value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value })}>{statusOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
+        <label className="question-status-filter"><span>阶段</span><select className="select" value={draft.phase} onChange={(event) => setDraft({ ...draft, phase: event.target.value })}><option value="">全部阶段</option><option value="OBSERVING">观察中</option><option value="AWAITING_PUBLICATION">等待发布</option><option value="ANSWERABLE">可调度</option><option value="TERMINAL">已终态</option></select></label>
         <label className="question-type-filter"><span>题型</span><select className="select" value={draft.questionType} onChange={(event) => setDraft({ ...draft, questionType: event.target.value })}><option value="">全部题型</option>{(result?.questionTypeOptions ?? []).map((type) => <option key={type} value={type}>{answerTypeLabel(type)}</option>)}</select></label>
         <label className="question-domain-l1-filter"><span>一级领域</span><select className="select" value={draft.domainL1} onChange={(event) => setDraft({ ...draft, domainL1: event.target.value, domainPath: "" })}><option value="">全部一级领域</option>{primaryDomains.map((domain) => <option key={domain} value={domain}>{domain}</option>)}</select></label>
         <label className="question-domain-l2-filter"><span>二级领域</span><select className="select" value={draft.domainPath} disabled={!draft.domainL1} onChange={(event) => setDraft({ ...draft, domainPath: event.target.value })}><option value="">{draft.domainL1 ? "全部二级领域" : "请先选择一级领域"}</option>{secondaryDomains.map((path) => <option key={path} value={path}>{secondaryDomain(path)}</option>)}</select></label>
-        <label className="question-date-filter"><span>observation_end 起始</span><input className="input" type="date" value={draft.endFrom} onChange={(event) => setDraft({ ...draft, endFrom: event.target.value })} /></label>
-        <label className="question-date-filter"><span>observation_end 结束</span><input className="input" type="date" value={draft.endTo} onChange={(event) => setDraft({ ...draft, endTo: event.target.value })} /></label>
+        <label className="question-date-filter"><span>observation_end 起始（UTC）</span><input className="input" type="date" value={draft.endFrom} onChange={(event) => setDraft({ ...draft, endFrom: event.target.value })} /></label>
+        <label className="question-date-filter"><span>observation_end 结束（含当天，UTC）</span><input className="input" type="date" min={draft.endFrom || undefined} value={draft.endTo} onChange={(event) => setDraft({ ...draft, endTo: event.target.value })} /></label>
         <div className="question-filter-actions"><button className="button" onClick={() => { setDraft(emptyFilters); setFilters(emptyFilters); setPage(0); }}>重置</button><button className="button primary question-search-action" onClick={search}><Icon name="search" /> 检索</button></div>
       </div>
       {error && <div className="notice error"><div><strong>题目查询失败</strong><p>{error}</p></div></div>}
@@ -142,7 +161,7 @@ function QuestionDetail({ item, onClose }: { item: ConsoleGeneratedQA; onClose: 
   const resultKind = hasFinalResult ? item.latestResultKind : undefined;
   const resultValue = hasFinalResult
     ? resultKind === "factual_answer" ? (item.latestFactualAnswer ?? item.canonicalAnswer ?? item.resolvedOptionId ?? item.latestResult)
-      : resultKind === "decision_reference" ? (item.latestDecisionReference ?? asRecord(item.latestResult).reference ?? item.latestResult)
+      : resultKind === "decision_reference" ? (item.decisionReference ?? item.latestResult ?? item.canonicalAnswer)
         : item.canonicalAnswer ?? item.latestResult
     : undefined;
   return <div className="question-detail">

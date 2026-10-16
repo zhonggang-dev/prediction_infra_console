@@ -1,3 +1,3 @@
-import { ConsolePage } from "../components/console-page";
+import { SettingsV2Page } from "../components/system-v2-page";
 
-export default function SettingsPage() { return <ConsolePage page="settings" />; }
+export default function SettingsPage() { return <SettingsV2Page />; }

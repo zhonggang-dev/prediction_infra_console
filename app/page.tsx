@@ -1,5 +1,5 @@
-import { ConsolePage } from "./components/console-page";
+import { OverviewV2Page } from "./components/overview-v2-page";
 
 export default function Home() {
-  return <ConsolePage page="overview" />;
+  return <OverviewV2Page />;
 }

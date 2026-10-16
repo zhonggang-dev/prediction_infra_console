@@ -1,5 +1,5 @@
-import { ServiceMetricsDashboard } from "../components/service-metrics-dashboard";
+import { ObservabilityV2Page } from "../components/observability-v2-page";
 
 export default function ObservabilityPage() {
-  return <ServiceMetricsDashboard />;
+  return <ObservabilityV2Page />;
 }

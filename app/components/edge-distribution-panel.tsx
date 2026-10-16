@@ -30,8 +30,7 @@ export function EdgeDistributionPanel({ distribution, loading, error, onRetry }:
           </div>
           <span className="edge-basis">MIDPOINT · 5pp bins</span>
         </div>
-        <EdgeStats series={selected} />
-        <DistributionChart series={selected} rangeMin={distribution.rangeMin} rangeMax={distribution.rangeMax} />
+        {selected.sampleCount > 0 ? <><EdgeStats series={selected} /><DistributionChart series={selected} rangeMin={distribution.rangeMin} rangeMax={distribution.rangeMax} /></> : <div className="edge-no-samples"><strong>当前决策周期没有有效样本</strong><p>均值、中位数、标准差和正 Edge 占比保持未知，不把空样本显示为 0。</p></div>}
         <footer className="edge-footer"><span><i />正值表示模型概率高于市场隐含概率</span><span>有效样本 {selected.sampleCount}{selected.excludedCount ? ` · 排除缺失/异常盘口 ${selected.excludedCount}` : ""}</span></footer>
       </>}
     </div>

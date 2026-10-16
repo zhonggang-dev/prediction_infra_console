@@ -72,7 +72,7 @@ export interface ConsoleGeneratedQA {
   latestResultKind?: "factual_answer" | "decision_reference" | string;
   latestResult?: unknown;
   latestFactualAnswer?: unknown;
-  latestDecisionReference?: unknown;
+  decisionReference?: unknown;
   resolvedOptionId?: string;
   latestEvidence?: unknown;
   latestRun?: unknown;
@@ -175,7 +175,7 @@ export interface ServiceMetricsOverview {
   services: ServiceRuntimeMetrics[];
 }
 
-export type TradeSide = "BUY" | "SELL";
+export type TradeSide = "BUY" | "SELL" | "EXTERNAL_SELL";
 
 /** 兼容保留：对应 Go 账本中已确认、已入账的真实 Fill（/trades）。 */
 export interface TradeRecord {
@@ -236,7 +236,7 @@ export interface TradeHistoryParams {
   query?: string;
 }
 
-export type LedgerActivityType = "BUY" | "SELL" | "REDEEM";
+export type LedgerActivityType = "BUY" | "SELL" | "EXTERNAL_SELL" | "REDEEM";
 
 /**
  * 统一账本活动：BUY / SELL 为已确认并入账的 CLOB 真实成交，REDEEM 为 auto redeem 入账后按原始批次拆分的赎回结算。

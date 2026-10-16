@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { consoleApi } from "../lib/console-api";
+import { consoleV2, type ConsoleV2Runtime } from "../lib/console-v2";
 import { demoLiveOperations } from "../lib/demo-live";
 import { calculateMaximumDrawdown } from "../lib/pnl-metrics";
 import type { ApiMode, DailyPnLReport, EdgeDistribution, LiveEvent, LiveHealth, LiveOperationsSnapshot, LiveOrder, LivePosition, LiveRiskMetric, LiveWalletSummary } from "../lib/types";
@@ -135,7 +136,7 @@ export function LiveTradingPage({ previewObservedAt }: { previewObservedAt: stri
     <header className="page-head live-page-head">
       <div>
         <p className="eyebrow">Live Trading / Command Center</p>
-        <div className="live-title-line"><h1>实盘监控</h1>{activeSnapshot ? <HealthBadge health={activeSnapshot.engine.health} label={healthLabel(activeSnapshot.engine.health)} pulse /> : <span className="health-badge unavailable"><i />{loading ? "读取中" : "数据不可用"}</span>}</div>
+        <div className="live-title-line"><h1>实盘监控</h1>{activeSnapshot ? <SnapshotStatusBadge snapshot={activeSnapshot} /> : <span className="health-badge unavailable"><i />{loading ? "读取中" : "数据不可用"}</span>}</div>
         <p className="description">从机会扫描到成交入账的全链路观测面；用于值班判断与追踪，不在此页面直接修改策略或发起交易。</p>
       </div>
       <div className="live-head-actions">
@@ -153,12 +154,10 @@ export function LiveTradingPage({ previewObservedAt }: { previewObservedAt: stri
     <WalletPerformance wallets={activeSnapshot?.wallets ?? []} wallet={selectedWallet} selectedWalletId={effectiveWalletId} onWallet={setSelectedWalletId} loading={loading && !activeSnapshot} currentPositionValue={currentPositionValue} maximumDrawdown={maximumDrawdown} pnlDays={pnlReport?.days ?? pnlDays} />
     <DailyPnLDashboard report={pnlReport} loading={pnlLoading && !pnlReport} days={pnlDays} onDays={changePnLDays} preview={pnlMode === "demo"} />
     <EdgeDistributionPanel distribution={edgeDistribution} loading={edgeLoading} error={edgeError} onRetry={() => void loadEdges()} />
+    <LiveRuntimeSummary />
 
     {!activeSnapshot && <section className="section panel live-data-state"><strong>{loading ? "正在读取真实实盘快照" : "没有可展示的真实实盘快照"}</strong><p>{loading ? "钱包指标将在服务端返回完整快照后显示。" : "请重试真实数据，或明确选择查看产品预览。"}</p></section>}
     {activeSnapshot && <>
-    <WorkerGrid snapshot={activeSnapshot} />
-    <TradingFunnel snapshot={activeSnapshot} />
-
     <section className="section live-workbench">
       <div className="live-orders-column">
         <div className="section-head"><div><h2 className="section-title">活跃订单</h2><p className="section-caption">所选钱包 · 点击订单查看从预测到成交验真的完整生命周期</p></div><a className="link" href="/trades">查看成交账本 <Icon name="arrow" /></a></div>
@@ -190,12 +189,49 @@ export function LiveTradingPage({ previewObservedAt }: { previewObservedAt: stri
   </ConsoleShell>;
 }
 
+/** V2 runner summary replaces the old synthetic worker/funnel projection. */
+function LiveRuntimeSummary() {
+  const [runtime, setRuntime] = useState<ConsoleV2Runtime>();
+  const [error, setError] = useState<string>();
+  useEffect(() => {
+    let cancelled = false;
+    void consoleV2.trading.runtime().then((result) => {
+      if (!cancelled) { setRuntime(result.data); setError(undefined); }
+    }).catch((requestError: unknown) => {
+      if (!cancelled) { setRuntime(undefined); setError(requestError instanceof Error ? requestError.message : "决策运行状态不可用"); }
+    });
+    return () => { cancelled = true; };
+  }, []);
+  const runner = runtime?.runner;
+  return <section className="section panel live-runtime-summary">
+    <div className="section-head"><div><h2 className="section-title">决策运行状态</h2><p className="section-caption">这里显示持久化决策运行与绑定的真实摘要；订单、成交和账本请进入交易中心核对。</p></div><a className="link" href="/trading/cycles">打开决策周期 <Icon name="arrow" /></a></div>
+    {error && <p className="v2-inline-note">决策运行状态不可用：{error}</p>}
+    {!runtime && !error && <p className="v2-inline-note">正在读取决策运行状态…</p>}
+    {runtime && <div className="v2-facts"><div className="v2-fact"><span>运行状态</span><strong>{runtimeValue(runner?.state ?? runner?.running)}</strong></div><div className="v2-fact"><span>绑定数</span><strong>{runtime.bindings.length}</strong></div><div className="v2-fact"><span>最近完成</span><strong>{formatRuntimeTime(runner?.lastCompletedAt)}</strong></div><div className="v2-fact"><span>观测时间</span><strong>{formatRuntimeTime(runtime.observedAt)}</strong></div></div>}
+  </section>;
+}
+
+function SnapshotStatusBadge({ snapshot }: { snapshot: LiveOperationsSnapshot }) {
+  const refreshIssue = snapshot.dataQuality.some((item) => item.id === "aggregator" && item.status !== "healthy");
+  return <span className={`health-badge ${refreshIssue ? "degraded" : "healthy"}`}><i />钱包快照{refreshIssue ? "可用，最近刷新有异常" : "可用"} · {snapshot.dataFreshnessSeconds} 秒前观测</span>;
+}
+
+function runtimeValue(value: unknown) {
+  if (typeof value === "boolean") return value ? "enabled / running" : "disabled / stopped";
+  return value === undefined || value === null || value === "" ? "未知" : String(value);
+}
+
+function formatRuntimeTime(value: unknown) {
+  if (typeof value !== "string" || Number.isNaN(new Date(value).getTime())) return "未知";
+  return utc(value);
+}
+
 function LiveStatusBar({ snapshot, mode }: { snapshot: LiveOperationsSnapshot; mode: ApiMode }) {
   return <section className="live-status-bar">
-    <div><span className="live-status-kicker"><i className={snapshot.engine.health === "healthy" ? "pulse-dot" : "pulse-dot warning"} />{mode === "live" ? "LIVE" : "PREVIEW"}</span><strong>{snapshot.engine.venueName}</strong><small>{snapshot.engine.presetName} preset</small></div>
-    <div><span>RUN ID</span><strong className="mono">{snapshot.engine.runId}</strong><small>运行 {duration(snapshot.engine.startedAt, snapshot.observedAt)}</small></div>
-    <div><span>数据时间</span><strong>{utcTime(snapshot.observedAt)}</strong><small>{snapshot.dataFreshnessSeconds} 秒前完成聚合</small></div>
-    <div className="status-checks"><StatusCheck label="Venue" health={snapshot.engine.venueStatus} /><StatusCheck label="Ledger" health={snapshot.engine.ledgerStatus} /><StatusCheck label="Reconcile" health={snapshot.engine.reconciliationStatus} /></div>
+    <div><span className="live-status-kicker"><i className="pulse-dot" />{mode === "live" ? "实盘数据" : "产品预览"}</span><strong>{snapshot.engine.venueName}</strong><small>交易场所快照</small></div>
+    <div><span>快照范围</span><strong>{snapshot.wallets.length} 个钱包</strong><small>资金、仓位与账本摘要</small></div>
+    <div><span>观测时间</span><strong>{utcTime(snapshot.observedAt)}</strong><small>{snapshot.dataFreshnessSeconds} 秒前观测</small></div>
+    <div className="status-checks"><StatusCheck label="交易场所" health={snapshot.engine.venueStatus} /><StatusCheck label="账本" health={snapshot.engine.ledgerStatus} /><StatusCheck label="对账" health={snapshot.engine.reconciliationStatus} /></div>
   </section>;
 }
 
@@ -217,14 +253,6 @@ function WalletPerformance({ wallets, wallet, selectedWalletId, onWallet, loadin
     <div className="section-head wallet-performance-head"><div><h2 className="section-title" id="wallet-performance-title">钱包核心指标</h2><p className="section-caption">单钱包累计口径；全局线程与风险状态不随选择器变化</p></div><label className="wallet-selector"><span>选择钱包</span><select className="select" value={selectedWalletId ?? ""} onChange={(event) => onWallet(event.target.value)} disabled={!wallets.length} aria-label="选择实盘钱包">{wallets.length ? wallets.map((item) => <option value={item.executionAccountId} key={item.executionAccountId}>{item.executionAccountId}</option>) : <option value="">{loading ? "正在读取钱包" : "暂无真实钱包"}</option>}</select></label></div>
     <div className={`live-metrics wallet-metrics ${loading ? "is-loading" : ""}`}>{metrics.map((metric) => <div className="live-metric" key={metric.label}><span>{metric.label}</span><strong className={metric.tone}>{metric.value}</strong><small>{metric.meta}</small></div>)}</div>
   </section>;
-}
-
-function WorkerGrid({ snapshot }: { snapshot: LiveOperationsSnapshot }) {
-  return <section className="section"><div className="section-head"><div><h2 className="section-title">运行线程</h2><p className="section-caption">三条节奏独立运行，共享 Trader、Portfolio、MarketState 与 Ledger</p></div></div><div className="worker-grid">{snapshot.workers.map((worker) => <article className={`worker-card ${worker.status}`} key={worker.id}><div className="worker-top"><span className="worker-icon">{worker.id === "cycle" ? "C" : worker.id === "monitor" ? "M" : "P"}</span><div><strong>{worker.name}</strong><small>{worker.cadence}</small></div><HealthBadge health={worker.status} label={healthLabel(worker.status)} /></div><p>{worker.purpose}</p><div className="worker-task"><span><i />{worker.currentTask}</span><strong>{worker.metricValue}</strong><small>{worker.metricLabel}</small></div><footer>Heartbeat · {worker.lastHeartbeatAt ? relative(worker.lastHeartbeatAt, snapshot.observedAt) : "尚未上报"}</footer></article>)}</div></section>;
-}
-
-function TradingFunnel({ snapshot }: { snapshot: LiveOperationsSnapshot }) {
-  return <section className="section"><div className="section-head"><div><h2 className="section-title">本轮交易链路</h2><p className="section-caption">数量口径从左到右逐级收敛；橙色表示仍在处理或需要关注</p></div></div><div className="panel live-funnel">{snapshot.funnel.map((stage) => <div className={`funnel-stage ${stage.state}`} key={stage.id}><div className="funnel-index">{String(stage.index).padStart(2, "0")}</div><div className="funnel-value">{stage.count}</div><strong>{stage.name}</strong><span>{stage.throughputLabel}</span><small>{stage.description}</small></div>)}</div></section>;
 }
 
 function OrderList({ orders, selectedOrderId, onSelect }: { orders: LiveOrder[]; selectedOrderId?: string; onSelect: (id: string) => void }) {
@@ -326,7 +354,5 @@ const signedPct = (value: number) => `${value >= 0 ? "+" : ""}${pct(value)}`;
 const utc = (value: string) => new Date(value).toISOString().replace("T", " ").replace(/\.\d{3}Z$/, " UTC");
 const utcTime = (value: string) => new Date(value).toISOString().slice(11, 19) + " UTC";
 const clock = (value: string) => new Date(value).toISOString().slice(11, 19);
-const relative = (value: string, observedAt: string) => { const seconds = Math.max(0, Math.floor((new Date(observedAt).getTime() - new Date(value).getTime()) / 1000)); return seconds < 60 ? `${seconds}s 前` : `${Math.floor(seconds / 60)}m 前`; };
-const duration = (value: string, observedAt: string) => { const minutes = Math.max(0, Math.floor((new Date(observedAt).getTime() - new Date(value).getTime()) / 60_000)); return `${Math.floor(minutes / 60)}h ${minutes % 60}m`; };
 const orderAge = (seconds: number) => seconds < 60 ? `${seconds}s` : seconds < 3600 ? `${Math.floor(seconds / 60)}m` : `${Math.floor(seconds / 3600)}h ${Math.floor(seconds % 3600 / 60)}m`;
 const riskValue = (value: number, unit: LiveRiskMetric["unit"]) => unit === "$" ? usd(value) : unit === "%" ? `${value.toFixed(1)}%` : unit === "minutes" ? `${value}m` : String(value);

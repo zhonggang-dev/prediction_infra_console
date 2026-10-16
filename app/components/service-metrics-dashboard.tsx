@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { consoleApi } from "../lib/console-api";
 import { demoServiceMetrics } from "../lib/demo-service-metrics";
+import type { RedisMonitorData } from "../lib/redis-monitor";
 import type { ApiMode, ServiceMetricsOverview, ServiceRuntimeMetrics } from "../lib/types";
 import { ConsoleShell } from "./console-shell";
 import { Icon } from "./icons";
@@ -21,26 +22,40 @@ export function ServiceMetricsDashboard() {
   const [history, setHistory] = useState<HistoryPoint[]>([]);
   const [refreshSeconds, setRefreshSeconds] = useState(5);
   const [loading, setLoading] = useState(true);
+  const [redisData, setRedisData] = useState<RedisMonitorData>();
+  const [redisError, setRedisError] = useState<string>();
+  const [redisLoading, setRedisLoading] = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
-    try {
-      const result = await consoleApi.serviceMetrics();
+    setRedisLoading(true);
+    const [serviceResult, redisResult] = await Promise.allSettled([consoleApi.serviceMetrics(), consoleApi.redisMonitor()]);
+
+    if (serviceResult.status === "fulfilled") {
+      const result = serviceResult.value;
       const hasLiveService = result.data.services.some((service) => service.status !== "unavailable");
       const next = hasLiveService ? result.data : demoServiceMetrics();
       setData(next);
       setMode(hasLiveService ? result.mode : "demo");
       setError(hasLiveService ? undefined : "两个服务尚未配置监控连接，当前展示产品预览数据。");
       appendHistory(setHistory, next);
-    } catch (requestError) {
+    } else {
       const next = demoServiceMetrics();
       setData(next);
       setMode("demo");
-      setError(requestError instanceof Error ? requestError.message : "监控聚合接口不可用");
+      setError(serviceResult.reason instanceof Error ? serviceResult.reason.message : "监控聚合接口不可用");
       appendHistory(setHistory, next);
-    } finally {
-      setLoading(false);
     }
+
+    if (redisResult.status === "fulfilled") {
+      setRedisData(redisResult.value.data);
+      setRedisError(undefined);
+    } else {
+      setRedisData(undefined);
+      setRedisError(redisResult.reason instanceof Error ? redisResult.reason.message : "Redis 监控接口不可用");
+    }
+    setRedisLoading(false);
+    setLoading(false);
   }, []);
 
   useEffect(() => {
@@ -64,7 +79,7 @@ export function ServiceMetricsDashboard() {
       </div>
     </header>
 
-    {mode === "demo" && <div className="notice live-preview-notice"><div><strong>当前为演示数据</strong><p>{error} 接通服务后页面会自动切换为真实指标。</p></div></div>}
+    {mode === "demo" && <div className="notice live-preview-notice"><div><strong>Go 服务指标为演示数据</strong><p>{error} Redis 数据独立来自 Redis 实际接口，不受该演示状态影响。</p></div></div>}
 
     <section className="service-summary" aria-label="服务监控摘要">
       <Summary label="可用服务" value={`${summary.available} / 2`} meta={summary.available === 2 ? "全部通过就绪检查" : "存在不可用服务"} tone={summary.available === 2 ? "positive" : "warning"} />
@@ -97,7 +112,76 @@ export function ServiceMetricsDashboard() {
         </div>
       </div>
     </section>
+
+    <RedisMonitorPanel data={redisData} error={redisError} loading={redisLoading} />
   </ConsoleShell>;
+}
+
+export function RedisMonitorPanel({ data, error, loading }: { data?: RedisMonitorData; error?: string; loading: boolean }) {
+  const cacheCategories = data?.keys.categories.filter((category) => category.kind === "cache") ?? [];
+  const streamCategories = data?.keys.categories.filter((category) => category.kind === "stream") ?? [];
+  const status = data ? redisStatus(data.status) : "等待采样";
+  const hasSnapshot = Boolean(data && data.status !== "disabled" && data.status !== "unavailable");
+  const statusTone = data?.status === "ok" ? "positive" : data?.status === "degraded" || data?.status === "stale" ? "warning" : "";
+
+  return <section className="section redis-monitor-section" aria-label="Redis 监控">
+    <div className="section-head">
+      <div><h2 className="section-title">Redis 队列监控</h2><p className="section-caption">Redis 只读共享快照 · 业务消息与缓存分开统计</p></div>
+      <span className="mono muted">{utc(data?.sampledAt)}</span>
+    </div>
+
+    {error && <div className="notice live-error-notice redis-monitor-notice"><div><strong>Redis 监控暂不可用</strong><p>{error}</p></div></div>}
+    {!error && data?.status === "disabled" && <div className="notice redis-monitor-notice"><div><strong>Redis 监控未启用</strong><p>后端未开启 Redis 监控采样，页面不会用演示数据或零值代替真实状态。</p></div></div>}
+    {!error && data?.status === "unavailable" && <div className="notice live-error-notice redis-monitor-notice"><div><strong>Redis 实例暂时不可用</strong><p>尚未取得有效容量快照，请稍后刷新。</p></div></div>}
+    {data && (data.status === "degraded" || data.status === "stale") && <div className="notice redis-monitor-notice"><div><strong>{data.status === "stale" ? "Redis 快照已过时" : "Redis 快照部分可用"}</strong><p>{redisErrors(data.errors).join("；") || "部分明细采集失败，当前数值请结合采样时间判断。"}</p></div></div>}
+
+    {loading && !data && <div className="panel panel-pad redis-monitor-loading"><div className="skeleton" /><div className="skeleton tall" /></div>}
+    {!loading && !data && !error && <div className="panel redis-monitor-empty"><strong>等待 Redis 监控快照</strong><p>首次采样完成后显示容量、消息消费和分类占用。</p></div>}
+
+    {data && hasSnapshot && <>
+      <section className="redis-capacity-summary" aria-label="Redis 容量摘要">
+        <Summary label="采样状态" value={status} meta={data.stale ? "数据已超过采样窗口" : "来自后端共享快照"} tone={statusTone} />
+        <Summary label="实际用量" value={bytes(data.instance.usedMemoryBytes)} meta={data.instance.maxMemoryConfigured ? `上限 ${bytes(data.instance.maxMemoryBytes)}` : "未设置 maxmemory"} />
+        <Summary label="使用率" value={data.instance.maxMemoryConfigured ? `${decimal(data.instance.usagePercent, 1)}%` : "—"} meta={data.instance.maxMemoryConfigured ? "80% 提醒 · 90% 高风险" : "无有效上限，不计算百分比"} tone={redisLevelTone(data.instance.level)} />
+        <Summary label="Key 总数" value={integer(data.keys.totalKeys)} meta={data.keys.scanComplete ? `已扫描 ${integer(data.keys.scannedKeys)}` : `已扫描 ${integer(data.keys.scannedKeys)} · 部分`} />
+      </section>
+      <div className="redis-monitor-meta">
+        <span className={`health-badge ${redisHealthClass(data.instance.level)}`}><i />{redisLevelText(data.instance.level)}</span>
+        {data.instance.evictionPolicy && <span>淘汰策略：<strong>{data.instance.evictionPolicy}</strong></span>}
+        <span>清理策略：<strong>{cleanupText(data.cleanup)}</strong></span>
+        {data.keys.scanComplete ? <span>分类统计已完成</span> : <span className="warning">分类统计受扫描上限影响</span>}
+      </div>
+
+      <div className="redis-monitor-grid">
+        <details className="redis-detail">
+          <summary>
+            <span className="redis-detail-title"><strong>Stream 消息</strong><small>消息数、估算占用及消费组 lag / pending</small></span>
+            <span className="redis-detail-action"><span className="redis-detail-closed">展开详情</span><span className="redis-detail-open">收起详情</span></span>
+          </summary>
+          <div className="redis-detail-body">
+            <div className="panel service-table-wrap"><table className="service-table redis-table"><thead><tr><th>业务类别</th><th>消息数</th><th>估算占用</th><th>消费组状态</th></tr></thead><tbody>
+              {data.streams.map((stream) => <tr key={stream.key}><td className="primary-cell">{redisCategoryLabel(stream.category)}</td><td className="mono">{integer(stream.length)}</td><td className="mono">{bytes(stream.estimatedBytes)}</td><td className="redis-groups">{stream.error ? <span className="negative">{streamErrorText(stream.error)}</span> : stream.groups.length ? stream.groups.map((group) => <span key={group.name}><strong>{group.name}</strong> · lag {nullableInteger(group.lag)} · pending {nullableInteger(group.pending)}</span>) : <span className="muted">无消费组</span>}</td></tr>)}
+              {!data.streams.length && <tr><td colSpan={4} className="muted">未发现 Stream</td></tr>}
+            </tbody></table></div>
+            {streamCategories.length > 0 && <p className="redis-footnote">Stream 分类合计：{streamCategories.map((category) => `${redisCategoryLabel(category.name)} ${bytes(category.estimatedBytes)}`).join(" · ")}</p>}
+          </div>
+        </details>
+        <details className="redis-detail">
+          <summary>
+            <span className="redis-detail-title"><strong>缓存与标记</strong><small>分项为 MEMORY USAGE 估算，不替代实例实际用量</small></span>
+            <span className="redis-detail-action"><span className="redis-detail-closed">展开详情</span><span className="redis-detail-open">收起详情</span></span>
+          </summary>
+          <div className="redis-detail-body">
+            <div className="panel service-table-wrap"><table className="service-table redis-table"><thead><tr><th>业务类别</th><th>Key 数</th><th>估算占用</th></tr></thead><tbody>
+              {cacheCategories.map((category) => <tr key={category.name}><td className="primary-cell">{redisCategoryLabel(category.name)}</td><td className="mono">{integer(category.keyCount)}</td><td className="mono">{bytes(category.estimatedBytes)}</td></tr>)}
+              {!cacheCategories.length && <tr><td colSpan={3} className="muted">未发现非 Stream Key</td></tr>}
+            </tbody></table></div>
+            <p className="redis-footnote">清理状态：{cleanupText(data.cleanup)}{data.cleanup.message ? ` · ${data.cleanup.message}` : ""}</p>
+          </div>
+        </details>
+      </div>
+    </>}
+  </section>;
 }
 
 function ServiceCard({ service, history }: { service: ServiceRuntimeMetrics; history: HistoryPoint[] }) {
@@ -152,6 +236,103 @@ function appendHistory(setter: React.Dispatch<React.SetStateAction<HistoryPoint[
   setter((current) => [...current, point].slice(-24));
 }
 
+const redisCategoryNames: Record<string, string> = {
+  sandbox_build: "Sandbox 构建",
+  sandbox_ready_legacy: "原 Ready",
+  sandbox_ready_new: "新 Ready",
+  direct_prediction: "Direct 预测",
+  selected_market_notice: "选盘通知",
+  backtest_probability: "回测概率",
+  dataset_select: "数据集选题",
+  dataset_mask: "MV 补建任务",
+  dataset_sanitize: "MS 清洗任务",
+  generated_dead_letter_or_event: "Generated 死信 / 事件",
+  selection_conditions: "选盘条件索引",
+  selection_cached_markers: "选盘 cached 标记",
+  selection_run_payload: "选盘批次缓存",
+  selection_current_pointer: "当前选盘指针",
+  direct_generation_markers: "Direct 完成标记",
+  other_stream: "其他 Stream",
+  other_cache: "其他缓存",
+  // 后端也可能直接返回 Redis 盘点快照中的 family 名称；统一映射，避免看板退回内部键名。
+  prediction_pm_sandboxbuild: "Sandbox 构建",
+  prediction_pm_sandboxready: "原 Ready",
+  prediction_pm_sandboxready_new: "新 Ready",
+  prediction_pm_directprediction: "Direct 任务",
+  prediction_pm_selectedmarkets: "选盘通知",
+  prediction_pm_backtestprob: "回测概率",
+  prediction_pm_dataset_select: "数据集选题",
+  prediction_pm_dataset_mask: "MV 补建任务",
+  prediction_pm_dataset_sanitize: "MS 清洗任务",
+  prediction_pm_liveprediction: "历史 Live 流",
+  prediction_generated_market_events: "Generated 事件",
+  "prediction_generated_market_events:dlq": "Generated 死信",
+  prediction_generated_qa_terminal_events: "QA 终态通知",
+  selection_run_conditions: "选盘条件索引",
+  selection_run_cached_markers: "选盘 cached 标记",
+  "prediction:selected_markets:current": "当前选盘指针",
+};
+
+function redisCategoryLabel(value: string): string { return redisCategoryNames[value] ?? value; }
+
+function redisStatus(value: RedisMonitorData["status"]): string {
+  switch (value) {
+    case "ok": return "采样正常";
+    case "degraded": return "采样部分可用";
+    case "stale": return "采样已过时";
+    case "disabled": return "采样未启用";
+    default: return "采样不可用";
+  }
+}
+
+function redisLevelText(value: RedisMonitorData["instance"]["level"]): string {
+  switch (value) {
+    case "normal": return "容量正常";
+    case "warning": return "容量达到 80% 提醒线";
+    case "critical": return "容量达到 90% 高风险线";
+    default: return "容量上限未知";
+  }
+}
+
+function redisLevelTone(value: RedisMonitorData["instance"]["level"]): string {
+  return value === "critical" ? "critical" : value === "warning" ? "warning" : value === "normal" ? "positive" : "";
+}
+
+function redisHealthClass(value: RedisMonitorData["instance"]["level"]): string {
+  return value === "normal" ? "healthy" : value === "critical" ? "critical" : value === "unknown" ? "unavailable" : "degraded";
+}
+
+function cleanupText(cleanup: RedisMonitorData["cleanup"]): string {
+  const retention = `完成超过 ${cleanup.retentionDays} 天逐条清理`;
+  switch (cleanup.status) {
+    case "not_enabled": return `未接入（${retention}）`;
+    case "unknown": return `待首次执行（${retention}）`;
+    case "ok": return `已启用（${retention}）`;
+    case "degraded": return `部分可用（${retention}）`;
+  }
+}
+
+function redisErrors(errors: string[]): string[] {
+  const labels: Record<string, string> = {
+    redis_maxmemory_unconfigured: "未配置 Redis maxmemory",
+    redis_keyspace_unavailable: "Key 总数暂不可用",
+    redis_key_scan_partial: "Key 扫描部分失败",
+    redis_key_scan_bounded: "Key 扫描达到采样上限",
+    redis_key_type_unavailable: "部分 Key 类型读取失败",
+    redis_key_memory_unavailable: "部分 Key 占用读取失败",
+    redis_stream_info_unavailable: "部分 Stream 信息读取失败",
+    redis_stream_groups_unavailable: "部分消费组信息读取失败",
+    redis_sample_failed: "Redis 实例采样失败",
+  };
+  return errors.map((error) => labels[error] ?? "Redis 明细部分不可用");
+}
+
+function streamErrorText(error: string): string {
+  return error === "redis_stream_groups_unavailable" ? "消费组不可用" : error === "redis_stream_info_unavailable" ? "Stream 信息不可用" : "明细不可用";
+}
+
+function nullableInteger(value?: number): string { return value === undefined ? "—" : integer(value); }
+
 function summarize(services: ServiceRuntimeMetrics[]) {
   const available = services.filter((service) => service.status !== "unavailable");
   const memoryWithLimit = available.filter((service) => service.memory.usagePercent !== undefined);
@@ -166,6 +347,12 @@ function summarize(services: ServiceRuntimeMetrics[]) {
 
 const decimal = (value: number, digits: number) => Number.isFinite(value) ? value.toFixed(digits) : "—";
 const integer = (value: number) => Number.isFinite(value) ? new Intl.NumberFormat("zh-CN").format(value) : "—";
-const bytes = (value: number) => value >= 1_073_741_824 ? `${decimal(value / 1_073_741_824, 2)} GB` : `${decimal(value / 1_048_576, 0)} MB`;
+const bytes = (value: number) => {
+  if (!Number.isFinite(value)) return "—";
+  if (value < 1_024) return `${Math.round(value)} B`;
+  if (value < 1_048_576) return `${decimal(value / 1_024, value < 10_240 ? 1 : 0)} KB`;
+  if (value < 1_073_741_824) return `${decimal(value / 1_048_576, value < 10_485_760 ? 2 : 0)} MB`;
+  return `${decimal(value / 1_073_741_824, 2)} GB`;
+};
 const utc = (value?: string) => value ? new Date(value).toISOString().replace("T", " ").replace(".000Z", " UTC") : "等待首次采样";
 function duration(seconds: number) { const days = Math.floor(seconds / 86_400); const hours = Math.floor((seconds % 86_400) / 3_600); return days ? `${days}天 ${hours}小时` : `${hours}小时`; }
