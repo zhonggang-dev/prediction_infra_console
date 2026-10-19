@@ -1,0 +1,196 @@
+{
+  "data": {
+    "items": [
+      {
+        "kind": "engine",
+        "key": "pm-engine",
+        "version": "pm-engine-20261019-3b7dbbede090",
+        "origin": "platform",
+        "status": "available",
+        "metadata": {
+          "protocol": "pearson-dmid-v8",
+          "released_at": "2026-10-19T10:00:00+08:00",
+          "is_default": true,
+          "signal_window": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end_exclusive": "2026-09-05T00:00:00+08:00"
+          },
+          "market_view_exclusions": {
+            "benchmark/resolved_event_brier": "Market 自己的概率就是中价，Brier 对它没有可比意义（配对差恒为 0）。",
+            "benchmark/fixed_horizon_brier": "Market 自己的概率就是中价，Brier 对它没有可比意义（配对差恒为 0）。",
+            "benchmark/calibration": "Market 自己的概率就是中价，Brier 对它没有可比意义（配对差恒为 0）。",
+            "benchmark/model_signal": "Market 没有 edge（模型概率 − 中价恒为 0）。",
+            "benchmark/deviation": "偏离校准只评模型相对市场中价的偏离。"
+          },
+          "param_definitions": {
+            "trading/strategy_comparison": [
+              {
+                "name": "scope",
+                "type": "enum",
+                "label": "回测口径",
+                "default": "strict",
+                "choices": [
+                  "strict",
+                  "own"
+                ],
+                "help": "strict：所有模型在沙盒题目的逐题交集上比较；own：每个模型用自己的全部题目。"
+              },
+              {
+                "name": "position_sizing.mode",
+                "type": "enum",
+                "label": "Position sizing",
+                "default": "native",
+                "choices": [
+                  "native",
+                  "fixed_shares",
+                  "fixed_stake"
+                ],
+                "help": "native：策略自带仓位；fixed_shares 用下面的 Shares；fixed_stake 用下面的 Stake。"
+              },
+              {
+                "name": "position_sizing.shares",
+                "type": "number",
+                "label": "Shares（仅 fixed_shares 生效）",
+                "default": 1,
+                "min": 0.01,
+                "precision": 6
+              },
+              {
+                "name": "position_sizing.stake",
+                "type": "number",
+                "label": "Stake ($)（仅 fixed_stake 生效）",
+                "default": 10,
+                "min": 0.01,
+                "precision": 6
+              },
+              {
+                "name": "bankroll.mode",
+                "type": "enum",
+                "label": "Bankroll mode",
+                "default": "unlimited",
+                "choices": [
+                  "finite",
+                  "unlimited"
+                ]
+              },
+              {
+                "name": "bankroll.amount",
+                "type": "number",
+                "label": "Bankroll ($)（仅 finite 生效）",
+                "default": 3000,
+                "min": 0.01,
+                "precision": 6,
+                "help": "Finite 模式下现金不足时按剩余现金部分成交。"
+              },
+              {
+                "name": "price_dataset",
+                "type": "enum",
+                "label": "数据集（盘口）",
+                "default": "telonex",
+                "choices": [
+                  "telonex",
+                  "mjj_tmp"
+                ]
+              }
+            ],
+            "benchmark/model_signal": [
+              {
+                "name": "sample_scope",
+                "type": "enum",
+                "label": "样本口径",
+                "default": "full",
+                "choices": [
+                  "full",
+                  "common"
+                ],
+                "help": "full：各模型自身全量；common：共同样本（公平比较）。"
+              },
+              {
+                "name": "horizon_hours",
+                "type": "integer",
+                "label": "排名 horizon（小时，事先声明，不要看完结果再换）",
+                "default": 24,
+                "choices": [
+                  1,
+                  12,
+                  24,
+                  48,
+                  96,
+                  168
+                ]
+              }
+            ],
+            "benchmark/fixed_horizon_brier": [
+              {
+                "name": "x_days",
+                "type": "integer",
+                "label": "打分时点：结算前 x 天",
+                "default": 7,
+                "min": 3,
+                "max": 14
+              }
+            ],
+            "benchmark/calibration": [
+              {
+                "name": "bucket_edges",
+                "type": "list",
+                "item_type": "number",
+                "label": "概率桶边界",
+                "default": [
+                  0,
+                  0.1,
+                  0.2,
+                  0.3,
+                  0.4,
+                  0.5,
+                  0.6,
+                  0.7,
+                  0.8,
+                  0.9,
+                  1
+                ],
+                "min": 0,
+                "max": 1,
+                "min_items": 3,
+                "max_items": 51,
+                "precision": 6,
+                "help": "逗号分隔，必须覆盖 0 → 1（口径规则由 infra / 执行器校验）。"
+              }
+            ],
+            "benchmark/deviation": [
+              {
+                "name": "tau",
+                "type": "number",
+                "label": "偏离阈值 τ（0 < τ < 1）",
+                "default": 0.1,
+                "min": 0,
+                "max": 1,
+                "precision": 6,
+                "help": "只给 |模型概率 − 市场中价| 超过 τ 的格子打分；τ 必须严格介于 0 与 1 之间（由执行器校验）。"
+              }
+            ],
+            "signal/factor_batch": [
+              {
+                "name": "include_domain_breakdown",
+                "type": "bool",
+                "label": "输出分 Domain 诊断",
+                "default": true
+              },
+              {
+                "name": "validation_start",
+                "type": "text",
+                "label": "对照期起点（UTC，可空）",
+                "default": "",
+                "max_length": 40
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "limit": 100,
+    "offset": 0,
+    "has_more": false,
+    "observed_at": "2026-10-19T14:00:00Z"
+  }
+}

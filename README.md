@@ -58,11 +58,27 @@ curl http://127.0.0.1:13001/
 | `CONSOLE_API_TOKEN` | 仅读取 `/api/v1/console/*` 的控制台令牌 |
 | `SANDBOX_DOWNLOAD_TOKEN` | 仅供服务端归档下载 BFF 使用的 Sandbox 下载令牌 |
 | `BACKTEST_DATASET_TOKEN` | 独立的回测数据集读写令牌 |
+| `BACKTEST_PLATFORM_CONSOLE_TOKEN` | 回测平台（`/backtest-platform`）BFF 使用的 Console 角色令牌，只在服务端；与 infra 的同名配置一致 |
+| `BACKTEST_PLATFORM_OPERATOR` | 可选。BFF 通过 `X-Backtest-Operator` 头传给 infra 的操作人，缺省 `console`；V2 接入登录后改为用户名 |
 | `TRADING_EXECUTION_BASE_URL` | Go 交易执行服务地址，例如 `https://execution.example.com` |
 | `TRADING_EXECUTION_API_TOKEN` | 仅读取交易执行服务 API 的 Bearer Token |
 | `TRADING_EXECUTION_LIVE_READ_ONLY_TOKEN` | 实盘与基础服务监控共用的只读 Token |
 
 回测接口会添加 `Idempotency-Key`；所有时间使用 UTC ISO 8601。
+
+## 回测平台
+
+`/backtest-platform` 是回测平台的工作区（交易回测、模型评测、信号测试、因子库、提交、运行记录），单个运行的结果页是 `/backtest-platform/runs/{runId}`。它与 `/backtests`（回测数据产品目录）是两回事。前端只调接口、不读文件，也不含任何指标口径；结果由 `result.json` 的七种区块（metrics、table、series、bars、matrix、text、image）渲染，图表是手写 SVG，没有引入图表库。
+
+浏览器只请求同源 `/api/console/backtest/*`，BFF 转发到 infra 的 `/api/v1/backtest/*`：GET 目录、运行列表与详情、提交状态、产物下载（流式）；POST 发起 / 停止运行；PUT 因子池移入移出；POST 上传三类提交（请求体流式转发，页面内上限 1 GiB，更大的文件直接调 infra 接口）。令牌和操作人头只在服务端附加。契约与前端对 `result.json` 的可选扩展见 `.trellis/tasks/10-19-backtest-console-pages/decisions.md`。
+
+本地没有后端时可用 mock 上游（数据来自 `tests/fixtures/backtest`）做界面验收：
+
+```bash
+node tests/fixtures/backtest/build-fixtures.mjs     # 重新生成 fixtures（可选）
+node scripts/backtest-mock-server.mjs               # 监听 127.0.0.1:18992，令牌 mock-token
+PREDICTION_INFRA_BASE_URL=http://127.0.0.1:18992 BACKTEST_PLATFORM_CONSOLE_TOKEN=mock-token pnpm start:v2
+```
 
 ## 实盘监控聚合接口
 

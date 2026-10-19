@@ -1,0 +1,1049 @@
+{
+  "data": {
+    "items": [
+      {
+        "kind": "model",
+        "key": "market_favorite_telonex",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "metadata": {
+          "model_name": "market_favorite_telonex",
+          "default_dataset": "telonex",
+          "coverage": {
+            "telonex": {
+              "start": "2026-08-06T00:00:00+08:00",
+              "end": "2026-09-04T23:59:59.500+08:00"
+            }
+          },
+          "tags": [
+            "market_view"
+          ],
+          "market_view": true
+        }
+      },
+      {
+        "kind": "model",
+        "key": "market_favorite_tmp",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "metadata": {
+          "model_name": "market_favorite_tmp",
+          "default_dataset": "mjj_tmp",
+          "coverage": {
+            "mjj_tmp": {
+              "start": "2026-08-08T00:00:00+08:00",
+              "end": "2026-08-29T23:59:59+08:00"
+            }
+          },
+          "tags": [
+            "market_view"
+          ],
+          "market_view": true
+        }
+      },
+      {
+        "kind": "model",
+        "key": "pswarm_v2",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "metadata": {
+          "model_name": "pswarm_v2",
+          "default_dataset": "telonex",
+          "coverage": {
+            "telonex": {
+              "start": "2026-08-07T21:16:28+08:00",
+              "end": "2026-08-31T21:00:34.250+08:00"
+            }
+          },
+          "tags": [
+            "sandbox"
+          ]
+        }
+      },
+      {
+        "kind": "model",
+        "key": "pswarm_v2_subset",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "metadata": {
+          "model_name": "pswarm_v2_subset",
+          "default_dataset": "telonex",
+          "coverage": {
+            "telonex": {
+              "start": "2026-08-07T21:16:28+08:00",
+              "end": "2026-08-31T21:00:34.250+08:00"
+            }
+          },
+          "tags": [
+            "sandbox",
+            "sandbox_subset"
+          ]
+        }
+      },
+      {
+        "kind": "model",
+        "key": "price50_subset",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "metadata": {
+          "model_name": "price50_subset",
+          "default_dataset": "telonex",
+          "coverage": {
+            "telonex": {
+              "start": "2026-08-10T00:00:00+08:00",
+              "end": "2026-09-02T12:00:00+08:00"
+            }
+          },
+          "tags": [
+            "sandbox",
+            "sandbox_subset"
+          ]
+        }
+      },
+      {
+        "kind": "model",
+        "key": "live_alpha",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "metadata": {
+          "model_name": "live_alpha",
+          "default_dataset": "telonex",
+          "coverage": {
+            "telonex": {
+              "start": "2026-08-12T00:00:00+08:00",
+              "end": "2026-09-03T00:00:00+08:00"
+            }
+          },
+          "tags": [
+            "sandbox",
+            "live_subset"
+          ],
+          "execution_cache_fresh": false
+        }
+      },
+      {
+        "kind": "model",
+        "key": "echo",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "metadata": {
+          "model_name": "echo",
+          "default_dataset": "mjj_tmp",
+          "coverage": {
+            "mjj_tmp": {
+              "start": "2026-08-08T10:00:00+08:00",
+              "end": "2026-08-29T10:00:00+08:00"
+            }
+          },
+          "tags": [
+            "sandbox"
+          ]
+        }
+      },
+      {
+        "kind": "model",
+        "key": "echo_v2",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "metadata": {
+          "model_name": "echo_v2",
+          "default_dataset": "mjj_tmp",
+          "coverage": {
+            "mjj_tmp": {
+              "start": "2026-08-09T10:00:00+08:00",
+              "end": "2026-08-29T20:00:00+08:00"
+            }
+          },
+          "tags": [
+            "sandbox"
+          ]
+        }
+      },
+      {
+        "kind": "model",
+        "key": "legacy_gbm_1",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "metadata": {
+          "model_name": "legacy_gbm_1",
+          "default_dataset": "canonical",
+          "coverage": {
+            "canonical": {
+              "start": "2026-07-01T00:00:00+08:00",
+              "end": "2026-08-19T23:00:00+08:00"
+            }
+          },
+          "tags": [
+            "legacy_pipeline"
+          ]
+        }
+      },
+      {
+        "kind": "model",
+        "key": "legacy_gbm_2",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "metadata": {
+          "model_name": "legacy_gbm_2",
+          "default_dataset": "canonical",
+          "coverage": {
+            "canonical": {
+              "start": "2026-07-03T00:00:00+08:00",
+              "end": "2026-08-19T23:00:00+08:00"
+            }
+          },
+          "tags": [
+            "legacy_pipeline"
+          ]
+        }
+      },
+      {
+        "kind": "model",
+        "key": "min_r1_1",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "metadata": {
+          "model_name": "min_r1_1",
+          "default_dataset": "telonex",
+          "coverage": {
+            "telonex": {
+              "start": "2026-08-15T00:00:00+08:00",
+              "end": "2026-09-04T00:00:00+08:00"
+            }
+          },
+          "tags": [
+            "sandbox",
+            "min_subset:2026-10-15"
+          ]
+        }
+      },
+      {
+        "kind": "model",
+        "key": "min_r1_2",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "metadata": {
+          "model_name": "min_r1_2",
+          "default_dataset": "telonex",
+          "coverage": {
+            "telonex": {
+              "start": "2026-08-15T00:00:00+08:00",
+              "end": "2026-09-04T00:00:00+08:00"
+            }
+          },
+          "tags": [
+            "sandbox",
+            "min_subset:2026-10-15"
+          ]
+        }
+      },
+      {
+        "kind": "model",
+        "key": "min_r1_3",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "metadata": {
+          "model_name": "min_r1_3",
+          "default_dataset": "telonex",
+          "coverage": {
+            "telonex": {
+              "start": "2026-08-15T00:00:00+08:00",
+              "end": "2026-09-04T00:00:00+08:00"
+            }
+          },
+          "tags": [
+            "sandbox",
+            "min_subset:2026-10-15"
+          ]
+        }
+      },
+      {
+        "kind": "model",
+        "key": "min_r1_4",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "metadata": {
+          "model_name": "min_r1_4",
+          "default_dataset": "telonex",
+          "coverage": {
+            "telonex": {
+              "start": "2026-08-15T00:00:00+08:00",
+              "end": "2026-09-04T00:00:00+08:00"
+            }
+          },
+          "tags": [
+            "sandbox",
+            "min_subset:2026-10-15"
+          ]
+        }
+      },
+      {
+        "kind": "model",
+        "key": "min_r1_5",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "metadata": {
+          "model_name": "min_r1_5",
+          "default_dataset": "telonex",
+          "coverage": {
+            "telonex": {
+              "start": "2026-08-15T00:00:00+08:00",
+              "end": "2026-09-04T00:00:00+08:00"
+            }
+          },
+          "tags": [
+            "sandbox",
+            "min_subset:2026-10-15"
+          ]
+        }
+      },
+      {
+        "kind": "model",
+        "key": "min_r1_6",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "metadata": {
+          "model_name": "min_r1_6",
+          "default_dataset": "telonex",
+          "coverage": {
+            "telonex": {
+              "start": "2026-08-15T00:00:00+08:00",
+              "end": "2026-09-04T00:00:00+08:00"
+            }
+          },
+          "tags": [
+            "sandbox",
+            "min_subset:2026-10-15"
+          ]
+        }
+      },
+      {
+        "kind": "model",
+        "key": "min_r1_7",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "metadata": {
+          "model_name": "min_r1_7",
+          "default_dataset": "telonex",
+          "coverage": {
+            "telonex": {
+              "start": "2026-08-15T00:00:00+08:00",
+              "end": "2026-09-04T00:00:00+08:00"
+            }
+          },
+          "tags": [
+            "sandbox",
+            "min_subset:2026-10-15"
+          ]
+        }
+      },
+      {
+        "kind": "model",
+        "key": "min_r1_8",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "metadata": {
+          "model_name": "min_r1_8",
+          "default_dataset": "telonex",
+          "coverage": {
+            "telonex": {
+              "start": "2026-08-15T00:00:00+08:00",
+              "end": "2026-09-04T00:00:00+08:00"
+            }
+          },
+          "tags": [
+            "sandbox",
+            "min_subset:2026-10-15"
+          ]
+        }
+      },
+      {
+        "kind": "model",
+        "key": "min_r2_1",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "metadata": {
+          "model_name": "min_r2_1",
+          "default_dataset": "telonex",
+          "coverage": {
+            "telonex": {
+              "start": "2026-08-20T00:00:00+08:00",
+              "end": "2026-09-04T00:00:00+08:00"
+            }
+          },
+          "tags": [
+            "sandbox",
+            "min_subset:2026-11-15"
+          ]
+        }
+      },
+      {
+        "kind": "model",
+        "key": "min_r2_2",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "metadata": {
+          "model_name": "min_r2_2",
+          "default_dataset": "telonex",
+          "coverage": {
+            "telonex": {
+              "start": "2026-08-20T00:00:00+08:00",
+              "end": "2026-09-04T00:00:00+08:00"
+            }
+          },
+          "tags": [
+            "sandbox",
+            "min_subset:2026-11-15"
+          ]
+        }
+      },
+      {
+        "kind": "model",
+        "key": "min_r2_3",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "metadata": {
+          "model_name": "min_r2_3",
+          "default_dataset": "telonex",
+          "coverage": {
+            "telonex": {
+              "start": "2026-08-20T00:00:00+08:00",
+              "end": "2026-09-04T00:00:00+08:00"
+            }
+          },
+          "tags": [
+            "sandbox",
+            "min_subset:2026-11-15"
+          ]
+        }
+      },
+      {
+        "kind": "model",
+        "key": "min_r2_4",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "metadata": {
+          "model_name": "min_r2_4",
+          "default_dataset": "telonex",
+          "coverage": {
+            "telonex": {
+              "start": "2026-08-20T00:00:00+08:00",
+              "end": "2026-09-04T00:00:00+08:00"
+            }
+          },
+          "tags": [
+            "sandbox",
+            "min_subset:2026-11-15"
+          ]
+        }
+      },
+      {
+        "kind": "model",
+        "key": "min_r2_5",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "metadata": {
+          "model_name": "min_r2_5",
+          "default_dataset": "telonex",
+          "coverage": {
+            "telonex": {
+              "start": "2026-08-20T00:00:00+08:00",
+              "end": "2026-09-04T00:00:00+08:00"
+            }
+          },
+          "tags": [
+            "sandbox",
+            "min_subset:2026-11-15"
+          ]
+        }
+      },
+      {
+        "kind": "model",
+        "key": "min_r2_6",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "metadata": {
+          "model_name": "min_r2_6",
+          "default_dataset": "telonex",
+          "coverage": {
+            "telonex": {
+              "start": "2026-08-20T00:00:00+08:00",
+              "end": "2026-09-04T00:00:00+08:00"
+            }
+          },
+          "tags": [
+            "sandbox",
+            "min_subset:2026-11-15"
+          ]
+        }
+      },
+      {
+        "kind": "model",
+        "key": "team_01",
+        "version": "v2/p1",
+        "origin": "platform",
+        "status": "available",
+        "metadata": {
+          "default_dataset": "telonex",
+          "coverage": {
+            "telonex": {
+              "start": "2026-08-07T21:16:28+08:00",
+              "end": "2026-08-31T21:00:34+08:00"
+            }
+          },
+          "tags": [
+            "sandbox"
+          ],
+          "dataset_coverage": {
+            "telonex": {
+              "matched_markets": 901,
+              "missing_settlement": 1,
+              "missing_domain": 0
+            }
+          }
+        }
+      },
+      {
+        "kind": "model",
+        "key": "team_02",
+        "version": "v3/p2",
+        "origin": "platform",
+        "status": "available",
+        "metadata": {
+          "default_dataset": "telonex",
+          "coverage": {
+            "telonex": {
+              "start": "2026-08-07T21:16:28+08:00",
+              "end": "2026-08-31T21:00:34+08:00"
+            }
+          },
+          "tags": [
+            "sandbox"
+          ],
+          "dataset_coverage": {
+            "telonex": {
+              "matched_markets": 902,
+              "missing_settlement": 2,
+              "missing_domain": 0
+            }
+          }
+        }
+      },
+      {
+        "kind": "model",
+        "key": "team_03",
+        "version": "v1/p3",
+        "origin": "platform",
+        "status": "available",
+        "metadata": {
+          "default_dataset": "telonex",
+          "coverage": {
+            "telonex": {
+              "start": "2026-08-07T21:16:28+08:00",
+              "end": "2026-08-31T21:00:34+08:00"
+            }
+          },
+          "tags": [
+            "sandbox"
+          ],
+          "dataset_coverage": {
+            "telonex": {
+              "matched_markets": 903,
+              "missing_settlement": 0,
+              "missing_domain": 0
+            }
+          }
+        }
+      },
+      {
+        "kind": "model",
+        "key": "team_04",
+        "version": "v2/p4",
+        "origin": "platform",
+        "status": "available",
+        "metadata": {
+          "default_dataset": "telonex",
+          "coverage": {
+            "telonex": {
+              "start": "2026-08-07T21:16:28+08:00",
+              "end": "2026-08-25T00:00:00+08:00"
+            }
+          },
+          "tags": [
+            "sandbox"
+          ],
+          "dataset_coverage": {
+            "telonex": {
+              "matched_markets": 904,
+              "missing_settlement": 1,
+              "missing_domain": 0
+            }
+          }
+        }
+      },
+      {
+        "kind": "model",
+        "key": "team_05",
+        "version": "v3/p5",
+        "origin": "platform",
+        "status": "available",
+        "metadata": {
+          "default_dataset": "telonex",
+          "coverage": {
+            "telonex": {
+              "start": "2026-08-07T21:16:28+08:00",
+              "end": "2026-08-31T21:00:34+08:00"
+            }
+          },
+          "tags": [
+            "sandbox"
+          ],
+          "dataset_coverage": {
+            "telonex": {
+              "matched_markets": 905,
+              "missing_settlement": 2,
+              "missing_domain": 0
+            }
+          }
+        }
+      },
+      {
+        "kind": "model",
+        "key": "team_06",
+        "version": "v1/p6",
+        "origin": "platform",
+        "status": "available",
+        "metadata": {
+          "default_dataset": "telonex",
+          "coverage": {
+            "telonex": {
+              "start": "2026-08-07T21:16:28+08:00",
+              "end": "2026-08-31T21:00:34+08:00"
+            }
+          },
+          "tags": [
+            "sandbox"
+          ],
+          "dataset_coverage": {
+            "telonex": {
+              "matched_markets": 906,
+              "missing_settlement": 0,
+              "missing_domain": 0
+            }
+          }
+        }
+      },
+      {
+        "kind": "model",
+        "key": "team_07",
+        "version": "v2/p7",
+        "origin": "platform",
+        "status": "available",
+        "metadata": {
+          "default_dataset": "telonex",
+          "coverage": {
+            "telonex": {
+              "start": "2026-08-07T21:16:28+08:00",
+              "end": "2026-08-31T21:00:34+08:00"
+            }
+          },
+          "tags": [
+            "sandbox"
+          ],
+          "dataset_coverage": {
+            "telonex": {
+              "matched_markets": 907,
+              "missing_settlement": 1,
+              "missing_domain": 0
+            }
+          }
+        }
+      },
+      {
+        "kind": "model",
+        "key": "team_08",
+        "version": "v3/p8",
+        "origin": "platform",
+        "status": "available",
+        "metadata": {
+          "default_dataset": "telonex",
+          "coverage": {
+            "telonex": {
+              "start": "2026-08-07T21:16:28+08:00",
+              "end": "2026-08-25T00:00:00+08:00"
+            }
+          },
+          "tags": [
+            "sandbox"
+          ],
+          "dataset_coverage": {
+            "telonex": {
+              "matched_markets": 908,
+              "missing_settlement": 2,
+              "missing_domain": 0
+            }
+          }
+        }
+      },
+      {
+        "kind": "model",
+        "key": "team_09",
+        "version": "v1/p9",
+        "origin": "platform",
+        "status": "available",
+        "metadata": {
+          "default_dataset": "telonex",
+          "coverage": {
+            "telonex": {
+              "start": "2026-08-07T21:16:28+08:00",
+              "end": "2026-08-31T21:00:34+08:00"
+            }
+          },
+          "tags": [
+            "sandbox"
+          ],
+          "dataset_coverage": {
+            "telonex": {
+              "matched_markets": 909,
+              "missing_settlement": 0,
+              "missing_domain": 0
+            }
+          }
+        }
+      },
+      {
+        "kind": "model",
+        "key": "team_10",
+        "version": "v2/p10",
+        "origin": "platform",
+        "status": "available",
+        "metadata": {
+          "default_dataset": "telonex",
+          "coverage": {
+            "telonex": {
+              "start": "2026-08-07T21:16:28+08:00",
+              "end": "2026-08-31T21:00:34+08:00"
+            }
+          },
+          "tags": [
+            "sandbox"
+          ],
+          "dataset_coverage": {
+            "telonex": {
+              "matched_markets": 910,
+              "missing_settlement": 1,
+              "missing_domain": 0
+            }
+          }
+        }
+      },
+      {
+        "kind": "model",
+        "key": "team_11",
+        "version": "v3/p11",
+        "origin": "platform",
+        "status": "available",
+        "metadata": {
+          "default_dataset": "telonex",
+          "coverage": {
+            "telonex": {
+              "start": "2026-08-07T21:16:28+08:00",
+              "end": "2026-08-31T21:00:34+08:00"
+            }
+          },
+          "tags": [
+            "sandbox"
+          ],
+          "dataset_coverage": {
+            "telonex": {
+              "matched_markets": 911,
+              "missing_settlement": 2,
+              "missing_domain": 0
+            }
+          }
+        }
+      },
+      {
+        "kind": "model",
+        "key": "team_12",
+        "version": "v1/p12",
+        "origin": "platform",
+        "status": "available",
+        "metadata": {
+          "default_dataset": "telonex",
+          "coverage": {
+            "telonex": {
+              "start": "2026-08-07T21:16:28+08:00",
+              "end": "2026-08-25T00:00:00+08:00"
+            }
+          },
+          "tags": [
+            "sandbox"
+          ],
+          "dataset_coverage": {
+            "telonex": {
+              "matched_markets": 912,
+              "missing_settlement": 0,
+              "missing_domain": 0
+            }
+          }
+        }
+      },
+      {
+        "kind": "model",
+        "key": "team_13",
+        "version": "v2/p13",
+        "origin": "platform",
+        "status": "available",
+        "metadata": {
+          "default_dataset": "telonex",
+          "coverage": {
+            "telonex": {
+              "start": "2026-08-07T21:16:28+08:00",
+              "end": "2026-08-31T21:00:34+08:00"
+            }
+          },
+          "tags": [
+            "sandbox"
+          ],
+          "dataset_coverage": {
+            "telonex": {
+              "matched_markets": 913,
+              "missing_settlement": 1,
+              "missing_domain": 0
+            }
+          }
+        }
+      },
+      {
+        "kind": "model",
+        "key": "team_14",
+        "version": "v3/p14",
+        "origin": "platform",
+        "status": "available",
+        "metadata": {
+          "default_dataset": "telonex",
+          "coverage": {
+            "telonex": {
+              "start": "2026-08-07T21:16:28+08:00",
+              "end": "2026-08-31T21:00:34+08:00"
+            }
+          },
+          "tags": [
+            "sandbox"
+          ],
+          "dataset_coverage": {
+            "telonex": {
+              "matched_markets": 914,
+              "missing_settlement": 2,
+              "missing_domain": 0
+            }
+          }
+        }
+      },
+      {
+        "kind": "model",
+        "key": "team_15",
+        "version": "v1/p15",
+        "origin": "platform",
+        "status": "available",
+        "metadata": {
+          "default_dataset": "telonex",
+          "coverage": {
+            "telonex": {
+              "start": "2026-08-07T21:16:28+08:00",
+              "end": "2026-08-31T21:00:34+08:00"
+            }
+          },
+          "tags": [
+            "sandbox"
+          ],
+          "dataset_coverage": {
+            "telonex": {
+              "matched_markets": 915,
+              "missing_settlement": 0,
+              "missing_domain": 0
+            }
+          }
+        }
+      },
+      {
+        "kind": "model",
+        "key": "team_16",
+        "version": "v2/p16",
+        "origin": "platform",
+        "status": "available",
+        "metadata": {
+          "default_dataset": "telonex",
+          "coverage": {
+            "telonex": {
+              "start": "2026-08-07T21:16:28+08:00",
+              "end": "2026-08-25T00:00:00+08:00"
+            }
+          },
+          "tags": [
+            "sandbox"
+          ],
+          "dataset_coverage": {
+            "telonex": {
+              "matched_markets": 916,
+              "missing_settlement": 1,
+              "missing_domain": 0
+            }
+          }
+        }
+      },
+      {
+        "kind": "model",
+        "key": "team_17",
+        "version": "v3/p17",
+        "origin": "platform",
+        "status": "available",
+        "metadata": {
+          "default_dataset": "telonex",
+          "coverage": {
+            "telonex": {
+              "start": "2026-08-07T21:16:28+08:00",
+              "end": "2026-08-31T21:00:34+08:00"
+            }
+          },
+          "tags": [
+            "sandbox"
+          ],
+          "dataset_coverage": {
+            "telonex": {
+              "matched_markets": 917,
+              "missing_settlement": 2,
+              "missing_domain": 0
+            }
+          }
+        }
+      },
+      {
+        "kind": "model",
+        "key": "team_18",
+        "version": "v1/p18",
+        "origin": "platform",
+        "status": "available",
+        "metadata": {
+          "default_dataset": "telonex",
+          "coverage": {
+            "telonex": {
+              "start": "2026-08-07T21:16:28+08:00",
+              "end": "2026-08-31T21:00:34+08:00"
+            }
+          },
+          "tags": [
+            "sandbox"
+          ],
+          "dataset_coverage": {
+            "telonex": {
+              "matched_markets": 918,
+              "missing_settlement": 0,
+              "missing_domain": 0
+            }
+          }
+        }
+      },
+      {
+        "kind": "model",
+        "key": "team_19",
+        "version": "v2/p19",
+        "origin": "platform",
+        "status": "available",
+        "metadata": {
+          "default_dataset": "telonex",
+          "coverage": {
+            "telonex": {
+              "start": "2026-08-07T21:16:28+08:00",
+              "end": "2026-08-31T21:00:34+08:00"
+            }
+          },
+          "tags": [
+            "sandbox"
+          ],
+          "dataset_coverage": {
+            "telonex": {
+              "matched_markets": 919,
+              "missing_settlement": 1,
+              "missing_domain": 0
+            }
+          }
+        }
+      },
+      {
+        "kind": "model",
+        "key": "team_20",
+        "version": "v3/p20",
+        "origin": "platform",
+        "status": "available",
+        "metadata": {
+          "default_dataset": "telonex",
+          "coverage": {
+            "telonex": {
+              "start": "2026-08-07T21:16:28+08:00",
+              "end": "2026-08-25T00:00:00+08:00"
+            }
+          },
+          "tags": [
+            "sandbox"
+          ],
+          "dataset_coverage": {
+            "telonex": {
+              "matched_markets": 920,
+              "missing_settlement": 2,
+              "missing_domain": 0
+            }
+          }
+        }
+      },
+      {
+        "kind": "model",
+        "key": "team_01",
+        "version": "v2/p21",
+        "origin": "platform",
+        "status": "available",
+        "metadata": {
+          "default_dataset": "telonex",
+          "coverage": {
+            "telonex": {
+              "start": "2026-08-07T21:16:28+08:00",
+              "end": "2026-08-28T00:00:00+08:00"
+            }
+          },
+          "tags": [
+            "sandbox"
+          ]
+        }
+      }
+    ],
+    "limit": 100,
+    "offset": 0,
+    "has_more": false,
+    "observed_at": "2026-10-19T14:00:00Z"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "data": {
+    "submission_id": "bts-20261019-val00001",
+    "kind": "prediction",
+    "identity": {
+      "model_id": "team_03",
+      "train_version": "v2",
+      "prediction_version": "p3"
+    },
+    "identity_key": "team_03/v2/p3",
+    "status": "validating",
+    "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "bytes": 48123456,
+    "content_type": "application/vnd.apache.parquet",
+    "errors": [],
+    "intake_run_id": "btr-20261019-queue001",
+    "submitted_by": "console:console",
+    "created_at": "2026-10-19T14:20:00Z"
+  }
+}
