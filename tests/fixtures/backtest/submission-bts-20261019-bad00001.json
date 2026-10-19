@@ -1,0 +1,30 @@
+{
+  "data": {
+    "submission_id": "bts-20261019-bad00001",
+    "kind": "factor_table",
+    "identity": {
+      "table": "research_0919",
+      "version": "20260919-b"
+    },
+    "identity_key": "research_0919/20260919-b",
+    "status": "rejected",
+    "sha256": "cccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc",
+    "bytes": 7123456,
+    "content_type": "application/vnd.apache.parquet",
+    "errors": [
+      {
+        "path": "vol_burst",
+        "code": "missing_values",
+        "message": "value 列有 12% 空值"
+      },
+      {
+        "path": "resid_edge",
+        "code": "ts_timezone",
+        "message": "ts 必须带时区"
+      }
+    ],
+    "submitted_by": "console:console",
+    "created_at": "2026-10-19T12:00:00Z",
+    "decided_at": "2026-10-19T12:01:00Z"
+  }
+}

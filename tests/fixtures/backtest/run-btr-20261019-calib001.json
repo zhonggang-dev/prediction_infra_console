@@ -1,0 +1,808 @@
+{
+  "data": {
+    "run_id": "btr-20261019-calib001",
+    "batch_id": "btb-20261019-7h2kd9wq",
+    "parent_run_id": null,
+    "origin": "platform",
+    "board": "benchmark",
+    "item": "calibration",
+    "status": "succeeded",
+    "lost": false,
+    "stage": null,
+    "stage_label": null,
+    "progress": null,
+    "log_tail": null,
+    "heartbeat_at": "2026-10-19T14:41:20Z",
+    "attempt": 1,
+    "cancel_requested": false,
+    "config_sha256": "calib001a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4",
+    "config": {
+      "schema_version": "backtest.run_config.v1",
+      "run_id": "btr-20261019-calib001",
+      "batch_id": "btb-20261019-7h2kd9wq",
+      "parent_run_id": null,
+      "board": "benchmark",
+      "item": "calibration",
+      "engine": "pm-engine-20261019-3b7dbbede090",
+      "dataset": "telonex",
+      "data_generation": "dg-1f3a9c20b7d44e10",
+      "window": {
+        "start": "2026-08-07T21:16:28+08:00",
+        "end_exclusive": "2026-08-31T21:00:35+08:00",
+        "align": "strict_common"
+      },
+      "domains": {
+        "mode": "include",
+        "values": [
+          "all"
+        ]
+      },
+      "objects": {
+        "models": [
+          {
+            "key": "pswarm_v2",
+            "version": "legacy/legacy",
+            "model_name": "pswarm_v2",
+            "sha256": "9f2c0000000000000000000000000000000000000000000000000000000000e1"
+          }
+        ],
+        "strategies": [],
+        "factors": []
+      },
+      "params": {
+        "scope": "strict"
+      },
+      "requested_by": "console:console",
+      "created_at": "2026-10-19T14:30:00+08:00"
+    },
+    "rerunnable": true,
+    "requested_by": "console:console",
+    "created_at": "2026-10-19T14:30:00Z",
+    "started_at": "2026-10-19T14:30:05Z",
+    "finished_at": "2026-10-19T14:41:22Z",
+    "result": {
+      "schema_version": "backtest.result.v1",
+      "board": "benchmark",
+      "item": "calibration",
+      "headline": "概率校准 · 3 个模型",
+      "scope_card": {
+        "window": {
+          "start": "2026-08-07T21:16:28+08:00",
+          "end_exclusive": "2026-08-31T21:00:35+08:00",
+          "align": "strict_common"
+        },
+        "domains": [
+          "All domains"
+        ],
+        "dataset": "telonex",
+        "engine": "pm-engine-20261019-3b7dbbede090",
+        "protocol": "pearson-dmid-v8",
+        "sample_scope": "strict",
+        "sample_counts": {
+          "共同样本题数": 842,
+          "pswarm_v2": 842,
+          "market_favorite_telonex": 842
+        },
+        "batch_members": []
+      },
+      "warnings": [
+        {
+          "level": "warning",
+          "text": "MCB 与 Brier 要并排读；MCB 小不代表预测准。"
+        }
+      ],
+      "sections": [
+        {
+          "id": "curve",
+          "type": "series",
+          "mode": "scatter",
+          "x": "number",
+          "x_label": "桶内平均预测概率",
+          "y_label": "实际 YES 率",
+          "reference_lines": [
+            {
+              "axis": "diagonal"
+            }
+          ],
+          "series": [
+            {
+              "name": "Market",
+              "highlight": true,
+              "filters": {
+                "representative_mode": "first_entry"
+              },
+              "points": [
+                {
+                  "x": 0.05,
+                  "y": 0.058,
+                  "size": 10,
+                  "lower": 0,
+                  "upper": 0.203,
+                  "low_sample": true
+                },
+                {
+                  "x": 0.15,
+                  "y": 0.121,
+                  "size": 27,
+                  "lower": 0,
+                  "upper": 0.244,
+                  "low_sample": false
+                },
+                {
+                  "x": 0.25,
+                  "y": 0.221,
+                  "size": 83,
+                  "lower": 0.132,
+                  "upper": 0.31,
+                  "low_sample": false
+                },
+                {
+                  "x": 0.35,
+                  "y": 0.333,
+                  "size": 171,
+                  "lower": 0.262,
+                  "upper": 0.404,
+                  "low_sample": false
+                },
+                {
+                  "x": 0.45,
+                  "y": 0.492,
+                  "size": 255,
+                  "lower": 0.431,
+                  "upper": 0.553,
+                  "low_sample": false
+                },
+                {
+                  "x": 0.55,
+                  "y": 0.595,
+                  "size": 256,
+                  "lower": 0.535,
+                  "upper": 0.655,
+                  "low_sample": false
+                },
+                {
+                  "x": 0.65,
+                  "y": 0.659,
+                  "size": 170,
+                  "lower": 0.588,
+                  "upper": 0.73,
+                  "low_sample": false
+                },
+                {
+                  "x": 0.75,
+                  "y": 0.732,
+                  "size": 83,
+                  "lower": 0.637,
+                  "upper": 0.827,
+                  "low_sample": false
+                },
+                {
+                  "x": 0.85,
+                  "y": 0.805,
+                  "size": 27,
+                  "lower": 0.656,
+                  "upper": 0.954,
+                  "low_sample": false
+                },
+                {
+                  "x": 0.95,
+                  "y": 0.922,
+                  "size": 11,
+                  "lower": 0.764,
+                  "upper": 1,
+                  "low_sample": true
+                }
+              ]
+            },
+            {
+              "name": "pswarm_v2",
+              "highlight": false,
+              "filters": {
+                "representative_mode": "first_entry"
+              },
+              "points": [
+                {
+                  "x": 0.05,
+                  "y": 0.049,
+                  "size": 11,
+                  "lower": 0,
+                  "upper": 0.177,
+                  "low_sample": true
+                },
+                {
+                  "x": 0.15,
+                  "y": 0.142,
+                  "size": 27,
+                  "lower": 0.01,
+                  "upper": 0.274,
+                  "low_sample": false
+                },
+                {
+                  "x": 0.25,
+                  "y": 0.263,
+                  "size": 81,
+                  "lower": 0.167,
+                  "upper": 0.359,
+                  "low_sample": false
+                },
+                {
+                  "x": 0.35,
+                  "y": 0.337,
+                  "size": 175,
+                  "lower": 0.267,
+                  "upper": 0.407,
+                  "low_sample": false
+                },
+                {
+                  "x": 0.45,
+                  "y": 0.444,
+                  "size": 254,
+                  "lower": 0.383,
+                  "upper": 0.505,
+                  "low_sample": false
+                },
+                {
+                  "x": 0.55,
+                  "y": 0.538,
+                  "size": 252,
+                  "lower": 0.476,
+                  "upper": 0.6,
+                  "low_sample": false
+                },
+                {
+                  "x": 0.65,
+                  "y": 0.65,
+                  "size": 171,
+                  "lower": 0.579,
+                  "upper": 0.721,
+                  "low_sample": false
+                },
+                {
+                  "x": 0.75,
+                  "y": 0.746,
+                  "size": 81,
+                  "lower": 0.651,
+                  "upper": 0.841,
+                  "low_sample": false
+                },
+                {
+                  "x": 0.85,
+                  "y": 0.852,
+                  "size": 29,
+                  "lower": 0.723,
+                  "upper": 0.981,
+                  "low_sample": false
+                },
+                {
+                  "x": 0.95,
+                  "y": 0.949,
+                  "size": 12,
+                  "lower": 0.825,
+                  "upper": 1,
+                  "low_sample": true
+                }
+              ]
+            },
+            {
+              "name": "echo",
+              "highlight": false,
+              "filters": {
+                "representative_mode": "first_entry"
+              },
+              "points": [
+                {
+                  "x": 0.05,
+                  "y": 0.054,
+                  "size": 13,
+                  "lower": 0,
+                  "upper": 0.177,
+                  "low_sample": true
+                },
+                {
+                  "x": 0.15,
+                  "y": 0.191,
+                  "size": 30,
+                  "lower": 0.05,
+                  "upper": 0.332,
+                  "low_sample": false
+                },
+                {
+                  "x": 0.25,
+                  "y": 0.276,
+                  "size": 79,
+                  "lower": 0.177,
+                  "upper": 0.375,
+                  "low_sample": false
+                },
+                {
+                  "x": 0.35,
+                  "y": 0.369,
+                  "size": 171,
+                  "lower": 0.297,
+                  "upper": 0.441,
+                  "low_sample": false
+                },
+                {
+                  "x": 0.45,
+                  "y": 0.42,
+                  "size": 256,
+                  "lower": 0.36,
+                  "upper": 0.48,
+                  "low_sample": false
+                },
+                {
+                  "x": 0.55,
+                  "y": 0.502,
+                  "size": 253,
+                  "lower": 0.44,
+                  "upper": 0.564,
+                  "low_sample": false
+                },
+                {
+                  "x": 0.65,
+                  "y": 0.626,
+                  "size": 174,
+                  "lower": 0.554,
+                  "upper": 0.698,
+                  "low_sample": false
+                },
+                {
+                  "x": 0.75,
+                  "y": 0.768,
+                  "size": 80,
+                  "lower": 0.676,
+                  "upper": 0.86,
+                  "low_sample": false
+                },
+                {
+                  "x": 0.85,
+                  "y": 0.891,
+                  "size": 30,
+                  "lower": 0.779,
+                  "upper": 1,
+                  "low_sample": false
+                },
+                {
+                  "x": 0.95,
+                  "y": 0.954,
+                  "size": 9,
+                  "lower": 0.817,
+                  "upper": 1,
+                  "low_sample": true
+                }
+              ]
+            },
+            {
+              "name": "Market",
+              "highlight": true,
+              "filters": {
+                "representative_mode": "mean_in_bucket"
+              },
+              "points": [
+                {
+                  "x": 0.06,
+                  "y": 0.053,
+                  "size": 13,
+                  "lower": 0,
+                  "upper": 0.175,
+                  "low_sample": true
+                },
+                {
+                  "x": 0.16,
+                  "y": 0.133,
+                  "size": 32,
+                  "lower": 0.015,
+                  "upper": 0.251,
+                  "low_sample": false
+                },
+                {
+                  "x": 0.26,
+                  "y": 0.231,
+                  "size": 86,
+                  "lower": 0.142,
+                  "upper": 0.32,
+                  "low_sample": false
+                },
+                {
+                  "x": 0.36,
+                  "y": 0.34,
+                  "size": 182,
+                  "lower": 0.271,
+                  "upper": 0.409,
+                  "low_sample": false
+                },
+                {
+                  "x": 0.46,
+                  "y": 0.483,
+                  "size": 256,
+                  "lower": 0.422,
+                  "upper": 0.544,
+                  "low_sample": false
+                },
+                {
+                  "x": 0.56,
+                  "y": 0.605,
+                  "size": 249,
+                  "lower": 0.544,
+                  "upper": 0.666,
+                  "low_sample": false
+                },
+                {
+                  "x": 0.66,
+                  "y": 0.684,
+                  "size": 164,
+                  "lower": 0.613,
+                  "upper": 0.755,
+                  "low_sample": false
+                },
+                {
+                  "x": 0.76,
+                  "y": 0.74,
+                  "size": 71,
+                  "lower": 0.638,
+                  "upper": 0.842,
+                  "low_sample": false
+                },
+                {
+                  "x": 0.86,
+                  "y": 0.813,
+                  "size": 24,
+                  "lower": 0.657,
+                  "upper": 0.969,
+                  "low_sample": false
+                },
+                {
+                  "x": 0.96,
+                  "y": 0.953,
+                  "size": 8,
+                  "lower": 0.806,
+                  "upper": 1,
+                  "low_sample": true
+                }
+              ]
+            },
+            {
+              "name": "pswarm_v2",
+              "highlight": false,
+              "filters": {
+                "representative_mode": "mean_in_bucket"
+              },
+              "points": [
+                {
+                  "x": 0.06,
+                  "y": 0.067,
+                  "size": 14,
+                  "lower": 0,
+                  "upper": 0.198,
+                  "low_sample": true
+                },
+                {
+                  "x": 0.16,
+                  "y": 0.154,
+                  "size": 35,
+                  "lower": 0.034,
+                  "upper": 0.274,
+                  "low_sample": false
+                },
+                {
+                  "x": 0.26,
+                  "y": 0.264,
+                  "size": 88,
+                  "lower": 0.172,
+                  "upper": 0.356,
+                  "low_sample": false
+                },
+                {
+                  "x": 0.36,
+                  "y": 0.359,
+                  "size": 180,
+                  "lower": 0.289,
+                  "upper": 0.429,
+                  "low_sample": false
+                },
+                {
+                  "x": 0.46,
+                  "y": 0.461,
+                  "size": 257,
+                  "lower": 0.4,
+                  "upper": 0.522,
+                  "low_sample": false
+                },
+                {
+                  "x": 0.56,
+                  "y": 0.574,
+                  "size": 247,
+                  "lower": 0.512,
+                  "upper": 0.636,
+                  "low_sample": false
+                },
+                {
+                  "x": 0.66,
+                  "y": 0.666,
+                  "size": 162,
+                  "lower": 0.593,
+                  "upper": 0.739,
+                  "low_sample": false
+                },
+                {
+                  "x": 0.76,
+                  "y": 0.747,
+                  "size": 75,
+                  "lower": 0.649,
+                  "upper": 0.845,
+                  "low_sample": false
+                },
+                {
+                  "x": 0.86,
+                  "y": 0.874,
+                  "size": 25,
+                  "lower": 0.744,
+                  "upper": 1,
+                  "low_sample": false
+                },
+                {
+                  "x": 0.96,
+                  "y": 0.968,
+                  "size": 9,
+                  "lower": 0.853,
+                  "upper": 1,
+                  "low_sample": true
+                }
+              ]
+            },
+            {
+              "name": "echo",
+              "highlight": false,
+              "filters": {
+                "representative_mode": "mean_in_bucket"
+              },
+              "points": [
+                {
+                  "x": 0.06,
+                  "y": 0.066,
+                  "size": 13,
+                  "lower": 0,
+                  "upper": 0.201,
+                  "low_sample": true
+                },
+                {
+                  "x": 0.16,
+                  "y": 0.189,
+                  "size": 33,
+                  "lower": 0.055,
+                  "upper": 0.323,
+                  "low_sample": false
+                },
+                {
+                  "x": 0.26,
+                  "y": 0.296,
+                  "size": 91,
+                  "lower": 0.202,
+                  "upper": 0.39,
+                  "low_sample": false
+                },
+                {
+                  "x": 0.36,
+                  "y": 0.352,
+                  "size": 180,
+                  "lower": 0.282,
+                  "upper": 0.422,
+                  "low_sample": false
+                },
+                {
+                  "x": 0.46,
+                  "y": 0.421,
+                  "size": 257,
+                  "lower": 0.361,
+                  "upper": 0.481,
+                  "low_sample": false
+                },
+                {
+                  "x": 0.56,
+                  "y": 0.533,
+                  "size": 248,
+                  "lower": 0.471,
+                  "upper": 0.595,
+                  "low_sample": false
+                },
+                {
+                  "x": 0.66,
+                  "y": 0.652,
+                  "size": 163,
+                  "lower": 0.579,
+                  "upper": 0.725,
+                  "low_sample": false
+                },
+                {
+                  "x": 0.76,
+                  "y": 0.794,
+                  "size": 76,
+                  "lower": 0.703,
+                  "upper": 0.885,
+                  "low_sample": false
+                },
+                {
+                  "x": 0.86,
+                  "y": 0.908,
+                  "size": 28,
+                  "lower": 0.801,
+                  "upper": 1,
+                  "low_sample": false
+                },
+                {
+                  "x": 0.96,
+                  "y": 0.966,
+                  "size": 9,
+                  "lower": 0.848,
+                  "upper": 1,
+                  "low_sample": true
+                }
+              ]
+            }
+          ],
+          "caption": "点大小 ∝ 唯一市场数；竖线 = 实际 YES 率区间；灰色空心点 = 低样本桶；点击图例只看该模型。"
+        },
+        {
+          "id": "summary",
+          "type": "table",
+          "columns": [
+            {
+              "key": "model",
+              "label": "模型",
+              "kind": "text"
+            },
+            {
+              "key": "ece",
+              "label": "ECE",
+              "kind": "number",
+              "digits": 4,
+              "best": "low"
+            },
+            {
+              "key": "mcb",
+              "label": "MCB",
+              "kind": "number",
+              "digits": 4,
+              "best": "low"
+            },
+            {
+              "key": "max_gap",
+              "label": "最大桶偏差",
+              "kind": "number",
+              "digits": 3
+            },
+            {
+              "key": "valid_buckets",
+              "label": "有效桶数",
+              "kind": "number",
+              "digits": 0
+            },
+            {
+              "key": "rank",
+              "label": "校准排名",
+              "kind": "number",
+              "digits": 0
+            }
+          ],
+          "rows": [
+            {
+              "filters": {
+                "representative_mode": "first_entry"
+              },
+              "model": "Market",
+              "ece": 0.02,
+              "mcb": 0.011,
+              "max_gap": 0.05,
+              "valid_buckets": 10,
+              "rank": 1
+            },
+            {
+              "filters": {
+                "representative_mode": "first_entry"
+              },
+              "model": "pswarm_v2",
+              "ece": 0.026,
+              "mcb": 0.015,
+              "max_gap": 0.07,
+              "valid_buckets": 9,
+              "rank": 2
+            },
+            {
+              "filters": {
+                "representative_mode": "first_entry"
+              },
+              "model": "echo",
+              "ece": 0.032,
+              "mcb": 0.019,
+              "max_gap": 0.09,
+              "valid_buckets": 8,
+              "rank": 3
+            },
+            {
+              "filters": {
+                "representative_mode": "mean_in_bucket"
+              },
+              "model": "Market",
+              "ece": 0.02,
+              "mcb": 0.011,
+              "max_gap": 0.05,
+              "valid_buckets": 10,
+              "rank": 1
+            },
+            {
+              "filters": {
+                "representative_mode": "mean_in_bucket"
+              },
+              "model": "pswarm_v2",
+              "ece": 0.026,
+              "mcb": 0.015,
+              "max_gap": 0.07,
+              "valid_buckets": 9,
+              "rank": 2
+            },
+            {
+              "filters": {
+                "representative_mode": "mean_in_bucket"
+              },
+              "model": "echo",
+              "ece": 0.032,
+              "mcb": 0.019,
+              "max_gap": 0.09,
+              "valid_buckets": 8,
+              "rank": 3
+            }
+          ],
+          "default_sort": {
+            "key": "ece",
+            "direction": "asc"
+          },
+          "notes": [
+            "排名列用 expected_calibration_error，不用脚本的 MCB 排名（calibration_rank）。"
+          ]
+        },
+        {
+          "id": "report",
+          "type": "text",
+          "format": "markdown",
+          "text": "# 校准报告\n\n- 桶边界：10 个等宽桶\n- 最小唯一市场数门槛：20\n\n| 模型 | ECE |\n| --- | --- |\n| Market | 0.0200 |\n| pswarm_v2 | 0.0260 |"
+        }
+      ],
+      "artifacts": [],
+      "filters": [
+        {
+          "key": "representative_mode",
+          "label": "代表概率口径",
+          "options": [
+            {
+              "value": "first_entry",
+              "label": "首次进入桶"
+            },
+            {
+              "value": "mean_in_bucket",
+              "label": "桶内均值"
+            }
+          ],
+          "default": "first_entry"
+        }
+      ]
+    },
+    "reproduce": {
+      "text": "实验 ID：btr-20261019-calib001 · Benchmark / 概率校准\n服务器：8.211.188.216 · 结果 /var/lib/pm-backtest/runs/btr-20261019-calib001\n配置：/var/lib/pm-backtest/runs/btr-20261019-calib001/run-config.json\n窗口：[2026-08-07T21:16:28+08:00, 2026-08-31T21:00:35+08:00) · Domain 全部 · 数据集 telonex/20260913-v0uepugf\n输入：pswarm_v2_subset sha256=9f2c…e1 · price50_subset sha256=77ab…03 · 预测表全集 100 个 sha256=4c0d…aa · 结算 sha256=b1e2…9c · 域映射 sha256=0d3f…52\n引擎：pm-engine@pm-engine-20261019-3b7dbbede090 · pearson-dmid-v8 · 执行器 5a6d16b · Python 3.13 · 依赖锁 sha256=ab12…77\n命令：cd /opt/pm-backtest-engine/releases/pm-engine-20261019-3b7dbbede090/pm_backtest_v2 && python -m scripts.run_brier_score_model_comparison --window-start 2026-08-07T21:16:28+08:00 \n重跑：/opt/pm-backtest-runner/releases/5a6d16b/bin/pmbt rerun btr-20261019-calib001",
+      "fields": {
+        "run_id": "btr-20261019-calib001",
+        "engine": "pm-engine-20261019-3b7dbbede090"
+      }
+    },
+    "input_fingerprints": {
+      "data_generation": "dg-1f3a9c20b7d44e10",
+      "files": {
+        "backtest/market_data/settlement.parquet": "sha256:b1e2000000000000000000000000000000000000000000000000000000009c",
+        "backtest/model_pred/sidecar/domain_authority_settlement.parquet": "sha256:0d3f000000000000000000000000000000000000000000000000000000000052",
+        "backtest/model_pred/pswarm_v2_pred.parquet": "sha256:9f2c0000000000000000000000000000000000000000000000000000000000e1"
+      }
+    },
+    "restored_inputs": [],
+    "artifacts_url": "/api/v1/backtest/runs/btr-20261019-calib001/artifacts",
+    "artifacts_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

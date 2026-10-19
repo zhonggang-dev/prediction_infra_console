@@ -1,0 +1,464 @@
+{
+  "data": {
+    "run_id": "btr-20261019-corr0001",
+    "batch_id": "btb-20261019-7h2kd9wq",
+    "parent_run_id": null,
+    "origin": "platform",
+    "board": "signal",
+    "item": "correlation",
+    "status": "succeeded",
+    "lost": false,
+    "stage": null,
+    "stage_label": null,
+    "progress": null,
+    "log_tail": null,
+    "heartbeat_at": "2026-10-19T14:41:20Z",
+    "attempt": 1,
+    "cancel_requested": false,
+    "config_sha256": "corr0001a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4",
+    "config": {
+      "schema_version": "backtest.run_config.v1",
+      "run_id": "btr-20261019-corr0001",
+      "batch_id": "btb-20261019-7h2kd9wq",
+      "parent_run_id": null,
+      "board": "signal",
+      "item": "correlation",
+      "engine": "pm-engine-20261019-3b7dbbede090",
+      "dataset": "telonex",
+      "data_generation": "dg-1f3a9c20b7d44e10",
+      "window": {
+        "start": "2026-08-07T21:16:28+08:00",
+        "end_exclusive": "2026-08-31T21:00:35+08:00",
+        "align": "strict_common"
+      },
+      "domains": {
+        "mode": "include",
+        "values": [
+          "all"
+        ]
+      },
+      "objects": {
+        "models": [
+          {
+            "key": "pswarm_v2",
+            "version": "legacy/legacy",
+            "model_name": "pswarm_v2",
+            "sha256": "9f2c0000000000000000000000000000000000000000000000000000000000e1"
+          }
+        ],
+        "strategies": [],
+        "factors": []
+      },
+      "params": {
+        "scope": "strict"
+      },
+      "requested_by": "console:console",
+      "created_at": "2026-10-19T14:30:00+08:00"
+    },
+    "rerunnable": true,
+    "requested_by": "console:console",
+    "created_at": "2026-10-19T14:30:00Z",
+    "started_at": "2026-10-19T14:30:05Z",
+    "finished_at": "2026-10-19T14:41:22Z",
+    "result": {
+      "schema_version": "backtest.result.v1",
+      "board": "signal",
+      "item": "correlation",
+      "headline": "因子池 Correlation · 7 个特征",
+      "scope_card": {
+        "window": {
+          "start": "2026-08-07T21:16:28+08:00",
+          "end_exclusive": "2026-08-31T21:00:35+08:00",
+          "align": "strict_common"
+        },
+        "domains": [
+          "All domains"
+        ],
+        "dataset": "telonex",
+        "engine": "pm-engine-20261019-3b7dbbede090",
+        "protocol": "pearson-dmid-v8",
+        "sample_scope": "pooled",
+        "sample_counts": {
+          "共同样本题数": 842,
+          "pswarm_v2": 842,
+          "market_favorite_telonex": 842
+        },
+        "batch_members": []
+      },
+      "warnings": [],
+      "sections": [
+        {
+          "id": "overview",
+          "type": "metrics",
+          "items": [
+            {
+              "label": "特征数",
+              "value": 7,
+              "digits": 0
+            },
+            {
+              "label": "市场数",
+              "value": 842,
+              "digits": 0
+            },
+            {
+              "label": "小时数",
+              "value": 690,
+              "digits": 0
+            },
+            {
+              "label": "小时侧别样本",
+              "value": 412380,
+              "digits": 0
+            }
+          ]
+        },
+        {
+          "id": "spearman",
+          "type": "matrix",
+          "rows": [
+            "REV 动量 3h",
+            "近端对数差",
+            "盘口斜率（小时）",
+            "TA-Lib RSI（小时）",
+            "买卖价差占比",
+            "深度失衡",
+            "MODEL:pswarm_v2:EDGE"
+          ],
+          "cols": [
+            "REV 动量 3h",
+            "近端对数差",
+            "盘口斜率（小时）",
+            "TA-Lib RSI（小时）",
+            "买卖价差占比",
+            "深度失衡",
+            "MODEL:pswarm_v2:EDGE"
+          ],
+          "values": [
+            [
+              1,
+              -0.333,
+              -0.792,
+              -0.523,
+              0.227,
+              0.768,
+              0.603
+            ],
+            [
+              -0.333,
+              1,
+              0.768,
+              -0.116,
+              -0.671,
+              0.675,
+              0.109
+            ],
+            [
+              -0.792,
+              0.768,
+              1,
+              0.675,
+              -0.608,
+              0.528,
+              -0.438
+            ],
+            [
+              -0.523,
+              -0.116,
+              0.675,
+              1,
+              0.326,
+              0.339,
+              -0.77
+            ],
+            [
+              0.227,
+              -0.671,
+              -0.608,
+              0.326,
+              1,
+              0.123,
+              -0.723
+            ],
+            [
+              0.768,
+              0.675,
+              0.528,
+              0.339,
+              0.123,
+              1,
+              -0.32
+            ],
+            [
+              0.603,
+              0.109,
+              -0.438,
+              -0.77,
+              -0.723,
+              -0.32,
+              1
+            ]
+          ],
+          "counts": [
+            [
+              412380,
+              412380,
+              412380,
+              412380,
+              412380,
+              412380,
+              412380
+            ],
+            [
+              412380,
+              412380,
+              412380,
+              412380,
+              412380,
+              412380,
+              412380
+            ],
+            [
+              412380,
+              412380,
+              412380,
+              412380,
+              412380,
+              412380,
+              412380
+            ],
+            [
+              412380,
+              412380,
+              412380,
+              412380,
+              412380,
+              412380,
+              412380
+            ],
+            [
+              412380,
+              412380,
+              412380,
+              412380,
+              412380,
+              412380,
+              412380
+            ],
+            [
+              412380,
+              412380,
+              412380,
+              412380,
+              412380,
+              412380,
+              412380
+            ],
+            [
+              412380,
+              412380,
+              412380,
+              412380,
+              412380,
+              412380,
+              412380
+            ]
+          ],
+          "domain": [
+            -1,
+            1
+          ],
+          "digits": 2,
+          "caption": "截面 rank 后合并 Spearman；每小时每特征 ≥ 20 样本。"
+        },
+        {
+          "id": "spearman_png",
+          "type": "image",
+          "title": "截面 Rank Correlation（引擎图）",
+          "artifact": "spearman_heatmap.png",
+          "alt": "Spearman 热力图"
+        },
+        {
+          "id": "pairs",
+          "type": "table",
+          "columns": [
+            {
+              "key": "a",
+              "label": "特征 A",
+              "kind": "text"
+            },
+            {
+              "key": "b",
+              "label": "特征 B",
+              "kind": "text"
+            },
+            {
+              "key": "spearman",
+              "label": "Spearman",
+              "kind": "number",
+              "digits": 3,
+              "signed": true
+            },
+            {
+              "key": "samples",
+              "label": "样本",
+              "kind": "number",
+              "digits": 0
+            }
+          ],
+          "rows": [
+            {
+              "a": "REV 动量 3h",
+              "b": "近端对数差",
+              "spearman": -0.333,
+              "samples": 412380
+            },
+            {
+              "a": "REV 动量 3h",
+              "b": "盘口斜率（小时）",
+              "spearman": -0.792,
+              "samples": 412380
+            },
+            {
+              "a": "REV 动量 3h",
+              "b": "TA-Lib RSI（小时）",
+              "spearman": -0.523,
+              "samples": 412380
+            },
+            {
+              "a": "REV 动量 3h",
+              "b": "买卖价差占比",
+              "spearman": 0.227,
+              "samples": 412380
+            },
+            {
+              "a": "REV 动量 3h",
+              "b": "深度失衡",
+              "spearman": 0.768,
+              "samples": 412380
+            },
+            {
+              "a": "REV 动量 3h",
+              "b": "MODEL:pswarm_v2:EDGE",
+              "spearman": 0.603,
+              "samples": 412380
+            },
+            {
+              "a": "近端对数差",
+              "b": "盘口斜率（小时）",
+              "spearman": 0.768,
+              "samples": 412370
+            },
+            {
+              "a": "近端对数差",
+              "b": "TA-Lib RSI（小时）",
+              "spearman": -0.116,
+              "samples": 412370
+            },
+            {
+              "a": "近端对数差",
+              "b": "买卖价差占比",
+              "spearman": -0.671,
+              "samples": 412370
+            },
+            {
+              "a": "近端对数差",
+              "b": "深度失衡",
+              "spearman": 0.675,
+              "samples": 412370
+            },
+            {
+              "a": "近端对数差",
+              "b": "MODEL:pswarm_v2:EDGE",
+              "spearman": 0.109,
+              "samples": 412370
+            },
+            {
+              "a": "盘口斜率（小时）",
+              "b": "TA-Lib RSI（小时）",
+              "spearman": 0.675,
+              "samples": 412360
+            },
+            {
+              "a": "盘口斜率（小时）",
+              "b": "买卖价差占比",
+              "spearman": -0.608,
+              "samples": 412360
+            },
+            {
+              "a": "盘口斜率（小时）",
+              "b": "深度失衡",
+              "spearman": 0.528,
+              "samples": 412360
+            },
+            {
+              "a": "盘口斜率（小时）",
+              "b": "MODEL:pswarm_v2:EDGE",
+              "spearman": -0.438,
+              "samples": 412360
+            },
+            {
+              "a": "TA-Lib RSI（小时）",
+              "b": "买卖价差占比",
+              "spearman": 0.326,
+              "samples": 412350
+            },
+            {
+              "a": "TA-Lib RSI（小时）",
+              "b": "深度失衡",
+              "spearman": 0.339,
+              "samples": 412350
+            },
+            {
+              "a": "TA-Lib RSI（小时）",
+              "b": "MODEL:pswarm_v2:EDGE",
+              "spearman": -0.77,
+              "samples": 412350
+            },
+            {
+              "a": "买卖价差占比",
+              "b": "深度失衡",
+              "spearman": 0.123,
+              "samples": 412340
+            },
+            {
+              "a": "买卖价差占比",
+              "b": "MODEL:pswarm_v2:EDGE",
+              "spearman": -0.723,
+              "samples": 412340
+            },
+            {
+              "a": "深度失衡",
+              "b": "MODEL:pswarm_v2:EDGE",
+              "spearman": -0.32,
+              "samples": 412330
+            }
+          ],
+          "default_sort": {
+            "key": "spearman",
+            "direction": "desc"
+          }
+        }
+      ],
+      "artifacts": []
+    },
+    "reproduce": {
+      "text": "实验 ID：btr-20261019-corr0001 · Signal / Correlation\n服务器：8.211.188.216 · 结果 /var/lib/pm-backtest/runs/btr-20261019-corr0001\n配置：/var/lib/pm-backtest/runs/btr-20261019-corr0001/run-config.json\n窗口：[2026-08-07T21:16:28+08:00, 2026-08-31T21:00:35+08:00) · Domain 全部 · 数据集 telonex/20260913-v0uepugf\n输入：pswarm_v2_subset sha256=9f2c…e1 · price50_subset sha256=77ab…03 · 预测表全集 100 个 sha256=4c0d…aa · 结算 sha256=b1e2…9c · 域映射 sha256=0d3f…52\n引擎：pm-engine@pm-engine-20261019-3b7dbbede090 · pearson-dmid-v8 · 执行器 5a6d16b · Python 3.13 · 依赖锁 sha256=ab12…77\n命令：cd /opt/pm-backtest-engine/releases/pm-engine-20261019-3b7dbbede090/pm_backtest_v2 && python -m scripts.run_brier_score_model_comparison --window-start 2026-08-07T21:16:28+08:00 \n重跑：/opt/pm-backtest-runner/releases/5a6d16b/bin/pmbt rerun btr-20261019-corr0001",
+      "fields": {
+        "run_id": "btr-20261019-corr0001",
+        "engine": "pm-engine-20261019-3b7dbbede090"
+      }
+    },
+    "input_fingerprints": {
+      "data_generation": "dg-1f3a9c20b7d44e10",
+      "files": {
+        "backtest/market_data/settlement.parquet": "sha256:b1e2000000000000000000000000000000000000000000000000000000009c",
+        "backtest/model_pred/sidecar/domain_authority_settlement.parquet": "sha256:0d3f000000000000000000000000000000000000000000000000000000000052",
+        "backtest/model_pred/pswarm_v2_pred.parquet": "sha256:9f2c0000000000000000000000000000000000000000000000000000000000e1"
+      }
+    },
+    "restored_inputs": [],
+    "artifacts_url": "/api/v1/backtest/runs/btr-20261019-corr0001/artifacts",
+    "artifacts_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

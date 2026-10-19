@@ -12,7 +12,7 @@
     "build:v2": "MINIFLARE_REGISTRY_PATH=.wrangler-v2/registry WRANGLER_LOG_PATH=.wrangler-v2/wrangler.log vinext build",
     "start": "WRANGLER_LOG_PATH=.wrangler/wrangler.log vinext start",
     "start:v2": "node scripts/check-v2-port.mjs && MINIFLARE_REGISTRY_PATH=.wrangler-v2/registry WRANGLER_LOG_PATH=.wrangler-v2/wrangler.log vinext start --hostname ${PREDICTION_CONSOLE_V2_BIND_ADDRESS:-127.0.0.1} --port ${PREDICTION_CONSOLE_V2_PORT:-13001}",
-    "test": "pnpm build && node --experimental-strip-types --test tests/live-risk.test.ts tests/pnl-metrics.test.ts tests/resolution-rules.test.ts tests/answer-audit.test.ts tests/topic-paths.test.ts tests/dataset-rotation.test.ts tests/redis-monitor.test.ts tests/console-v2.test.ts tests/console-downloads.test.ts tests/console-v2-foundation.test.mjs tests/rendered-html.test.mjs",
+    "test": "pnpm build && node --experimental-strip-types --test tests/live-risk.test.ts tests/pnl-metrics.test.ts tests/resolution-rules.test.ts tests/answer-audit.test.ts tests/topic-paths.test.ts tests/dataset-rotation.test.ts tests/redis-monitor.test.ts tests/console-v2.test.ts tests/console-downloads.test.ts tests/console-v2-foundation.test.mjs tests/backtest-platform.test.ts tests/backtest-selection.test.ts tests/backtest-bff.test.ts tests/backtest-components.test.mjs tests/rendered-html.test.mjs",
     "lint": "eslint . --ignore-pattern dist --ignore-pattern .next"
   },
   "dependencies": {
