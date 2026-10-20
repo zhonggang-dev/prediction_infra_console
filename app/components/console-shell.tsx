@@ -18,6 +18,7 @@ const navigation = [
   { href: "/live", label: "实盘监控", icon: "live" as const },
   { href: "/trades", label: "交易与结算", icon: "trades" as const },
   { href: "/backtests", label: "回测数据集", icon: "archive" as const },
+  { href: "/backtest-platform", label: "回测平台", icon: "trend" as const },
   { href: "http://172.21.20.221:8501/", label: "PM Backtest", icon: "trend" as const },
   { href: "/delivery", label: "消息交付", icon: "send" as const },
   { href: "/settings", label: "系统设置", icon: "settings" as const },

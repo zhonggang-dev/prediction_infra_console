@@ -1,0 +1,1642 @@
+{
+  "data": {
+    "run_id": "btr-20261019-ovrvw001",
+    "batch_id": "btb-20261019-7h2kd9wq",
+    "parent_run_id": null,
+    "origin": "platform",
+    "board": "benchmark",
+    "item": "overview",
+    "status": "succeeded",
+    "lost": false,
+    "stage": null,
+    "stage_label": null,
+    "progress": null,
+    "log_tail": null,
+    "heartbeat_at": "2026-10-19T14:41:20Z",
+    "attempt": 1,
+    "cancel_requested": false,
+    "config_sha256": "ovrvw001a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4",
+    "config": {
+      "schema_version": "backtest.run_config.v1",
+      "run_id": "btr-20261019-ovrvw001",
+      "batch_id": "btb-20261019-7h2kd9wq",
+      "parent_run_id": null,
+      "board": "benchmark",
+      "item": "overview",
+      "engine": "pm-engine-20261019-3b7dbbede090",
+      "dataset": "telonex",
+      "data_generation": "dg-1f3a9c20b7d44e10",
+      "window": {
+        "start": "2026-08-07T21:16:28+08:00",
+        "end_exclusive": "2026-08-31T21:00:35+08:00",
+        "align": "strict_common"
+      },
+      "domains": {
+        "mode": "include",
+        "values": [
+          "all"
+        ]
+      },
+      "objects": {
+        "models": [
+          {
+            "key": "pswarm_v2",
+            "version": "legacy/legacy",
+            "model_name": "pswarm_v2",
+            "sha256": "9f2c0000000000000000000000000000000000000000000000000000000000e1"
+          }
+        ],
+        "strategies": [],
+        "factors": []
+      },
+      "params": {
+        "scope": "strict"
+      },
+      "requested_by": "console:console",
+      "created_at": "2026-10-19T14:30:00+08:00"
+    },
+    "rerunnable": true,
+    "requested_by": "console:console",
+    "created_at": "2026-10-19T14:30:00Z",
+    "started_at": "2026-10-19T14:30:05Z",
+    "finished_at": "2026-10-19T14:41:22Z",
+    "result": {
+      "schema_version": "backtest.result.v1",
+      "board": "benchmark",
+      "item": "overview",
+      "headline": "默认 Benchmark 总表 · 7 个模型 · 2026-08-07 → 2026-08-31",
+      "scope_card": {
+        "window": {
+          "start": "2026-08-07T21:16:28+08:00",
+          "end_exclusive": "2026-08-31T21:00:35+08:00",
+          "align": "strict_common"
+        },
+        "domains": [
+          "All domains"
+        ],
+        "dataset": "telonex",
+        "engine": "pm-engine-20261019-3b7dbbede090",
+        "protocol": "pearson-dmid-v8",
+        "sample_scope": "strict",
+        "sample_counts": {
+          "模型数": 6,
+          "共同市场数": 842
+        },
+        "batch_members": []
+      },
+      "warnings": [
+        {
+          "level": "info",
+          "text": "整张表当前使用公共时间区间；五个策略列固定原生仓位与无限资金。"
+        },
+        {
+          "level": "warning",
+          "text": "偏离列仅作逐行阅读，不是排行榜。"
+        }
+      ],
+      "sections": [
+        {
+          "id": "completion",
+          "type": "metrics",
+          "items": [
+            {
+              "label": "已完成 Benchmark",
+              "value": "6 / 6"
+            },
+            {
+              "label": "五个策略列",
+              "value": "已完成"
+            },
+            {
+              "label": "时间窗口（全表共用）",
+              "value": "2026-08-07 21:16 → 2026-08-31 21:00"
+            }
+          ]
+        },
+        {
+          "id": "main",
+          "type": "table",
+          "columns": [
+            {
+              "key": "model",
+              "label": "模型",
+              "kind": "text",
+              "sortable": false
+            },
+            {
+              "key": "strategy_baseline",
+              "label": "交易·Baseline v1 PnL/回报/Sharpe",
+              "kind": "text",
+              "best": "high"
+            },
+            {
+              "key": "strategy_baseline_v1_1",
+              "label": "交易·Baseline v1.1 PnL/回报/Sharpe",
+              "kind": "text",
+              "best": "high"
+            },
+            {
+              "key": "strategy_baseline_v2",
+              "label": "交易·Baseline v2 PnL/回报/Sharpe",
+              "kind": "text",
+              "best": "high"
+            },
+            {
+              "key": "strategy_wgeo_mult_factor_v1",
+              "label": "交易·MultFactor v1 · W/G only PnL/回报/Sharpe",
+              "kind": "text",
+              "best": "high"
+            },
+            {
+              "key": "strategy_wgeo_mult_factor_v2",
+              "label": "交易·MultFactor v2 · W/G only PnL/回报/Sharpe",
+              "kind": "text",
+              "best": "high"
+            },
+            {
+              "key": "signal_ic",
+              "label": "信号·IC (pooled · Mid→Mid · 24h)",
+              "kind": "text",
+              "best": "high"
+            },
+            {
+              "key": "signal_icir",
+              "label": "信号·ICIR (同口径)",
+              "kind": "text",
+              "best": "high"
+            },
+            {
+              "key": "brier",
+              "label": "概率质量·Brier (市场等权)",
+              "kind": "number",
+              "digits": 4,
+              "best": "low"
+            },
+            {
+              "key": "ece",
+              "label": "概率质量·校准 ECE",
+              "kind": "number",
+              "digits": 4,
+              "best": "low"
+            },
+            {
+              "key": "fixed_tte",
+              "label": "概率质量·固定 TTE Brier (T-7)",
+              "kind": "number",
+              "digits": 4,
+              "best": "low"
+            },
+            {
+              "key": "deviation",
+              "label": "概率质量·偏离 market÷模型 (τ=0.1 · >1 及格)",
+              "kind": "number",
+              "digits": 3,
+              "best": "high"
+            }
+          ],
+          "rows": [
+            {
+              "model": "Market",
+              "strategy_baseline": {
+                "text": "+0.89\n0.1%\nSh 0.0",
+                "sort": 0.89
+              },
+              "strategy_baseline_v1_1": {
+                "text": "+3.03\n0.3%\nSh 0.0*",
+                "sort": 3.03
+              },
+              "strategy_baseline_v2": {
+                "text": "+4.22\n0.5%\nSh 0.0",
+                "sort": 4.22
+              },
+              "strategy_wgeo_mult_factor_v1": {
+                "text": "—",
+                "sort": null
+              },
+              "strategy_wgeo_mult_factor_v2": {
+                "text": "—",
+                "sort": null
+              },
+              "signal_ic": {
+                "text": "不适用",
+                "sort": null
+              },
+              "signal_icir": {
+                "text": "不适用",
+                "sort": null
+              },
+              "brier": 0.193,
+              "ece": 0.03,
+              "fixed_tte": 0.21,
+              "deviation": null,
+              "pnl_per_share": 0
+            },
+            {
+              "model": "pswarm_v2",
+              "strategy_baseline": {
+                "text": "+111.63\n12.4%\nSh 1.2",
+                "sort": 111.63
+              },
+              "strategy_baseline_v1_1": {
+                "text": "+115.63\n12.8%\nSh 1.3*",
+                "sort": 115.63
+              },
+              "strategy_baseline_v2": {
+                "text": "+124.54\n13.8%\nSh 1.4",
+                "sort": 124.54
+              },
+              "strategy_wgeo_mult_factor_v1": {
+                "text": "+137.63\n15.3%\nSh 1.5*",
+                "sort": 137.63
+              },
+              "strategy_wgeo_mult_factor_v2": {
+                "text": "+146.32\n16.3%\nSh 1.6",
+                "sort": 146.32
+              },
+              "signal_ic": {
+                "text": "0.110",
+                "sort": 0.11
+              },
+              "signal_icir": {
+                "text": "0.900",
+                "sort": 0.9
+              },
+              "brier": 0.1962,
+              "ece": 0.032,
+              "fixed_tte": 0.213,
+              "deviation": 1.03,
+              "pnl_per_share": 0.044
+            },
+            {
+              "model": "pswarm_v2_subset",
+              "strategy_baseline": {
+                "text": "+94.51\n10.5%\nSh 1.1",
+                "sort": 94.51
+              },
+              "strategy_baseline_v1_1": {
+                "text": "+104.32\n11.6%\nSh 1.2*",
+                "sort": 104.32
+              },
+              "strategy_baseline_v2": {
+                "text": "+114.32\n12.7%\nSh 1.3",
+                "sort": 114.32
+              },
+              "strategy_wgeo_mult_factor_v1": {
+                "text": "+123.91\n13.8%\nSh 1.4*",
+                "sort": 123.91
+              },
+              "strategy_wgeo_mult_factor_v2": {
+                "text": "+130.98\n14.6%\nSh 1.5",
+                "sort": 130.98
+              },
+              "signal_ic": {
+                "text": "0.100",
+                "sort": 0.1
+              },
+              "signal_icir": {
+                "text": "0.850",
+                "sort": 0.85
+              },
+              "brier": 0.1989,
+              "ece": 0.034,
+              "fixed_tte": 0.216,
+              "deviation": 1.01,
+              "pnl_per_share": 0.04
+            },
+            {
+              "model": "price50_subset",
+              "strategy_baseline": {
+                "text": "+80.29\n8.9%\nSh 0.9",
+                "sort": 80.29
+              },
+              "strategy_baseline_v1_1": {
+                "text": "+87.83\n9.8%\nSh 1.0*",
+                "sort": 87.83
+              },
+              "strategy_baseline_v2": {
+                "text": "+98.61\n11.0%\nSh 1.1",
+                "sort": 98.61
+              },
+              "strategy_wgeo_mult_factor_v1": {
+                "text": "+108.49\n12.1%\nSh 1.2*",
+                "sort": 108.49
+              },
+              "strategy_wgeo_mult_factor_v2": {
+                "text": "0 笔",
+                "sort": null
+              },
+              "signal_ic": {
+                "text": "0.090",
+                "sort": 0.09
+              },
+              "signal_icir": {
+                "text": "0.800",
+                "sort": 0.8
+              },
+              "brier": 0.2023,
+              "ece": 0.036,
+              "fixed_tte": 0.219,
+              "deviation": 0.99,
+              "pnl_per_share": 0.036
+            },
+            {
+              "model": "echo",
+              "strategy_baseline": {
+                "text": "+66.48\n7.4%\nSh 0.7",
+                "sort": 66.48
+              },
+              "strategy_baseline_v1_1": {
+                "text": "+74.91\n8.3%\nSh 0.8*",
+                "sort": 74.91
+              },
+              "strategy_baseline_v2": {
+                "text": "+83.61\n9.3%\nSh 0.9",
+                "sort": 83.61
+              },
+              "strategy_wgeo_mult_factor_v1": {
+                "text": "+92.48\n10.3%\nSh 1.0*",
+                "sort": 92.48
+              },
+              "strategy_wgeo_mult_factor_v2": {
+                "text": "+103.54\n11.5%\nSh 1.2",
+                "sort": 103.54
+              },
+              "signal_ic": {
+                "text": "0.080",
+                "sort": 0.08
+              },
+              "signal_icir": {
+                "text": "0.750",
+                "sort": 0.75
+              },
+              "brier": 0.2077,
+              "ece": 0.038,
+              "fixed_tte": 0.222,
+              "deviation": 0.97,
+              "pnl_per_share": 0.032
+            },
+            {
+              "model": "team_01__v2__p1",
+              "strategy_baseline": {
+                "text": "+53.55\n5.9%\nSh 0.6",
+                "sort": 53.55
+              },
+              "strategy_baseline_v1_1": {
+                "text": "+59.55\n6.6%\nSh 0.7*",
+                "sort": 59.55
+              },
+              "strategy_baseline_v2": {
+                "text": "+73.30\n8.1%\nSh 0.8",
+                "sort": 73.3
+              },
+              "strategy_wgeo_mult_factor_v1": {
+                "text": "+78.94\n8.8%\nSh 0.9*",
+                "sort": 78.94
+              },
+              "strategy_wgeo_mult_factor_v2": {
+                "text": "+86.18\n9.6%\nSh 1.0",
+                "sort": 86.18
+              },
+              "signal_ic": {
+                "text": "0.070",
+                "sort": 0.07
+              },
+              "signal_icir": {
+                "text": "0.700",
+                "sort": 0.7
+              },
+              "brier": 0.2125,
+              "ece": 0.04,
+              "fixed_tte": null,
+              "deviation": 0.95,
+              "pnl_per_share": 0.028
+            },
+            {
+              "model": "team_02__v3__p2",
+              "strategy_baseline": {
+                "text": "+39.91\n4.4%\nSh 0.4",
+                "sort": 39.91
+              },
+              "strategy_baseline_v1_1": {
+                "text": "+47.59\n5.3%\nSh 0.5*",
+                "sort": 47.59
+              },
+              "strategy_baseline_v2": {
+                "text": "+54.26\n6.0%\nSh 0.6",
+                "sort": 54.26
+              },
+              "strategy_wgeo_mult_factor_v1": {
+                "text": "+67.52\n7.5%\nSh 0.8*",
+                "sort": 67.52
+              },
+              "strategy_wgeo_mult_factor_v2": {
+                "text": "+75.24\n8.4%\nSh 0.8",
+                "sort": 75.24
+              },
+              "signal_ic": {
+                "text": "0.060",
+                "sort": 0.060000000000000005
+              },
+              "signal_icir": {
+                "text": "0.650",
+                "sort": 0.65
+              },
+              "brier": 0.2148,
+              "ece": 0.042,
+              "fixed_tte": 0.228,
+              "deviation": 0.93,
+              "pnl_per_share": 0.024
+            }
+          ],
+          "default_sort": {
+            "key": "brier",
+            "direction": "asc"
+          },
+          "pin_sorted_columns": true,
+          "rank_column": true,
+          "searchable": false,
+          "caption": "点表头排序，再点同列反向；点过的列固定在左侧；空值排最后且无排名号。"
+        },
+        {
+          "id": "metric_correlation",
+          "type": "matrix",
+          "rows": [
+            "交易·Baseline v1 PnL/回报/",
+            "交易·Baseline v1.1 PnL/回",
+            "交易·Baseline v2 PnL/回报/",
+            "交易·MultFactor v1 · W/G",
+            "交易·MultFactor v2 · W/G",
+            "信号·IC (pooled · Mid→Mi",
+            "信号·ICIR (同口径)",
+            "概率质量·Brier (市场等权)",
+            "概率质量·校准 ECE",
+            "概率质量·固定 TTE Brier (T-7",
+            "概率质量·偏离 market÷模型 (τ=0",
+            "交易·结算 PnL/share"
+          ],
+          "cols": [
+            "交易·Baseline v1",
+            "交易·Baseline v1",
+            "交易·Baseline v2",
+            "交易·MultFactor ",
+            "交易·MultFactor ",
+            "信号·IC (pooled ",
+            "信号·ICIR (同口径)",
+            "概率质量·Brier (市场",
+            "概率质量·校准 ECE",
+            "概率质量·固定 TTE Br",
+            "概率质量·偏离 market",
+            "交易·结算 PnL/shar"
+          ],
+          "values": [
+            [
+              1,
+              0.13,
+              -0.68,
+              -0.86,
+              -0.25,
+              0.59,
+              0.89,
+              0.37,
+              -0.49,
+              -0.9,
+              -0.48,
+              0.38
+            ],
+            [
+              0.13,
+              1,
+              0.89,
+              -0.49,
+              -0.48,
+              0.89,
+              -0.26,
+              -0.68,
+              0.82,
+              -0.01,
+              -0.82,
+              0.69
+            ],
+            [
+              -0.68,
+              0.89,
+              1,
+              0.59,
+              -0.68,
+              0.75,
+              -0.82,
+              0.86,
+              -0.89,
+              0.9,
+              -0.89,
+              0.87
+            ],
+            [
+              -0.86,
+              -0.49,
+              0.59,
+              1,
+              -0.82,
+              0.24,
+              0.5,
+              -0.89,
+              0.67,
+              0.02,
+              -0.69,
+              0.89
+            ],
+            [
+              -0.25,
+              -0.48,
+              -0.68,
+              -0.82,
+              1,
+              -0.39,
+              0.67,
+              0.77,
+              -0.24,
+              -0.9,
+              -0.27,
+              0.74
+            ],
+            [
+              0.59,
+              0.89,
+              0.75,
+              0.24,
+              -0.39,
+              1,
+              -0.69,
+              -0.5,
+              -0.27,
+              -0.02,
+              0.23,
+              0.46
+            ],
+            [
+              0.89,
+              -0.26,
+              -0.82,
+              0.5,
+              0.67,
+              -0.69,
+              1,
+              0.15,
+              0.7,
+              0.9,
+              0.66,
+              0.1
+            ],
+            [
+              0.37,
+              -0.68,
+              0.86,
+              -0.89,
+              0.77,
+              -0.5,
+              0.15,
+              1,
+              -0.89,
+              0.03,
+              0.89,
+              -0.29
+            ],
+            [
+              -0.49,
+              0.82,
+              -0.89,
+              0.67,
+              -0.24,
+              -0.27,
+              0.7,
+              -0.89,
+              1,
+              -0.9,
+              0.83,
+              -0.62
+            ],
+            [
+              -0.9,
+              -0.01,
+              0.9,
+              0.02,
+              -0.9,
+              -0.02,
+              0.9,
+              0.03,
+              -0.9,
+              1,
+              0.52,
+              -0.84
+            ],
+            [
+              -0.48,
+              -0.82,
+              -0.89,
+              -0.69,
+              -0.27,
+              0.23,
+              0.66,
+              0.89,
+              0.83,
+              0.52,
+              1,
+              -0.9
+            ],
+            [
+              0.38,
+              0.69,
+              0.87,
+              0.89,
+              0.74,
+              0.46,
+              0.1,
+              -0.29,
+              -0.62,
+              -0.84,
+              -0.9,
+              1
+            ]
+          ],
+          "counts": [
+            [
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              4,
+              6,
+              6,
+              6,
+              6
+            ],
+            [
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              4,
+              6,
+              6,
+              6,
+              6,
+              6
+            ],
+            [
+              6,
+              6,
+              6,
+              6,
+              6,
+              4,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6
+            ],
+            [
+              6,
+              6,
+              6,
+              6,
+              4,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              4
+            ],
+            [
+              6,
+              6,
+              6,
+              4,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              4,
+              6
+            ],
+            [
+              6,
+              6,
+              4,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              4,
+              6,
+              6
+            ],
+            [
+              6,
+              4,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              4,
+              6,
+              6,
+              6
+            ],
+            [
+              4,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6
+            ],
+            [
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              4,
+              6,
+              6,
+              6,
+              6,
+              6
+            ],
+            [
+              6,
+              6,
+              6,
+              6,
+              6,
+              4,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6
+            ],
+            [
+              6,
+              6,
+              6,
+              6,
+              4,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              4
+            ],
+            [
+              6,
+              6,
+              6,
+              4,
+              6,
+              6,
+              6,
+              6,
+              6,
+              6,
+              4,
+              6
+            ]
+          ],
+          "domain": [
+            -1,
+            1
+          ],
+          "caption": "越小越好的列已取负统一朝向；Market 行不参与；n<5 标 n。"
+        },
+        {
+          "id": "metric_bars",
+          "type": "bars",
+          "digits": 4,
+          "filters": [
+            {
+              "key": "metric",
+              "label": "看哪张图",
+              "options": [
+                {
+                  "value": "strategy_baseline",
+                  "label": "交易·Baseline v1 PnL/回报/Sharpe"
+                },
+                {
+                  "value": "strategy_baseline_v1_1",
+                  "label": "交易·Baseline v1.1 PnL/回报/Sharpe"
+                },
+                {
+                  "value": "strategy_baseline_v2",
+                  "label": "交易·Baseline v2 PnL/回报/Sharpe"
+                },
+                {
+                  "value": "strategy_wgeo_mult_factor_v1",
+                  "label": "交易·MultFactor v1 · W/G only PnL/回报/Sharpe"
+                },
+                {
+                  "value": "strategy_wgeo_mult_factor_v2",
+                  "label": "交易·MultFactor v2 · W/G only PnL/回报/Sharpe"
+                },
+                {
+                  "value": "signal_ic",
+                  "label": "信号·IC (pooled · Mid→Mid · 24h)"
+                },
+                {
+                  "value": "signal_icir",
+                  "label": "信号·ICIR (同口径)"
+                },
+                {
+                  "value": "brier",
+                  "label": "概率质量·Brier (市场等权)"
+                },
+                {
+                  "value": "ece",
+                  "label": "概率质量·校准 ECE"
+                },
+                {
+                  "value": "fixed_tte",
+                  "label": "概率质量·固定 TTE Brier (T-7)"
+                },
+                {
+                  "value": "deviation",
+                  "label": "概率质量·偏离 market÷模型 (τ=0.1 · >1 及格)"
+                },
+                {
+                  "value": "pnl_per_share",
+                  "label": "交易·结算 PnL/share"
+                }
+              ],
+              "default": "brier"
+            }
+          ],
+          "bars": [
+            {
+              "label": "Market",
+              "value": 0.89,
+              "highlight": "market",
+              "filters": {
+                "metric": "strategy_baseline"
+              }
+            },
+            {
+              "label": "pswarm_v2",
+              "value": 111.63,
+              "highlight": "best",
+              "filters": {
+                "metric": "strategy_baseline"
+              }
+            },
+            {
+              "label": "pswarm_v2_subset",
+              "value": 94.51,
+              "filters": {
+                "metric": "strategy_baseline"
+              }
+            },
+            {
+              "label": "price50_subset",
+              "value": 80.29,
+              "filters": {
+                "metric": "strategy_baseline"
+              }
+            },
+            {
+              "label": "echo",
+              "value": 66.48,
+              "filters": {
+                "metric": "strategy_baseline"
+              }
+            },
+            {
+              "label": "team_01__v2__p1",
+              "value": 53.55,
+              "filters": {
+                "metric": "strategy_baseline"
+              }
+            },
+            {
+              "label": "team_02__v3__p2",
+              "value": 39.91,
+              "filters": {
+                "metric": "strategy_baseline"
+              }
+            },
+            {
+              "label": "Market",
+              "value": 3.03,
+              "highlight": "market",
+              "filters": {
+                "metric": "strategy_baseline_v1_1"
+              }
+            },
+            {
+              "label": "pswarm_v2",
+              "value": 115.63,
+              "highlight": "best",
+              "filters": {
+                "metric": "strategy_baseline_v1_1"
+              }
+            },
+            {
+              "label": "pswarm_v2_subset",
+              "value": 104.32,
+              "filters": {
+                "metric": "strategy_baseline_v1_1"
+              }
+            },
+            {
+              "label": "price50_subset",
+              "value": 87.83,
+              "filters": {
+                "metric": "strategy_baseline_v1_1"
+              }
+            },
+            {
+              "label": "echo",
+              "value": 74.91,
+              "filters": {
+                "metric": "strategy_baseline_v1_1"
+              }
+            },
+            {
+              "label": "team_01__v2__p1",
+              "value": 59.55,
+              "filters": {
+                "metric": "strategy_baseline_v1_1"
+              }
+            },
+            {
+              "label": "team_02__v3__p2",
+              "value": 47.59,
+              "filters": {
+                "metric": "strategy_baseline_v1_1"
+              }
+            },
+            {
+              "label": "Market",
+              "value": 4.22,
+              "highlight": "market",
+              "filters": {
+                "metric": "strategy_baseline_v2"
+              }
+            },
+            {
+              "label": "pswarm_v2",
+              "value": 124.54,
+              "highlight": "best",
+              "filters": {
+                "metric": "strategy_baseline_v2"
+              }
+            },
+            {
+              "label": "pswarm_v2_subset",
+              "value": 114.32,
+              "filters": {
+                "metric": "strategy_baseline_v2"
+              }
+            },
+            {
+              "label": "price50_subset",
+              "value": 98.61,
+              "filters": {
+                "metric": "strategy_baseline_v2"
+              }
+            },
+            {
+              "label": "echo",
+              "value": 83.61,
+              "filters": {
+                "metric": "strategy_baseline_v2"
+              }
+            },
+            {
+              "label": "team_01__v2__p1",
+              "value": 73.3,
+              "filters": {
+                "metric": "strategy_baseline_v2"
+              }
+            },
+            {
+              "label": "team_02__v3__p2",
+              "value": 54.26,
+              "filters": {
+                "metric": "strategy_baseline_v2"
+              }
+            },
+            {
+              "label": "Market",
+              "value": null,
+              "highlight": "market",
+              "filters": {
+                "metric": "strategy_wgeo_mult_factor_v1"
+              }
+            },
+            {
+              "label": "pswarm_v2",
+              "value": 137.63,
+              "highlight": "best",
+              "filters": {
+                "metric": "strategy_wgeo_mult_factor_v1"
+              }
+            },
+            {
+              "label": "pswarm_v2_subset",
+              "value": 123.91,
+              "filters": {
+                "metric": "strategy_wgeo_mult_factor_v1"
+              }
+            },
+            {
+              "label": "price50_subset",
+              "value": 108.49,
+              "filters": {
+                "metric": "strategy_wgeo_mult_factor_v1"
+              }
+            },
+            {
+              "label": "echo",
+              "value": 92.48,
+              "filters": {
+                "metric": "strategy_wgeo_mult_factor_v1"
+              }
+            },
+            {
+              "label": "team_01__v2__p1",
+              "value": 78.94,
+              "filters": {
+                "metric": "strategy_wgeo_mult_factor_v1"
+              }
+            },
+            {
+              "label": "team_02__v3__p2",
+              "value": 67.52,
+              "filters": {
+                "metric": "strategy_wgeo_mult_factor_v1"
+              }
+            },
+            {
+              "label": "Market",
+              "value": null,
+              "highlight": "market",
+              "filters": {
+                "metric": "strategy_wgeo_mult_factor_v2"
+              }
+            },
+            {
+              "label": "pswarm_v2",
+              "value": 146.32,
+              "highlight": "best",
+              "filters": {
+                "metric": "strategy_wgeo_mult_factor_v2"
+              }
+            },
+            {
+              "label": "pswarm_v2_subset",
+              "value": 130.98,
+              "filters": {
+                "metric": "strategy_wgeo_mult_factor_v2"
+              }
+            },
+            {
+              "label": "price50_subset",
+              "value": null,
+              "filters": {
+                "metric": "strategy_wgeo_mult_factor_v2"
+              }
+            },
+            {
+              "label": "echo",
+              "value": 103.54,
+              "filters": {
+                "metric": "strategy_wgeo_mult_factor_v2"
+              }
+            },
+            {
+              "label": "team_01__v2__p1",
+              "value": 86.18,
+              "filters": {
+                "metric": "strategy_wgeo_mult_factor_v2"
+              }
+            },
+            {
+              "label": "team_02__v3__p2",
+              "value": 75.24,
+              "filters": {
+                "metric": "strategy_wgeo_mult_factor_v2"
+              }
+            },
+            {
+              "label": "Market",
+              "value": null,
+              "highlight": "market",
+              "filters": {
+                "metric": "signal_ic"
+              }
+            },
+            {
+              "label": "pswarm_v2",
+              "value": 0.11,
+              "highlight": "best",
+              "filters": {
+                "metric": "signal_ic"
+              }
+            },
+            {
+              "label": "pswarm_v2_subset",
+              "value": 0.1,
+              "filters": {
+                "metric": "signal_ic"
+              }
+            },
+            {
+              "label": "price50_subset",
+              "value": 0.09,
+              "filters": {
+                "metric": "signal_ic"
+              }
+            },
+            {
+              "label": "echo",
+              "value": 0.08,
+              "filters": {
+                "metric": "signal_ic"
+              }
+            },
+            {
+              "label": "team_01__v2__p1",
+              "value": 0.07,
+              "filters": {
+                "metric": "signal_ic"
+              }
+            },
+            {
+              "label": "team_02__v3__p2",
+              "value": 0.060000000000000005,
+              "filters": {
+                "metric": "signal_ic"
+              }
+            },
+            {
+              "label": "Market",
+              "value": null,
+              "highlight": "market",
+              "filters": {
+                "metric": "signal_icir"
+              }
+            },
+            {
+              "label": "pswarm_v2",
+              "value": 0.9,
+              "highlight": "best",
+              "filters": {
+                "metric": "signal_icir"
+              }
+            },
+            {
+              "label": "pswarm_v2_subset",
+              "value": 0.85,
+              "filters": {
+                "metric": "signal_icir"
+              }
+            },
+            {
+              "label": "price50_subset",
+              "value": 0.8,
+              "filters": {
+                "metric": "signal_icir"
+              }
+            },
+            {
+              "label": "echo",
+              "value": 0.75,
+              "filters": {
+                "metric": "signal_icir"
+              }
+            },
+            {
+              "label": "team_01__v2__p1",
+              "value": 0.7,
+              "filters": {
+                "metric": "signal_icir"
+              }
+            },
+            {
+              "label": "team_02__v3__p2",
+              "value": 0.65,
+              "filters": {
+                "metric": "signal_icir"
+              }
+            },
+            {
+              "label": "Market",
+              "value": 0.193,
+              "highlight": "market",
+              "lower": 0.189,
+              "upper": 0.197,
+              "filters": {
+                "metric": "brier"
+              }
+            },
+            {
+              "label": "pswarm_v2",
+              "value": 0.1962,
+              "highlight": "best",
+              "lower": 0.1922,
+              "upper": 0.2002,
+              "filters": {
+                "metric": "brier"
+              }
+            },
+            {
+              "label": "pswarm_v2_subset",
+              "value": 0.1989,
+              "lower": 0.1949,
+              "upper": 0.2029,
+              "filters": {
+                "metric": "brier"
+              }
+            },
+            {
+              "label": "price50_subset",
+              "value": 0.2023,
+              "lower": 0.1983,
+              "upper": 0.2063,
+              "filters": {
+                "metric": "brier"
+              }
+            },
+            {
+              "label": "echo",
+              "value": 0.2077,
+              "lower": 0.2037,
+              "upper": 0.2117,
+              "filters": {
+                "metric": "brier"
+              }
+            },
+            {
+              "label": "team_01__v2__p1",
+              "value": 0.2125,
+              "lower": 0.2085,
+              "upper": 0.2165,
+              "filters": {
+                "metric": "brier"
+              }
+            },
+            {
+              "label": "team_02__v3__p2",
+              "value": 0.2148,
+              "lower": 0.2108,
+              "upper": 0.2188,
+              "filters": {
+                "metric": "brier"
+              }
+            },
+            {
+              "label": "Market",
+              "value": 0.03,
+              "highlight": "market",
+              "filters": {
+                "metric": "ece"
+              }
+            },
+            {
+              "label": "pswarm_v2",
+              "value": 0.032,
+              "highlight": "best",
+              "filters": {
+                "metric": "ece"
+              }
+            },
+            {
+              "label": "pswarm_v2_subset",
+              "value": 0.034,
+              "filters": {
+                "metric": "ece"
+              }
+            },
+            {
+              "label": "price50_subset",
+              "value": 0.036,
+              "filters": {
+                "metric": "ece"
+              }
+            },
+            {
+              "label": "echo",
+              "value": 0.038,
+              "filters": {
+                "metric": "ece"
+              }
+            },
+            {
+              "label": "team_01__v2__p1",
+              "value": 0.04,
+              "filters": {
+                "metric": "ece"
+              }
+            },
+            {
+              "label": "team_02__v3__p2",
+              "value": 0.042,
+              "filters": {
+                "metric": "ece"
+              }
+            },
+            {
+              "label": "Market",
+              "value": 0.21,
+              "highlight": "market",
+              "filters": {
+                "metric": "fixed_tte"
+              }
+            },
+            {
+              "label": "pswarm_v2",
+              "value": 0.213,
+              "highlight": "best",
+              "filters": {
+                "metric": "fixed_tte"
+              }
+            },
+            {
+              "label": "pswarm_v2_subset",
+              "value": 0.216,
+              "filters": {
+                "metric": "fixed_tte"
+              }
+            },
+            {
+              "label": "price50_subset",
+              "value": 0.219,
+              "filters": {
+                "metric": "fixed_tte"
+              }
+            },
+            {
+              "label": "echo",
+              "value": 0.222,
+              "filters": {
+                "metric": "fixed_tte"
+              }
+            },
+            {
+              "label": "team_01__v2__p1",
+              "value": null,
+              "filters": {
+                "metric": "fixed_tte"
+              }
+            },
+            {
+              "label": "team_02__v3__p2",
+              "value": 0.228,
+              "filters": {
+                "metric": "fixed_tte"
+              }
+            },
+            {
+              "label": "Market",
+              "value": null,
+              "highlight": "market",
+              "filters": {
+                "metric": "deviation"
+              }
+            },
+            {
+              "label": "pswarm_v2",
+              "value": 1.03,
+              "highlight": "best",
+              "filters": {
+                "metric": "deviation"
+              }
+            },
+            {
+              "label": "pswarm_v2_subset",
+              "value": 1.01,
+              "filters": {
+                "metric": "deviation"
+              }
+            },
+            {
+              "label": "price50_subset",
+              "value": 0.99,
+              "filters": {
+                "metric": "deviation"
+              }
+            },
+            {
+              "label": "echo",
+              "value": 0.97,
+              "filters": {
+                "metric": "deviation"
+              }
+            },
+            {
+              "label": "team_01__v2__p1",
+              "value": 0.95,
+              "filters": {
+                "metric": "deviation"
+              }
+            },
+            {
+              "label": "team_02__v3__p2",
+              "value": 0.93,
+              "filters": {
+                "metric": "deviation"
+              }
+            },
+            {
+              "label": "Market",
+              "value": 0,
+              "highlight": "market",
+              "filters": {
+                "metric": "pnl_per_share"
+              }
+            },
+            {
+              "label": "pswarm_v2",
+              "value": 0.044,
+              "highlight": "best",
+              "filters": {
+                "metric": "pnl_per_share"
+              }
+            },
+            {
+              "label": "pswarm_v2_subset",
+              "value": 0.04,
+              "filters": {
+                "metric": "pnl_per_share"
+              }
+            },
+            {
+              "label": "price50_subset",
+              "value": 0.036,
+              "filters": {
+                "metric": "pnl_per_share"
+              }
+            },
+            {
+              "label": "echo",
+              "value": 0.032,
+              "filters": {
+                "metric": "pnl_per_share"
+              }
+            },
+            {
+              "label": "team_01__v2__p1",
+              "value": 0.028,
+              "filters": {
+                "metric": "pnl_per_share"
+              }
+            },
+            {
+              "label": "team_02__v3__p2",
+              "value": 0.024,
+              "filters": {
+                "metric": "pnl_per_share"
+              }
+            }
+          ],
+          "reference_lines": []
+        },
+        {
+          "id": "detail",
+          "type": "table",
+          "columns": [
+            {
+              "key": "model",
+              "label": "模型",
+              "kind": "text"
+            },
+            {
+              "key": "raw_all",
+              "label": "原始预测条数(整表)",
+              "kind": "number",
+              "digits": 0
+            },
+            {
+              "key": "raw_window",
+              "label": "原始预测条数(窗口内)",
+              "kind": "number",
+              "digits": 0
+            },
+            {
+              "key": "brier_markets",
+              "label": "Brier已结算市场数",
+              "kind": "number",
+              "digits": 0
+            },
+            {
+              "key": "ece_mcb",
+              "label": "校准MCB",
+              "kind": "number",
+              "digits": 4
+            }
+          ],
+          "rows": [
+            {
+              "model": "Market",
+              "raw_all": 120000,
+              "raw_window": 98000,
+              "brier_markets": 842,
+              "ece_mcb": 0.012
+            },
+            {
+              "model": "pswarm_v2",
+              "raw_all": 123000,
+              "raw_window": 100500,
+              "brier_markets": 841,
+              "ece_mcb": 0.013
+            },
+            {
+              "model": "pswarm_v2_subset",
+              "raw_all": 126000,
+              "raw_window": 103000,
+              "brier_markets": 840,
+              "ece_mcb": 0.014
+            },
+            {
+              "model": "price50_subset",
+              "raw_all": 129000,
+              "raw_window": 105500,
+              "brier_markets": 839,
+              "ece_mcb": 0.015
+            },
+            {
+              "model": "echo",
+              "raw_all": 132000,
+              "raw_window": 108000,
+              "brier_markets": 838,
+              "ece_mcb": 0.016
+            },
+            {
+              "model": "team_01__v2__p1",
+              "raw_all": 135000,
+              "raw_window": 110500,
+              "brier_markets": 837,
+              "ece_mcb": 0.017
+            },
+            {
+              "model": "team_02__v3__p2",
+              "raw_all": 138000,
+              "raw_window": 113000,
+              "brier_markets": 836,
+              "ece_mcb": 0.018
+            }
+          ]
+        }
+      ],
+      "artifacts": [
+        {
+          "name": "benchmark_overview.csv",
+          "path": "overview/benchmark_overview.csv",
+          "bytes": 5120
+        }
+      ]
+    },
+    "reproduce": {
+      "text": "实验 ID：btr-20261019-ovrvw001 · Benchmark / 总览\n服务器：8.211.188.216 · 结果 /var/lib/pm-backtest/runs/btr-20261019-ovrvw001\n配置：/var/lib/pm-backtest/runs/btr-20261019-ovrvw001/run-config.json\n窗口：[2026-08-07T21:16:28+08:00, 2026-08-31T21:00:35+08:00) · Domain 全部 · 数据集 telonex/20260913-v0uepugf\n输入：pswarm_v2_subset sha256=9f2c…e1 · price50_subset sha256=77ab…03 · 预测表全集 100 个 sha256=4c0d…aa · 结算 sha256=b1e2…9c · 域映射 sha256=0d3f…52\n引擎：pm-engine@pm-engine-20261019-3b7dbbede090 · pearson-dmid-v8 · 执行器 5a6d16b · Python 3.13 · 依赖锁 sha256=ab12…77\n命令：cd /opt/pm-backtest-engine/releases/pm-engine-20261019-3b7dbbede090/pm_backtest_v2 && python -m scripts.run_brier_score_model_comparison --window-start 2026-08-07T21:16:28+08:00 \n重跑：/opt/pm-backtest-runner/releases/5a6d16b/bin/pmbt rerun btr-20261019-ovrvw001",
+      "fields": {
+        "run_id": "btr-20261019-ovrvw001",
+        "engine": "pm-engine-20261019-3b7dbbede090"
+      }
+    },
+    "input_fingerprints": {
+      "data_generation": "dg-1f3a9c20b7d44e10",
+      "files": {
+        "backtest/market_data/settlement.parquet": "sha256:b1e2000000000000000000000000000000000000000000000000000000009c",
+        "backtest/model_pred/sidecar/domain_authority_settlement.parquet": "sha256:0d3f000000000000000000000000000000000000000000000000000000000052",
+        "backtest/model_pred/pswarm_v2_pred.parquet": "sha256:9f2c0000000000000000000000000000000000000000000000000000000000e1"
+      }
+    },
+    "restored_inputs": [],
+    "artifacts_url": "/api/v1/backtest/runs/btr-20261019-ovrvw001/artifacts",
+    "artifacts_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

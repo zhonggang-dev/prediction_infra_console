@@ -1,0 +1,124 @@
+{
+  "data": {
+    "items": [
+      {
+        "kind": "strategy",
+        "key": "baseline",
+        "version": "legacy",
+        "origin": "legacy",
+        "status": "available",
+        "metadata": {
+          "label": "Baseline",
+          "description": "Baseline V3：按预测与盘口价差入场。",
+          "definition": {
+            "kind": "baseline",
+            "validated_domains": null
+          },
+          "price_only": false,
+          "reads_hourly_factors": false,
+          "requires_execution_cache": true
+        }
+      },
+      {
+        "kind": "strategy",
+        "key": "baseline_v1_1",
+        "version": "legacy",
+        "origin": "legacy",
+        "status": "available",
+        "metadata": {
+          "label": "Baseline v1.1",
+          "description": "共同 3h 网格上的方向交易。",
+          "definition": {
+            "kind": "baseline",
+            "validated_domains": null
+          },
+          "price_only": false,
+          "reads_hourly_factors": false,
+          "requires_execution_cache": true
+        }
+      },
+      {
+        "kind": "strategy",
+        "key": "baseline_v2",
+        "version": "legacy",
+        "origin": "legacy",
+        "status": "available",
+        "metadata": {
+          "label": "Baseline v2",
+          "description": "加入现金约束的 Baseline。",
+          "definition": {
+            "kind": "baseline",
+            "validated_domains": null
+          },
+          "price_only": false,
+          "reads_hourly_factors": false,
+          "requires_execution_cache": true
+        }
+      },
+      {
+        "kind": "strategy",
+        "key": "wgeo_mult_factor_v1",
+        "version": "legacy",
+        "origin": "legacy",
+        "status": "available",
+        "metadata": {
+          "label": "MultFactor v1 · W/G only",
+          "description": "只在 World / Geopolitics 成交。",
+          "definition": {
+            "kind": "wgeo_mult_factor",
+            "validated_domains": [
+              "World",
+              "Geopolitics"
+            ]
+          },
+          "price_only": false,
+          "reads_hourly_factors": false,
+          "requires_execution_cache": true
+        }
+      },
+      {
+        "kind": "strategy",
+        "key": "wgeo_mult_factor_v2",
+        "version": "legacy",
+        "origin": "legacy",
+        "status": "available",
+        "metadata": {
+          "label": "MultFactor v2 · W/G only",
+          "description": "读取小时线因子。",
+          "definition": {
+            "kind": "wgeo_mult_factor",
+            "validated_domains": [
+              "World",
+              "Geopolitics"
+            ]
+          },
+          "price_only": false,
+          "reads_hourly_factors": true,
+          "requires_execution_cache": true
+        }
+      },
+      {
+        "kind": "strategy",
+        "key": "price_v4",
+        "version": "legacy",
+        "origin": "legacy",
+        "status": "available",
+        "metadata": {
+          "label": "Price V4（纯价格）",
+          "description": "不读模型预测，只看盘口价。",
+          "definition": {
+            "kind": "price_probability",
+            "validated_domains": null
+          },
+          "price_only": true,
+          "reads_hourly_factors": false,
+          "requires_execution_cache": false
+        }
+      }
+    ],
+    "limit": 100,
+    "offset": 0,
+    "has_more": false,
+    "observed_at": "2026-10-19T14:00:00Z"
+  }
+}

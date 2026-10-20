@@ -1,0 +1,192 @@
+{
+  "data": {
+    "items": [
+      {
+        "kind": "factor",
+        "key": "rev_momentum_3h",
+        "version": "legacy/pool-v1",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "pool",
+        "pool_changed_by": "migration",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "REV 动量 3h",
+          "direction": -1,
+          "description": "REV 动量 3h：研究侧登记的因子。",
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          },
+          "latest_run_id": "btr-20261019-sig00001"
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "near_logdiff",
+        "version": "legacy/pool-v1",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "pool",
+        "pool_changed_by": "migration",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "近端对数差",
+          "direction": 1,
+          "description": "近端对数差：研究侧登记的因子。",
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "book_slope_hourly",
+        "version": "legacy/pool-v1",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "pool",
+        "pool_changed_by": "migration",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "盘口斜率（小时）",
+          "direction": 1,
+          "description": "盘口斜率（小时）：研究侧登记的因子。",
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_talib_rsi",
+        "version": "legacy/pool-v1",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "pool",
+        "pool_changed_by": "migration",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "TA-Lib RSI（小时）",
+          "direction": -1,
+          "description": "TA-Lib RSI（小时）：研究侧登记的因子。",
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "spread_pct",
+        "version": "legacy/pool-v1",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "pool",
+        "pool_changed_by": "migration",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "买卖价差占比",
+          "direction": -1,
+          "description": "买卖价差占比：研究侧登记的因子。",
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "depth_imbalance",
+        "version": "legacy/pool-v1",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "pool",
+        "pool_changed_by": "migration",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "深度失衡",
+          "direction": 1,
+          "description": "深度失衡：研究侧登记的因子。",
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "vol_burst",
+        "version": "research_0919/20260919-a",
+        "origin": "platform",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_by": "console",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "成交突增",
+          "direction": 1,
+          "description": "成交突增：研究侧登记的因子。",
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "resid_edge",
+        "version": "research_0919/20260919-a",
+        "origin": "platform",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_by": "console",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "残差 edge",
+          "direction": 1,
+          "description": "残差 edge：研究侧登记的因子。",
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "late_trade_ratio",
+        "version": "research_0919/20260919-a",
+        "origin": "platform",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_by": "console",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "尾盘成交占比",
+          "direction": -1,
+          "description": "尾盘成交占比：研究侧登记的因子。",
+          "available": false,
+          "unavailable_reason": "telonex 小时线因子目录缺少该因子",
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      }
+    ],
+    "limit": 100,
+    "offset": 0,
+    "has_more": false,
+    "observed_at": "2026-10-19T14:00:00Z"
+  }
+}

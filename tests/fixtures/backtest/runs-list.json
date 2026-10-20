@@ -1,0 +1,914 @@
+{
+  "data": {
+    "items": [
+      {
+        "run_id": "btr-20261019-trade001",
+        "batch_id": "btb-20261019-7h2kd9wq",
+        "parent_run_id": null,
+        "origin": "platform",
+        "board": "trading",
+        "item": "strategy_comparison",
+        "status": "succeeded",
+        "lost": false,
+        "stage": null,
+        "stage_label": null,
+        "progress": null,
+        "log_tail": null,
+        "heartbeat_at": "2026-10-19T14:41:20Z",
+        "attempt": 1,
+        "cancel_requested": false,
+        "config_sha256": "trade001a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4",
+        "config": {
+          "schema_version": "backtest.run_config.v1",
+          "run_id": "btr-20261019-trade001",
+          "batch_id": "btb-20261019-7h2kd9wq",
+          "parent_run_id": null,
+          "board": "trading",
+          "item": "strategy_comparison",
+          "engine": "pm-engine-20261019-3b7dbbede090",
+          "dataset": "telonex",
+          "data_generation": "dg-1f3a9c20b7d44e10",
+          "window": {
+            "start": "2026-08-07T21:16:28+08:00",
+            "end_exclusive": "2026-08-31T21:00:35+08:00",
+            "align": "strict_common"
+          },
+          "domains": {
+            "mode": "include",
+            "values": [
+              "all"
+            ]
+          },
+          "objects": {
+            "models": [
+              {
+                "key": "pswarm_v2",
+                "version": "legacy/legacy",
+                "model_name": "pswarm_v2",
+                "sha256": "9f2c0000000000000000000000000000000000000000000000000000000000e1"
+              }
+            ],
+            "strategies": [],
+            "factors": []
+          },
+          "params": {
+            "scope": "strict"
+          },
+          "requested_by": "console:console",
+          "created_at": "2026-10-19T14:30:00+08:00"
+        },
+        "rerunnable": true,
+        "requested_by": "console:console",
+        "created_at": "2026-10-19T14:30:00Z",
+        "started_at": "2026-10-19T14:30:05Z",
+        "finished_at": "2026-10-19T14:41:22Z",
+        "restored_inputs": [],
+        "artifacts_url": "/api/v1/backtest/runs/btr-20261019-trade001/artifacts",
+        "artifacts_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "run_id": "btr-20261019-ovrvw001",
+        "batch_id": "btb-20261019-7h2kd9wq",
+        "parent_run_id": null,
+        "origin": "platform",
+        "board": "benchmark",
+        "item": "overview",
+        "status": "succeeded",
+        "lost": false,
+        "stage": null,
+        "stage_label": null,
+        "progress": null,
+        "log_tail": null,
+        "heartbeat_at": "2026-10-19T14:41:20Z",
+        "attempt": 1,
+        "cancel_requested": false,
+        "config_sha256": "ovrvw001a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4",
+        "config": {
+          "schema_version": "backtest.run_config.v1",
+          "run_id": "btr-20261019-ovrvw001",
+          "batch_id": "btb-20261019-7h2kd9wq",
+          "parent_run_id": null,
+          "board": "benchmark",
+          "item": "overview",
+          "engine": "pm-engine-20261019-3b7dbbede090",
+          "dataset": "telonex",
+          "data_generation": "dg-1f3a9c20b7d44e10",
+          "window": {
+            "start": "2026-08-07T21:16:28+08:00",
+            "end_exclusive": "2026-08-31T21:00:35+08:00",
+            "align": "strict_common"
+          },
+          "domains": {
+            "mode": "include",
+            "values": [
+              "all"
+            ]
+          },
+          "objects": {
+            "models": [
+              {
+                "key": "pswarm_v2",
+                "version": "legacy/legacy",
+                "model_name": "pswarm_v2",
+                "sha256": "9f2c0000000000000000000000000000000000000000000000000000000000e1"
+              }
+            ],
+            "strategies": [],
+            "factors": []
+          },
+          "params": {
+            "scope": "strict"
+          },
+          "requested_by": "console:console",
+          "created_at": "2026-10-19T14:30:00+08:00"
+        },
+        "rerunnable": true,
+        "requested_by": "console:console",
+        "created_at": "2026-10-19T14:30:00Z",
+        "started_at": "2026-10-19T14:30:05Z",
+        "finished_at": "2026-10-19T14:41:22Z",
+        "restored_inputs": [],
+        "artifacts_url": "/api/v1/backtest/runs/btr-20261019-ovrvw001/artifacts",
+        "artifacts_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "run_id": "btr-20261019-brier001",
+        "batch_id": "btb-20261019-7h2kd9wq",
+        "parent_run_id": null,
+        "origin": "platform",
+        "board": "benchmark",
+        "item": "resolved_event_brier",
+        "status": "succeeded",
+        "lost": false,
+        "stage": null,
+        "stage_label": null,
+        "progress": null,
+        "log_tail": null,
+        "heartbeat_at": "2026-10-19T14:41:20Z",
+        "attempt": 1,
+        "cancel_requested": false,
+        "config_sha256": "brier001a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4",
+        "config": {
+          "schema_version": "backtest.run_config.v1",
+          "run_id": "btr-20261019-brier001",
+          "batch_id": "btb-20261019-7h2kd9wq",
+          "parent_run_id": null,
+          "board": "benchmark",
+          "item": "resolved_event_brier",
+          "engine": "pm-engine-20261019-3b7dbbede090",
+          "dataset": "telonex",
+          "data_generation": "dg-1f3a9c20b7d44e10",
+          "window": {
+            "start": "2026-08-07T21:16:28+08:00",
+            "end_exclusive": "2026-08-31T21:00:35+08:00",
+            "align": "strict_common"
+          },
+          "domains": {
+            "mode": "include",
+            "values": [
+              "all"
+            ]
+          },
+          "objects": {
+            "models": [
+              {
+                "key": "pswarm_v2",
+                "version": "legacy/legacy",
+                "model_name": "pswarm_v2",
+                "sha256": "9f2c0000000000000000000000000000000000000000000000000000000000e1"
+              }
+            ],
+            "strategies": [],
+            "factors": []
+          },
+          "params": {
+            "scope": "strict"
+          },
+          "requested_by": "console:console",
+          "created_at": "2026-10-19T14:30:00+08:00"
+        },
+        "rerunnable": true,
+        "requested_by": "console:console",
+        "created_at": "2026-10-19T14:30:00Z",
+        "started_at": "2026-10-19T14:30:05Z",
+        "finished_at": "2026-10-19T14:41:22Z",
+        "restored_inputs": [],
+        "artifacts_url": "/api/v1/backtest/runs/btr-20261019-brier001/artifacts",
+        "artifacts_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "run_id": "btr-20261019-calib001",
+        "batch_id": "btb-20261019-7h2kd9wq",
+        "parent_run_id": null,
+        "origin": "platform",
+        "board": "benchmark",
+        "item": "calibration",
+        "status": "succeeded",
+        "lost": false,
+        "stage": null,
+        "stage_label": null,
+        "progress": null,
+        "log_tail": null,
+        "heartbeat_at": "2026-10-19T14:41:20Z",
+        "attempt": 1,
+        "cancel_requested": false,
+        "config_sha256": "calib001a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4",
+        "config": {
+          "schema_version": "backtest.run_config.v1",
+          "run_id": "btr-20261019-calib001",
+          "batch_id": "btb-20261019-7h2kd9wq",
+          "parent_run_id": null,
+          "board": "benchmark",
+          "item": "calibration",
+          "engine": "pm-engine-20261019-3b7dbbede090",
+          "dataset": "telonex",
+          "data_generation": "dg-1f3a9c20b7d44e10",
+          "window": {
+            "start": "2026-08-07T21:16:28+08:00",
+            "end_exclusive": "2026-08-31T21:00:35+08:00",
+            "align": "strict_common"
+          },
+          "domains": {
+            "mode": "include",
+            "values": [
+              "all"
+            ]
+          },
+          "objects": {
+            "models": [
+              {
+                "key": "pswarm_v2",
+                "version": "legacy/legacy",
+                "model_name": "pswarm_v2",
+                "sha256": "9f2c0000000000000000000000000000000000000000000000000000000000e1"
+              }
+            ],
+            "strategies": [],
+            "factors": []
+          },
+          "params": {
+            "scope": "strict"
+          },
+          "requested_by": "console:console",
+          "created_at": "2026-10-19T14:30:00+08:00"
+        },
+        "rerunnable": true,
+        "requested_by": "console:console",
+        "created_at": "2026-10-19T14:30:00Z",
+        "started_at": "2026-10-19T14:30:05Z",
+        "finished_at": "2026-10-19T14:41:22Z",
+        "restored_inputs": [],
+        "artifacts_url": "/api/v1/backtest/runs/btr-20261019-calib001/artifacts",
+        "artifacts_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "run_id": "btr-20261019-sig00001",
+        "batch_id": "btb-20261019-7h2kd9wq",
+        "parent_run_id": null,
+        "origin": "platform",
+        "board": "signal",
+        "item": "factor",
+        "status": "succeeded",
+        "lost": false,
+        "stage": null,
+        "stage_label": null,
+        "progress": null,
+        "log_tail": null,
+        "heartbeat_at": "2026-10-19T14:41:20Z",
+        "attempt": 1,
+        "cancel_requested": false,
+        "config_sha256": "sig00001a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4",
+        "config": {
+          "schema_version": "backtest.run_config.v1",
+          "run_id": "btr-20261019-sig00001",
+          "batch_id": "btb-20261019-7h2kd9wq",
+          "parent_run_id": null,
+          "board": "signal",
+          "item": "factor",
+          "engine": "pm-engine-20261019-3b7dbbede090",
+          "dataset": "telonex",
+          "data_generation": "dg-1f3a9c20b7d44e10",
+          "window": {
+            "start": "2026-08-07T21:16:28+08:00",
+            "end_exclusive": "2026-08-31T21:00:35+08:00",
+            "align": "strict_common"
+          },
+          "domains": {
+            "mode": "include",
+            "values": [
+              "all"
+            ]
+          },
+          "objects": {
+            "models": [
+              {
+                "key": "pswarm_v2",
+                "version": "legacy/legacy",
+                "model_name": "pswarm_v2",
+                "sha256": "9f2c0000000000000000000000000000000000000000000000000000000000e1"
+              }
+            ],
+            "strategies": [],
+            "factors": []
+          },
+          "params": {
+            "scope": "strict"
+          },
+          "requested_by": "console:console",
+          "created_at": "2026-10-19T14:30:00+08:00"
+        },
+        "rerunnable": true,
+        "requested_by": "console:console",
+        "created_at": "2026-10-19T14:30:00Z",
+        "started_at": "2026-10-19T14:30:05Z",
+        "finished_at": "2026-10-19T14:41:22Z",
+        "restored_inputs": [],
+        "artifacts_url": "/api/v1/backtest/runs/btr-20261019-sig00001/artifacts",
+        "artifacts_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "run_id": "btr-20261019-corr0001",
+        "batch_id": "btb-20261019-7h2kd9wq",
+        "parent_run_id": null,
+        "origin": "platform",
+        "board": "signal",
+        "item": "correlation",
+        "status": "succeeded",
+        "lost": false,
+        "stage": null,
+        "stage_label": null,
+        "progress": null,
+        "log_tail": null,
+        "heartbeat_at": "2026-10-19T14:41:20Z",
+        "attempt": 1,
+        "cancel_requested": false,
+        "config_sha256": "corr0001a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4",
+        "config": {
+          "schema_version": "backtest.run_config.v1",
+          "run_id": "btr-20261019-corr0001",
+          "batch_id": "btb-20261019-7h2kd9wq",
+          "parent_run_id": null,
+          "board": "signal",
+          "item": "correlation",
+          "engine": "pm-engine-20261019-3b7dbbede090",
+          "dataset": "telonex",
+          "data_generation": "dg-1f3a9c20b7d44e10",
+          "window": {
+            "start": "2026-08-07T21:16:28+08:00",
+            "end_exclusive": "2026-08-31T21:00:35+08:00",
+            "align": "strict_common"
+          },
+          "domains": {
+            "mode": "include",
+            "values": [
+              "all"
+            ]
+          },
+          "objects": {
+            "models": [
+              {
+                "key": "pswarm_v2",
+                "version": "legacy/legacy",
+                "model_name": "pswarm_v2",
+                "sha256": "9f2c0000000000000000000000000000000000000000000000000000000000e1"
+              }
+            ],
+            "strategies": [],
+            "factors": []
+          },
+          "params": {
+            "scope": "strict"
+          },
+          "requested_by": "console:console",
+          "created_at": "2026-10-19T14:30:00+08:00"
+        },
+        "rerunnable": true,
+        "requested_by": "console:console",
+        "created_at": "2026-10-19T14:30:00Z",
+        "started_at": "2026-10-19T14:30:05Z",
+        "finished_at": "2026-10-19T14:41:22Z",
+        "restored_inputs": [],
+        "artifacts_url": "/api/v1/backtest/runs/btr-20261019-corr0001/artifacts",
+        "artifacts_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "run_id": "btr-20261019-brier002",
+        "batch_id": "btb-20261019-7h2kd9wq",
+        "parent_run_id": "btr-20261019-brier001",
+        "origin": "platform",
+        "board": "benchmark",
+        "item": "resolved_event_brier",
+        "status": "succeeded",
+        "lost": false,
+        "stage": null,
+        "stage_label": null,
+        "progress": null,
+        "log_tail": null,
+        "heartbeat_at": "2026-10-19T14:41:20Z",
+        "attempt": 1,
+        "cancel_requested": false,
+        "config_sha256": "brier002a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4",
+        "config": {
+          "schema_version": "backtest.run_config.v1",
+          "run_id": "btr-20261019-brier002",
+          "batch_id": "btb-20261019-7h2kd9wq",
+          "parent_run_id": "btr-20261019-brier001",
+          "board": "benchmark",
+          "item": "resolved_event_brier",
+          "engine": "pm-engine-20261019-3b7dbbede090",
+          "dataset": "telonex",
+          "data_generation": "dg-8c7d6e5f4a3b2c1d",
+          "window": {
+            "start": "2026-08-07T21:16:28+08:00",
+            "end_exclusive": "2026-08-31T21:00:35+08:00",
+            "align": "strict_common"
+          },
+          "domains": {
+            "mode": "include",
+            "values": [
+              "all"
+            ]
+          },
+          "objects": {
+            "models": [
+              {
+                "key": "pswarm_v2",
+                "version": "legacy/legacy",
+                "model_name": "pswarm_v2",
+                "sha256": "9f2c0000000000000000000000000000000000000000000000000000000000e1"
+              }
+            ],
+            "strategies": [],
+            "factors": []
+          },
+          "params": {
+            "scope": "strict",
+            "ci_level": 95
+          },
+          "requested_by": "console:console",
+          "created_at": "2026-10-19T14:30:00+08:00"
+        },
+        "rerunnable": true,
+        "requested_by": "console:console",
+        "created_at": "2026-10-19T14:30:00Z",
+        "started_at": "2026-10-19T14:30:05Z",
+        "finished_at": "2026-10-19T14:41:22Z",
+        "restored_inputs": [],
+        "artifacts_url": "/api/v1/backtest/runs/btr-20261019-brier002/artifacts",
+        "artifacts_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "run_id": "btr-20261019-queue001",
+        "batch_id": "btb-20261019-7h2kd9wq",
+        "parent_run_id": null,
+        "origin": "platform",
+        "board": "benchmark",
+        "item": "model_signal",
+        "status": "queued",
+        "lost": false,
+        "stage": null,
+        "stage_label": null,
+        "progress": null,
+        "log_tail": null,
+        "heartbeat_at": null,
+        "attempt": 1,
+        "cancel_requested": false,
+        "config_sha256": "queue001a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4",
+        "config": {
+          "schema_version": "backtest.run_config.v1",
+          "run_id": "btr-20261019-queue001",
+          "batch_id": "btb-20261019-7h2kd9wq",
+          "parent_run_id": null,
+          "board": "benchmark",
+          "item": "model_signal",
+          "engine": "pm-engine-20261019-3b7dbbede090",
+          "dataset": "telonex",
+          "data_generation": "dg-1f3a9c20b7d44e10",
+          "window": {
+            "start": "2026-08-07T21:16:28+08:00",
+            "end_exclusive": "2026-08-31T21:00:35+08:00",
+            "align": "strict_common"
+          },
+          "domains": {
+            "mode": "include",
+            "values": [
+              "all"
+            ]
+          },
+          "objects": {
+            "models": [
+              {
+                "key": "pswarm_v2",
+                "version": "legacy/legacy",
+                "model_name": "pswarm_v2",
+                "sha256": "9f2c0000000000000000000000000000000000000000000000000000000000e1"
+              }
+            ],
+            "strategies": [],
+            "factors": []
+          },
+          "params": {
+            "scope": "strict"
+          },
+          "requested_by": "console:console",
+          "created_at": "2026-10-19T14:30:00+08:00"
+        },
+        "rerunnable": true,
+        "requested_by": "console:console",
+        "created_at": "2026-10-19T14:30:00Z",
+        "started_at": null,
+        "finished_at": null
+      },
+      {
+        "run_id": "btr-20261019-run00001",
+        "batch_id": "btb-20261019-7h2kd9wq",
+        "parent_run_id": null,
+        "origin": "platform",
+        "board": "trading",
+        "item": "strategy_comparison",
+        "status": "running",
+        "lost": false,
+        "stage": "cache_build",
+        "stage_label": "构建执行缓存 2/3",
+        "progress": {
+          "done": 2,
+          "total": 3
+        },
+        "log_tail": "[14:30:41] build_all_execution_caches --incremental --workers 4\n[14:30:58] pswarm_v2@telonex 1,540,221 rows\n[14:31:00] echo@telonex 812,004 rows",
+        "heartbeat_at": "2026-10-19T14:31:00Z",
+        "attempt": 1,
+        "cancel_requested": false,
+        "config_sha256": "run00001a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4",
+        "config": {
+          "schema_version": "backtest.run_config.v1",
+          "run_id": "btr-20261019-run00001",
+          "batch_id": "btb-20261019-7h2kd9wq",
+          "parent_run_id": null,
+          "board": "trading",
+          "item": "strategy_comparison",
+          "engine": "pm-engine-20261019-3b7dbbede090",
+          "dataset": "telonex",
+          "data_generation": "dg-1f3a9c20b7d44e10",
+          "window": {
+            "start": "2026-08-07T21:16:28+08:00",
+            "end_exclusive": "2026-08-31T21:00:35+08:00",
+            "align": "strict_common"
+          },
+          "domains": {
+            "mode": "include",
+            "values": [
+              "all"
+            ]
+          },
+          "objects": {
+            "models": [
+              {
+                "key": "pswarm_v2",
+                "version": "legacy/legacy",
+                "model_name": "pswarm_v2",
+                "sha256": "9f2c0000000000000000000000000000000000000000000000000000000000e1"
+              }
+            ],
+            "strategies": [],
+            "factors": []
+          },
+          "params": {
+            "scope": "strict"
+          },
+          "requested_by": "console:console",
+          "created_at": "2026-10-19T14:30:00+08:00"
+        },
+        "rerunnable": true,
+        "requested_by": "console:console",
+        "created_at": "2026-10-19T14:30:00Z",
+        "started_at": "2026-10-19T14:30:05Z",
+        "finished_at": null
+      },
+      {
+        "run_id": "btr-20261019-lost0001",
+        "batch_id": "btb-20261019-7h2kd9wq",
+        "parent_run_id": null,
+        "origin": "platform",
+        "board": "benchmark",
+        "item": "calibration",
+        "status": "running",
+        "lost": true,
+        "stage": "bench",
+        "stage_label": "运行 calibration",
+        "progress": null,
+        "log_tail": "[13:04:00] bootstrap 800/2000",
+        "heartbeat_at": "2026-10-19T13:04:00Z",
+        "attempt": 1,
+        "cancel_requested": false,
+        "config_sha256": "lost0001a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4",
+        "config": {
+          "schema_version": "backtest.run_config.v1",
+          "run_id": "btr-20261019-lost0001",
+          "batch_id": "btb-20261019-7h2kd9wq",
+          "parent_run_id": null,
+          "board": "benchmark",
+          "item": "calibration",
+          "engine": "pm-engine-20261019-3b7dbbede090",
+          "dataset": "telonex",
+          "data_generation": "dg-1f3a9c20b7d44e10",
+          "window": {
+            "start": "2026-08-07T21:16:28+08:00",
+            "end_exclusive": "2026-08-31T21:00:35+08:00",
+            "align": "strict_common"
+          },
+          "domains": {
+            "mode": "include",
+            "values": [
+              "all"
+            ]
+          },
+          "objects": {
+            "models": [
+              {
+                "key": "pswarm_v2",
+                "version": "legacy/legacy",
+                "model_name": "pswarm_v2",
+                "sha256": "9f2c0000000000000000000000000000000000000000000000000000000000e1"
+              }
+            ],
+            "strategies": [],
+            "factors": []
+          },
+          "params": {
+            "scope": "strict"
+          },
+          "requested_by": "console:console",
+          "created_at": "2026-10-19T14:30:00+08:00"
+        },
+        "rerunnable": true,
+        "requested_by": "console:console",
+        "created_at": "2026-10-19T14:30:00Z",
+        "started_at": "2026-10-19T13:00:05Z",
+        "finished_at": null
+      },
+      {
+        "run_id": "btr-20261019-fail0001",
+        "batch_id": "btb-20261019-7h2kd9wq",
+        "parent_run_id": null,
+        "origin": "platform",
+        "board": "benchmark",
+        "item": "fixed_horizon_brier",
+        "status": "failed",
+        "lost": false,
+        "stage": null,
+        "stage_label": null,
+        "progress": null,
+        "log_tail": null,
+        "heartbeat_at": null,
+        "attempt": 1,
+        "cancel_requested": false,
+        "config_sha256": "fail0001a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4",
+        "config": {
+          "schema_version": "backtest.run_config.v1",
+          "run_id": "btr-20261019-fail0001",
+          "batch_id": "btb-20261019-7h2kd9wq",
+          "parent_run_id": null,
+          "board": "benchmark",
+          "item": "fixed_horizon_brier",
+          "engine": "pm-engine-20261019-3b7dbbede090",
+          "dataset": "telonex",
+          "data_generation": "dg-1f3a9c20b7d44e10",
+          "window": {
+            "start": "2026-08-07T21:16:28+08:00",
+            "end_exclusive": "2026-08-31T21:00:35+08:00",
+            "align": "strict_common"
+          },
+          "domains": {
+            "mode": "include",
+            "values": [
+              "all"
+            ]
+          },
+          "objects": {
+            "models": [
+              {
+                "key": "pswarm_v2",
+                "version": "legacy/legacy",
+                "model_name": "pswarm_v2",
+                "sha256": "9f2c0000000000000000000000000000000000000000000000000000000000e1"
+              }
+            ],
+            "strategies": [],
+            "factors": []
+          },
+          "params": {
+            "scope": "strict"
+          },
+          "requested_by": "console:console",
+          "created_at": "2026-10-19T14:30:00+08:00"
+        },
+        "rerunnable": true,
+        "requested_by": "console:console",
+        "created_at": "2026-10-19T14:30:00Z",
+        "started_at": "2026-10-19T12:00:05Z",
+        "finished_at": "2026-10-19T12:03:00Z",
+        "error": {
+          "code": "script_failed",
+          "message": "run_fixed_horizon_brier_benchmark 以退出码 1 结束",
+          "log_tail": "Traceback (most recent call last):\n  File \"scripts/run_fixed_horizon_brier_benchmark.py\", line 212, in main\nValueError: x_days 7 has no candidate markets"
+        }
+      },
+      {
+        "run_id": "btr-20261019-cancel01",
+        "batch_id": "btb-20261019-7h2kd9wq",
+        "parent_run_id": null,
+        "origin": "platform",
+        "board": "trading",
+        "item": "strategy_comparison",
+        "status": "cancelled",
+        "lost": false,
+        "stage": null,
+        "stage_label": null,
+        "progress": null,
+        "log_tail": null,
+        "heartbeat_at": null,
+        "attempt": 1,
+        "cancel_requested": false,
+        "config_sha256": "cancel01a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4",
+        "config": {
+          "schema_version": "backtest.run_config.v1",
+          "run_id": "btr-20261019-cancel01",
+          "batch_id": "btb-20261019-7h2kd9wq",
+          "parent_run_id": null,
+          "board": "trading",
+          "item": "strategy_comparison",
+          "engine": "pm-engine-20261019-3b7dbbede090",
+          "dataset": "telonex",
+          "data_generation": "dg-1f3a9c20b7d44e10",
+          "window": {
+            "start": "2026-08-07T21:16:28+08:00",
+            "end_exclusive": "2026-08-31T21:00:35+08:00",
+            "align": "strict_common"
+          },
+          "domains": {
+            "mode": "include",
+            "values": [
+              "all"
+            ]
+          },
+          "objects": {
+            "models": [
+              {
+                "key": "pswarm_v2",
+                "version": "legacy/legacy",
+                "model_name": "pswarm_v2",
+                "sha256": "9f2c0000000000000000000000000000000000000000000000000000000000e1"
+              }
+            ],
+            "strategies": [],
+            "factors": []
+          },
+          "params": {
+            "scope": "strict"
+          },
+          "requested_by": "console:console",
+          "created_at": "2026-10-19T14:30:00+08:00"
+        },
+        "rerunnable": true,
+        "requested_by": "console:console",
+        "created_at": "2026-10-19T14:30:00Z",
+        "started_at": null,
+        "finished_at": "2026-10-19T11:00:00Z"
+      },
+      {
+        "run_id": "btr-20261019-batch001",
+        "batch_id": "btb-20261019-7h2kd9wq",
+        "parent_run_id": null,
+        "origin": "platform",
+        "board": "signal",
+        "item": "factor_batch",
+        "status": "succeeded",
+        "lost": false,
+        "stage": null,
+        "stage_label": null,
+        "progress": null,
+        "log_tail": null,
+        "heartbeat_at": "2026-10-19T14:41:20Z",
+        "attempt": 1,
+        "cancel_requested": false,
+        "config_sha256": "batch001a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4",
+        "config": {
+          "schema_version": "backtest.run_config.v1",
+          "run_id": "btr-20261019-batch001",
+          "batch_id": "btb-20261019-7h2kd9wq",
+          "parent_run_id": null,
+          "board": "signal",
+          "item": "factor_batch",
+          "engine": "pm-engine-20261019-3b7dbbede090",
+          "dataset": "telonex",
+          "data_generation": "dg-1f3a9c20b7d44e10",
+          "window": {
+            "start": "2026-08-07T21:16:28+08:00",
+            "end_exclusive": "2026-08-31T21:00:35+08:00",
+            "align": "strict_common"
+          },
+          "domains": {
+            "mode": "include",
+            "values": [
+              "all"
+            ]
+          },
+          "objects": {
+            "models": [
+              {
+                "key": "pswarm_v2",
+                "version": "legacy/legacy",
+                "model_name": "pswarm_v2",
+                "sha256": "9f2c0000000000000000000000000000000000000000000000000000000000e1"
+              }
+            ],
+            "strategies": [],
+            "factors": []
+          },
+          "params": {
+            "scope": "strict"
+          },
+          "requested_by": "console:console",
+          "created_at": "2026-10-19T14:30:00+08:00"
+        },
+        "rerunnable": true,
+        "requested_by": "console:console",
+        "created_at": "2026-10-19T14:30:00Z",
+        "started_at": "2026-10-19T14:30:05Z",
+        "finished_at": "2026-10-19T14:41:22Z",
+        "restored_inputs": [],
+        "artifacts_url": "/api/v1/backtest/runs/btr-20261019-batch001/artifacts",
+        "artifacts_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      },
+      {
+        "run_id": "btr-legacy-factor-v7-01",
+        "batch_id": "btb-20261019-7h2kd9wq",
+        "parent_run_id": null,
+        "origin": "legacy",
+        "board": "signal",
+        "item": "factor_batch",
+        "status": "succeeded",
+        "lost": false,
+        "stage": null,
+        "stage_label": null,
+        "progress": null,
+        "log_tail": null,
+        "heartbeat_at": "2026-10-19T14:41:20Z",
+        "attempt": 1,
+        "cancel_requested": false,
+        "config_sha256": "or-v7-01a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4",
+        "config": {
+          "schema_version": "backtest.run_config.v1",
+          "run_id": "btr-legacy-factor-v7-01",
+          "batch_id": "btb-20261019-7h2kd9wq",
+          "parent_run_id": null,
+          "board": "signal",
+          "item": "factor_batch",
+          "engine": "pm-engine-20261019-3b7dbbede090",
+          "dataset": "telonex",
+          "data_generation": "dg-1f3a9c20b7d44e10",
+          "window": {
+            "start": "2026-08-07T21:16:28+08:00",
+            "end_exclusive": "2026-08-31T21:00:35+08:00",
+            "align": "strict_common"
+          },
+          "domains": {
+            "mode": "include",
+            "values": [
+              "all"
+            ]
+          },
+          "objects": {
+            "models": [
+              {
+                "key": "pswarm_v2",
+                "version": "legacy/legacy",
+                "model_name": "pswarm_v2",
+                "sha256": "9f2c0000000000000000000000000000000000000000000000000000000000e1"
+              }
+            ],
+            "strategies": [],
+            "factors": []
+          },
+          "params": {
+            "scope": "strict"
+          },
+          "requested_by": "console:console",
+          "created_at": "2026-10-19T14:30:00+08:00"
+        },
+        "rerunnable": false,
+        "requested_by": "legacy-import",
+        "created_at": "2026-10-19T14:30:00Z",
+        "started_at": "2026-10-19T14:30:05Z",
+        "finished_at": "2026-10-19T14:41:22Z",
+        "restored_inputs": [],
+        "artifacts_url": "/api/v1/backtest/runs/btr-legacy-factor-v7-01/artifacts",
+        "artifacts_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+      }
+    ],
+    "limit": 20,
+    "offset": 0,
+    "has_more": false,
+    "observed_at": "2026-10-19T14:00:00Z"
+  }
+}
