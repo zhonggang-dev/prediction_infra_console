@@ -84,7 +84,10 @@ export function useV2Filter(key: string, fallback = "") {
       if (next !== undefined) setValue(next);
     };
     const onPopState = () => sync(false);
-    const onWorkspaceUrlChange = () => sync(true);
+    // The target panel's applied metadata is included in the URL before this
+    // event. Missing keys therefore mean the filter was cleared; hidden panels
+    // still skip the event through panelActive.
+    const onWorkspaceUrlChange = () => sync(false);
     window.addEventListener("popstate", onPopState);
     window.addEventListener("v2-workspace-url-change", onWorkspaceUrlChange);
     window.addEventListener(WORKSPACE_FILTER_CHANGE_EVENT, onPopState);

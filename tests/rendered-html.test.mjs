@@ -54,6 +54,11 @@ test("预测视图切换只继承共享范围，不继承结果/任务私有筛�
   assert.equal(workspaceHrefWithAppliedQuery("/predictions/tasks", "http://localhost/predictions", "scope=current&model=model-fixture&generation_id=7"), "/predictions/tasks?scope=current&model=model-fixture&generation_id=7");
 });
 
+test("共享上下文重置后切回目标 panel 会清除旧身份与日期", () => {
+  const ordersApplied = "q=order&execution_account_id=account-a&from=2026-10-15&to=2026-10-16&limit=50";
+  assert.equal(mergeSharedQuery(ordersApplied, new URLSearchParams(""), ["execution_account_id", "model_id", "strategy_id", "from", "to"]), "q=order&limit=50");
+});
+
 test("隐藏 panel 的私有筛选在 workspace URL 缺失时保留，popstate 才清空", () => {
   const current = new URLSearchParams("scope=current&model=model-fixture");
   assert.equal(appliedFilterFromUrl(current, "source", "", true), undefined);
