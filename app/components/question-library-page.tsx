@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ReactNode } from "react";
+import { useSearchParams } from "next/navigation";
 import { consoleApi } from "../lib/console-api";
 import { readAnswerAudit } from "../lib/answer-audit";
 import { formatResolutionRules } from "../lib/resolution-rules";
@@ -49,13 +50,35 @@ const emptyFilters: QuestionFilters = {
 };
 
 export function QuestionLibraryPage() {
-  const [filters, setFilters] = useState(emptyFilters);
-  const [draft, setDraft] = useState(emptyFilters);
-  const [page, setPage] = useState(0);
+  const searchParams = useSearchParams();
+  const initialLimit = normalizeQuestionLimit(searchParams.get("limit"));
+  const initialPage = normalizeQuestionPage(searchParams.get("offset"), initialLimit);
+  const initialFilters = questionFiltersFromUrl(searchParams);
+  const [filters, setFilters] = useState(initialFilters);
+  const [draft, setDraft] = useState(initialFilters);
+  const [page, setPage] = useState(initialPage);
+  const [limit, setLimit] = useState(initialLimit);
   const [result, setResult] = useState<GeneratedQAList>();
   const [selected, setSelected] = useState<ConsoleGeneratedQA>();
+  const selectedTriggerRef = useRef<HTMLElement | null>(null);
+  const drawerCloseRef = useRef<HTMLButtonElement | null>(null);
   const [error, setError] = useState<string>();
   const [refreshKey, setRefreshKey] = useState(0);
+
+  useEffect(() => {
+    const syncPaginationFromUrl = () => {
+      const urlParams = new URL(window.location.href).searchParams;
+      const nextLimit = normalizeQuestionLimit(urlParams.get("limit"));
+      const nextPage = normalizeQuestionPage(urlParams.get("offset"), nextLimit);
+      const nextFilters = questionFiltersFromUrl(urlParams);
+      setLimit(nextLimit);
+      setPage(nextPage);
+      setFilters(nextFilters);
+      setDraft(nextFilters);
+    };
+    window.addEventListener("popstate", syncPaginationFromUrl);
+    return () => window.removeEventListener("popstate", syncPaginationFromUrl);
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -72,8 +95,8 @@ export function QuestionLibraryPage() {
         domain: filters.domainPath || filters.domainL1,
         endFrom: filters.endFrom,
         endTo: filters.endTo,
-        offset: page * 20,
-        limit: 20,
+        offset: page * limit,
+        limit,
       }).then((response) => {
         if (!cancelled) { setResult(response.data); setError(undefined); }
       }).catch((requestError) => {
@@ -81,7 +104,33 @@ export function QuestionLibraryPage() {
       });
     }, 0);
     return () => { cancelled = true; window.clearTimeout(timer); };
-  }, [filters, page, refreshKey]);
+  }, [filters, page, limit, refreshKey]);
+
+  useEffect(() => {
+    if (!selected) return;
+    const timer = window.setTimeout(() => drawerCloseRef.current?.focus({ preventScroll: true }), 0);
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") { event.preventDefault(); setSelected(undefined); return; }
+      if (event.key !== "Tab") return;
+      const drawer = drawerCloseRef.current?.closest<HTMLElement>(".question-drawer");
+      if (!drawer) return;
+      const focusable = Array.from(drawer.querySelectorAll<HTMLElement>("button, a, input, select, textarea, [tabindex]:not([tabindex=\"-1\"])"));
+      if (!focusable.length) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => { window.clearTimeout(timer); window.removeEventListener("keydown", onKeyDown); };
+  }, [selected]);
+
+  const closeQuestion = () => {
+    setSelected(undefined);
+    const trigger = selectedTriggerRef.current;
+    selectedTriggerRef.current = null;
+    window.requestAnimationFrame(() => trigger?.isConnected && trigger.focus({ preventScroll: true }));
+  };
 
   const domainOptions = result?.domainOptions;
   const primaryDomains = useMemo(() => [...new Set((domainOptions ?? []).map(primaryDomain))], [domainOptions]);
@@ -98,6 +147,8 @@ export function QuestionLibraryPage() {
     setPage(0);
     setSelected(undefined);
     setFilters(draft);
+    syncQuestionFiltersUrl(draft);
+    syncQuestionPaginationUrl(limit, 0);
   };
 
   return <ConsoleShell>
@@ -119,12 +170,12 @@ export function QuestionLibraryPage() {
         <label className="question-domain-l2-filter"><span>二级领域</span><select className="select" value={draft.domainPath} disabled={!draft.domainL1} onChange={(event) => setDraft({ ...draft, domainPath: event.target.value })}><option value="">{draft.domainL1 ? "全部二级领域" : "请先选择一级领域"}</option>{secondaryDomains.map((path) => <option key={path} value={path}>{secondaryDomain(path)}</option>)}</select></label>
         <label className="question-date-filter"><span>observation_end 起始（UTC）</span><input className="input" type="date" value={draft.endFrom} onChange={(event) => setDraft({ ...draft, endFrom: event.target.value })} /></label>
         <label className="question-date-filter"><span>observation_end 结束（含当天，UTC）</span><input className="input" type="date" min={draft.endFrom || undefined} value={draft.endTo} onChange={(event) => setDraft({ ...draft, endTo: event.target.value })} /></label>
-        <div className="question-filter-actions"><button className="button" onClick={() => { setDraft(emptyFilters); setFilters(emptyFilters); setPage(0); }}>重置</button><button className="button primary question-search-action" onClick={search}><Icon name="search" /> 检索</button></div>
+      <div className="question-filter-actions"><button className="button" onClick={() => { setDraft(emptyFilters); setFilters(emptyFilters); setPage(0); syncQuestionFiltersUrl(emptyFilters); syncQuestionPaginationUrl(limit, 0); }}>重置</button><button className="button primary question-search-action" onClick={search}><Icon name="search" /> 检索</button></div>
       </div>
       {error && <div className="notice error"><div><strong>题目查询失败</strong><p>{error}</p></div></div>}
-      {selected && <><button className="question-drawer-backdrop" aria-label="关闭题目详情" onClick={() => setSelected(undefined)} /><aside className="question-drawer"><QuestionDetail item={selected} onClose={() => setSelected(undefined)} /></aside></>}
-      {!result ? <div className="panel-pad"><div className="skeleton" /><div className="skeleton" /><div className="skeleton" /></div> : result.items.length ? <QuestionTable items={result.items} onSelect={setSelected} /> : <div className="empty"><strong>没有匹配的题目</strong><p>调整关键词或筛选条件后再试。</p></div>}
-      {result && <div className="question-pagination"><span>第 {result.total ? result.offset + 1 : 0}–{Math.min(result.offset + result.items.length, result.total)} 条，共 {result.total} 条</span><div><button className="button" disabled={result.offset === 0} onClick={() => setPage(Math.max(0, page - 1))}>上一页</button><button className="button" disabled={result.offset + result.limit >= result.total} onClick={() => setPage(page + 1)}>下一页</button></div></div>}
+      {selected && <><button className="question-drawer-backdrop" aria-label="关闭题目详情" onClick={closeQuestion} /><aside className="question-drawer" role="dialog" aria-modal="true" aria-labelledby="question-detail-title"><QuestionDetail item={selected} onClose={closeQuestion} closeRef={drawerCloseRef} /></aside></>}
+      {!result ? <div className="panel-pad"><div className="skeleton" /><div className="skeleton" /><div className="skeleton" /></div> : result.items.length ? <QuestionTable items={result.items} onSelect={(item, trigger) => { selectedTriggerRef.current = trigger; setSelected(item); }} /> : <div className="empty"><strong>没有匹配的题目</strong><p>调整关键词或筛选条件后再试。</p></div>}
+      {result && <div className="question-pagination"><span>第 {result.total ? result.offset + 1 : 0}–{Math.min(result.offset + result.items.length, result.total)} 条，共 {result.total} 条 · 第 {result.total ? page + 1 : 0} / {result.total ? Math.ceil(result.total / result.limit) : 0} 页</span><div className="question-pagination-controls"><label className="v2-page-size"><span>每页</span><select className="select" aria-label="题目每页条数" value={limit} onChange={(event) => { const next = normalizeQuestionLimit(event.target.value); setLimit(next); setPage(0); syncQuestionPaginationUrl(next, 0); }}><option value={20}>20</option><option value={50}>50</option><option value={100}>100</option></select></label><label className="v2-page-jump"><span>跳至</span><input className="input" aria-label="题目跳转页码" inputMode="numeric" placeholder="页码" onKeyDown={(event) => { if (event.key !== "Enter") return; const totalPages = Math.ceil(result.total / result.limit); const next = Number(event.currentTarget.value); if (Number.isSafeInteger(next) && next >= 1 && next <= totalPages) { setPage(next - 1); syncQuestionPaginationUrl(limit, (next - 1) * limit); event.currentTarget.value = ""; } }} /><span>页</span></label><button className="button" disabled={result.offset === 0} onClick={() => { const next = Math.max(0, page - 1); setPage(next); syncQuestionPaginationUrl(limit, next * limit); }}>上一页</button><button className="button" disabled={result.offset + result.limit >= result.total} onClick={() => { const next = page + 1; setPage(next); syncQuestionPaginationUrl(limit, next * limit); }}>下一页</button></div></div>}
     </section>
   </ConsoleShell>;
 }
@@ -144,11 +195,44 @@ function OverviewMetric({ label, value, tone }: { label: string; value: number; 
   return <div className={`question-overview-metric ${tone}`}><span>{label}</span><strong>{value}</strong></div>;
 }
 
-function QuestionTable({ items, onSelect }: { items: ConsoleGeneratedQA[]; onSelect: (item: ConsoleGeneratedQA) => void }) {
-  return <div className="table-scroll"><table className="question-table"><colgroup><col className="question-col" /><col className="status-col" /><col className="domain-col" /><col className="type-col" /><col className="time-col" /></colgroup><thead><tr><th>题目</th><th>状态</th><th>领域</th><th>题型</th><th>observation_end</th></tr></thead><tbody>{items.map((item) => <tr key={item.generatedQaId} onClick={() => onSelect(item)}><td className="question-primary"><strong>{item.question}</strong><small>{item.sourceQaId}</small></td><td><Status value={item.status} label={statusDisplayLabel(item)} /></td><td><div className="domain-path"><strong>{item.domainL1}</strong><span>{item.industryL2}</span></div></td><td><span className="question-type-badge">{answerTypeLabel(item.answerType)}</span></td><td className="mono muted">{formatTime(item.observationEnd)}</td></tr>)}</tbody></table></div>;
+function normalizeQuestionLimit(value: string | number | null | undefined) {
+  const numeric = Number(value);
+  return numeric === 50 || numeric === 100 ? numeric : 20;
 }
 
-function QuestionDetail({ item, onClose }: { item: ConsoleGeneratedQA; onClose: () => void }) {
+function questionFiltersFromUrl(params: URLSearchParams): QuestionFilters {
+  return { q: params.get("q") ?? "", status: params.get("status") ?? "", phase: params.get("phase") ?? "", questionType: params.get("question_type") ?? "", domainL1: params.get("domain") ?? "", domainPath: params.get("domain_path") ?? "", endFrom: params.get("end_from")?.slice(0, 10) ?? "", endTo: params.get("end_to")?.slice(0, 10) ?? "" };
+}
+
+function syncQuestionFiltersUrl(filters: QuestionFilters) {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  const values: Record<string, string> = { q: filters.q, status: filters.status, phase: filters.phase, question_type: filters.questionType, domain: filters.domainPath || filters.domainL1, domain_path: filters.domainPath, end_from: filters.endFrom, end_to: filters.endTo };
+  for (const [key, value] of Object.entries(values)) { if (value) url.searchParams.set(key, value); else url.searchParams.delete(key); }
+  window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+}
+
+function normalizeQuestionPage(value: string | number | null | undefined, limit: number) {
+  const numeric = Number(value);
+  if (!Number.isSafeInteger(numeric) || numeric < 0) return 0;
+  return Math.floor(numeric / limit);
+}
+
+function syncQuestionPaginationUrl(limit: number, offset = 0) {
+  if (typeof window === "undefined") return;
+  const url = new URL(window.location.href);
+  if (limit === 20) url.searchParams.delete("limit");
+  else url.searchParams.set("limit", String(limit));
+  if (offset > 0) url.searchParams.set("offset", String(offset));
+  else url.searchParams.delete("offset");
+  window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+}
+
+function QuestionTable({ items, onSelect }: { items: ConsoleGeneratedQA[]; onSelect: (item: ConsoleGeneratedQA, trigger: HTMLElement) => void }) {
+  return <div className="table-scroll"><table className="question-table"><colgroup><col className="question-col" /><col className="status-col" /><col className="domain-col" /><col className="type-col" /><col className="time-col" /><col className="time-col" /></colgroup><thead><tr><th>题目</th><th>状态 / 阶段</th><th>领域</th><th>预测 / 决策</th><th>observation_end</th><th>下次调度 / 原因</th></tr></thead><tbody>{items.map((item) => <tr key={item.generatedQaId} tabIndex={0} role="button" onClick={(event) => onSelect(item, event.currentTarget)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onSelect(item, event.currentTarget); } }}><td className="question-primary"><strong>{item.question}</strong><small>{item.sourceQaId}</small></td><td><Status value={item.status} label={statusDisplayLabel(item)} /><small className="question-phase">{phaseLabel(item.phase)}</small></td><td><div className="domain-path"><strong>{item.domainL1}</strong><span>{item.industryL2}</span></div></td><td><span className="question-type-badge">{item.marketCompatible ? "预测市场" : "决策分析"}</span><small className="question-phase">{answerTypeLabel(item.answerType)}</small></td><td className="mono muted">{formatTime(item.observationEnd)}</td><td><div className="v2-cell-copy"><span>{formatTime(item.nextRunAt)}</span><small>{item.lastReasonCode || "—"}</small></div></td></tr>)}</tbody></table></div>;
+}
+
+function QuestionDetail({ item, onClose, closeRef }: { item: ConsoleGeneratedQA; onClose: () => void; closeRef: React.RefObject<HTMLButtonElement | null> }) {
   const [activeTab, setActiveTab] = useState<"definition" | "timing" | "result">("definition");
   const answerSpec = asRecord(item.answerSpec);
   const decisionSpec = asRecord(item.decisionSpec);
@@ -165,7 +249,7 @@ function QuestionDetail({ item, onClose }: { item: ConsoleGeneratedQA; onClose: 
         : item.canonicalAnswer ?? item.latestResult
     : undefined;
   return <div className="question-detail">
-    <div className="question-detail-head"><div><p className="eyebrow">Question Detail</p><h2 className="section-title">题目详情</h2></div><button className="button" onClick={onClose}>关闭</button></div>
+    <div className="question-detail-head"><div><p className="eyebrow">Question Detail</p><h2 id="question-detail-title" className="section-title">题目详情</h2></div><button ref={closeRef} className="button" onClick={onClose}>关闭</button></div>
     <div className="question-detail-meta"><Status value={item.status} label={statusDisplayLabel(item)} /><span>{answerTypeLabel(item.answerType)}</span><span>{phaseLabel(item.phase)}</span><span>{item.marketCompatible ? "预测市场题" : "决策分析题"}</span><span>{formatTopicPath(item.topicPath)}</span></div>
     <div className="question-detail-tabs" role="tablist" aria-label="题目详情视图">
       {([["definition", "题目定义"], ["timing", "时间与依据"], ["result", "结果与审计"]] as const).map(([value, label]) => <button key={value} type="button" role="tab" aria-selected={activeTab === value} className={activeTab === value ? "active" : ""} onClick={() => setActiveTab(value)}>{label}</button>)}

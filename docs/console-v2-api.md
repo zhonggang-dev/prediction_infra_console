@@ -2,7 +2,7 @@
 
 新版浏览器只请求同源 `/api/console/v2/{infra|trading}/...`。BFF 在服务端加入对应 Bearer Token，过滤响应头并设置 `Cache-Control: no-store`；令牌、上游 URL、数据库连接和对象路径不会进入客户端。
 
-所有 v2 列表使用 `data.items/limit/offset/has_more/observed_at/summary` envelope。页面只根据 `has_more` 分页，不显示后端没有提供的全量 total。请求失败或 decoder 拒绝时清除旧快照并显示“不可用/未知”，不会回落到演示 0。
+所有 v2 列表使用 `data.items/total/limit/offset/has_more/observed_at/summary` envelope。`total` 必须是当前筛选与默认时间范围下的准确非负安全整数，页面据此显示总条数、总页数、跳页和 20/50/100 条每页；空结果仍显示准确的 0。请求失败、计数失败或 decoder 拒绝时显示明确不可用状态，不把缺失值当作 0，也不会回落到演示数据。
 
 Infra 资源按契约转发到 `/api/v1/console/v2/{resource}`：`overview`、`running-markets`、`running-pool`、`running-generations`、`selection-runs`、`selected-markets`、`predictions`、`prediction-tasks`、`assets`、`dataset-members`、`market-data`、`market-settlements`、`page-jobs`、`backtest-products` 和 `service-metrics`。`outbox-events` 保持既有只读契约，由新版 BFF 映射到 `/api/v1/console/outbox-events` 并投影到相同 envelope，支持 `q/status`；它不与 Redis stream ACK/lag 视图混用。
 

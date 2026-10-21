@@ -1,3 +1,3 @@
-import { PageJobsV2Page } from "../../components/system-v2-page";
+import { SystemV2Page } from "../../components/system-v2-page";
 
-export default function PageJobsPage() { return <PageJobsV2Page />; }
+export default function PageJobsPage() { return <SystemV2Page view="page-jobs" />; }

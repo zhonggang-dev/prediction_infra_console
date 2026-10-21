@@ -11,6 +11,8 @@ export interface ConsoleV2Page<T> {
   items: T[];
   limit: number;
   offset: number;
+  /** Exact count for the active filters and default time window. */
+  total: number;
   hasMore: boolean;
   observedAt: string;
   summary?: Record<string, unknown>;
@@ -56,6 +58,27 @@ export interface ConsoleV2Overview {
   activePoolCount: number | null;
   lastGeneration?: ConsoleV2Generation;
   poolDiffersFromGeneration: boolean | null;
+  predictionCoverage?: ConsoleV2PredictionCoverage;
+}
+
+export interface ConsoleV2PredictionCoverage {
+  basis: string;
+  generationId: string;
+  generationObservedAt: string;
+  eligibleMarketCount: number | null;
+  expectedTaskCount: number | null;
+  completedTaskCount: number | null;
+  pendingTaskCount: number | null;
+  predictionAsOf: string;
+  latestReceivedAt?: string;
+  models?: ConsoleV2PredictionCoverageModel[];
+}
+
+export interface ConsoleV2PredictionCoverageModel {
+  predictionModelId: string;
+  expectedTaskCount: number | null;
+  completedTaskCount: number | null;
+  pendingTaskCount: number | null;
 }
 
 export interface ConsoleV2RunningMarket {
@@ -143,6 +166,9 @@ export interface ConsoleV2Prediction {
   predictionAsOf?: string;
   receivedAt?: string;
   completedAt?: string;
+  generationId?: string;
+  /** Derived from sandbox_id and complete Direct identity; never read from a wire origin field. */
+  sourceKind: "SANDBOX" | "DIRECT" | "UNKNOWN";
 }
 
 export type ConsoleV2PredictionTaskStatus = "PENDING" | "COMPLETED" | string;
@@ -162,12 +188,15 @@ export interface ConsoleV2PredictionTask {
   status: ConsoleV2PredictionTaskStatus;
   receivedAt?: string;
   completedAt?: string;
+  generationId?: string;
 }
 
 export interface ConsoleV2Asset {
   assetKind: string;
   marketSource?: string;
   sandboxId?: string;
+  selectedMarketId?: string;
+  datasetMembershipIdentity?: ConsoleV2DatasetMembershipIdentity;
   jobId?: string;
   marketId?: string;
   conditionId?: string;
@@ -182,6 +211,12 @@ export interface ConsoleV2Asset {
   committedAt?: string;
   archiveSizeBytes: number | null;
   tradeEnabled: boolean | null;
+}
+
+export interface ConsoleV2DatasetMembershipIdentity {
+  sourceNamespace: string;
+  externalDirectoryId: string;
+  memberCount: number | null;
 }
 
 export interface ConsoleV2DatasetMember {
@@ -278,7 +313,39 @@ export interface ConsoleV2Runtime {
   observedAt: string;
   runner: ConsoleV2RuntimeRunner;
   bindings: ConsoleV2Binding[];
-  submission: Record<string, unknown>;
+  submission: ConsoleV2RuntimeSubmission;
+  accountDataState: "available" | "unavailable" | string;
+  accounts: ConsoleV2RuntimeAccount[];
+}
+
+export interface ConsoleV2RuntimeSubmission {
+  orderSubmissionEnabled: boolean | null;
+  entrySubmissionDisabled: boolean | null;
+  submissionDisabledAccounts: string[];
+  entryDisabledAccounts: string[];
+  strategyDisabledAccounts: string[];
+  kalshiStrategyInputEnabled: boolean | null;
+}
+
+export interface ConsoleV2RuntimeAccount {
+  executionAccountId: string;
+  modelId: string;
+  strategyId: string;
+  sourceMode: string;
+  configuredBinding: boolean | null;
+  databaseBindingEnabled: boolean | null;
+  riskPolicyEnabled: boolean | null;
+  accountPaused: boolean | null;
+  strategyInputState: string;
+  entryGateState: string;
+  orderSubmissionState: string;
+  lastCycleAt?: string;
+  lastCycleStatus?: string;
+  lastCycleEntryBlockReason?: string;
+  lastReconciliationAt?: string;
+  lastReconciliationStatus?: string;
+  openIssueCount: number | null;
+  openOrderCount: number | null;
 }
 
 export interface ConsoleV2RuntimeRunner {
@@ -319,6 +386,9 @@ export interface ConsoleV2DecisionCycle {
   orderbookSnapshotSetId?: string;
   inputCreatedAt?: string;
   outputRecordedAt?: string;
+  orderSubmissionEnabled: boolean | null;
+  entrySubmissionEnabled: boolean | null;
+  entryBlockReason?: string;
   predictionCount: number | null;
   positionLotCount: number | null;
   intentCount: number | null;
@@ -347,6 +417,17 @@ export interface ConsoleV2Order {
   tokenId?: string;
   createdAt?: string;
   updatedAt?: string;
+  evidenceSummary: ConsoleV2OrderEvidenceSummary;
+}
+
+export interface ConsoleV2OrderEvidenceSummary {
+  fillEvidenceState: string;
+  accountingState: string;
+  confirmedFillCount: number | null;
+  appliedFillCount: number | null;
+  pendingFillCount: number | null;
+  openIssueCount: number | null;
+  reservationState: string;
 }
 
 export interface ConsoleV2PositionLot {
@@ -399,6 +480,8 @@ export interface ConsoleV2ReconciliationIssue {
   remoteValue?: string;
   source?: string;
   observedAt?: string;
+  firstObservedAt?: string;
+  impactScope?: string;
   resolvedAt?: string;
 }
 
@@ -464,10 +547,11 @@ function pageFrom<T>(payload: unknown, decode: (value: RawRecord) => T): Console
   const data = asRecord(root.data ?? payload);
   const observedAt = requiredTime(data.observed_at, "observed_at");
   const items = arrayRecords(data.items).map(decode);
-  const limit = finiteInteger(data.limit, 20);
-  const offset = finiteInteger(data.offset, 0);
+  const limit = exactPositiveInteger(data.limit, "limit");
+  const offset = exactNonNegativeInteger(data.offset, "offset");
+  const total = exactNonNegativeInteger(data.total, "total");
   const summary = asRecordOrUndefined(data.summary);
-  return { items, limit, offset, hasMore: data.has_more === true, observedAt, summary };
+  return { items, limit, offset, total, hasMore: data.has_more === true, observedAt, summary };
 }
 
 function objectFrom<T>(payload: unknown, decode: (value: RawRecord) => T): T {
@@ -523,7 +607,27 @@ function decodeOverview(value: RawRecord): ConsoleV2Overview {
     activePoolCount: nullableNumber(value.active_pool_count),
     lastGeneration: value.last_generation ? decodeGeneration(asRecord(value.last_generation)) : undefined,
     poolDiffersFromGeneration: nullableBoolean(value.pool_differs_from_generation),
+    predictionCoverage: value.prediction_coverage ? decodePredictionCoverage(asRecord(value.prediction_coverage)) : undefined,
   };
+}
+
+function decodePredictionCoverage(value: RawRecord): ConsoleV2PredictionCoverage {
+  return {
+    basis: requiredText(value.basis, "prediction_coverage.basis"),
+    generationId: requiredId(value.generation_id, "prediction_coverage.generation_id"),
+    generationObservedAt: requiredTime(value.generation_observed_at, "prediction_coverage.generation_observed_at"),
+    eligibleMarketCount: nullableNumber(value.eligible_market_count),
+    expectedTaskCount: nullableNumber(value.expected_task_count),
+    completedTaskCount: nullableNumber(value.completed_task_count),
+    pendingTaskCount: nullableNumber(value.pending_task_count),
+    predictionAsOf: requiredTime(value.prediction_as_of, "prediction_coverage.prediction_as_of"),
+    latestReceivedAt: optionalTime(value.latest_received_at),
+    models: Array.isArray(value.models) ? arrayRecords(value.models).map(decodePredictionCoverageModel) : undefined,
+  };
+}
+
+function decodePredictionCoverageModel(value: RawRecord): ConsoleV2PredictionCoverageModel {
+  return { predictionModelId: requiredText(value.prediction_model_id, "prediction_coverage.models.prediction_model_id"), expectedTaskCount: nullableNumber(value.expected_task_count), completedTaskCount: nullableNumber(value.completed_task_count), pendingTaskCount: nullableNumber(value.pending_task_count) };
 }
 
 function decodeGeneration(value: RawRecord): ConsoleV2Generation {
@@ -573,15 +677,24 @@ function decodeSelectedMarket(value: RawRecord): ConsoleV2SelectedMarket {
 }
 
 function decodePrediction(value: RawRecord): ConsoleV2Prediction {
-  return { predictionId: requiredText(value.prediction_id, "prediction_id"), sandboxId: optionalText(value.sandbox_id), sourceJobId: optionalText(value.source_job_id), marketSource: optionalText(value.market_source), selectionRunId: optionalId(value.selection_run_id), selectedMarketId: optionalId(value.selected_market_id), marketId: requiredText(value.market_id, "prediction.market_id"), conditionId: requiredText(value.condition_id, "prediction.condition_id"), question: requiredText(value.question, "prediction.question"), primaryDomain: optionalText(value.primary_domain), executionMode: optionalText(value.execution_mode), outcome0Name: optionalText(value.outcome_0_name), outcome0Probability: nullableNumber(value.outcome_0_probability), outcome1Name: optionalText(value.outcome_1_name), outcome1Probability: nullableNumber(value.outcome_1_probability), modelName: optionalText(value.model_name), predictorVersion: optionalText(value.predictor_version), predictionAsOf: optionalTime(value.prediction_as_of), receivedAt: optionalTime(value.received_at), completedAt: optionalTime(value.completed_at) };
+  const sandboxId = optionalText(value.sandbox_id);
+  return { predictionId: requiredText(value.prediction_id, "prediction_id"), sandboxId, sourceJobId: optionalText(value.source_job_id), marketSource: optionalText(value.market_source), selectionRunId: optionalId(value.selection_run_id), selectedMarketId: optionalId(value.selected_market_id), marketId: requiredText(value.market_id, "prediction.market_id"), conditionId: requiredText(value.condition_id, "prediction.condition_id"), question: requiredText(value.question, "prediction.question"), primaryDomain: optionalText(value.primary_domain), executionMode: optionalText(value.execution_mode), outcome0Name: optionalText(value.outcome_0_name), outcome0Probability: nullableNumber(value.outcome_0_probability), outcome1Name: optionalText(value.outcome_1_name), outcome1Probability: nullableNumber(value.outcome_1_probability), modelName: optionalText(value.model_name), predictorVersion: optionalText(value.predictor_version), predictionAsOf: optionalTime(value.prediction_as_of), receivedAt: optionalTime(value.received_at), completedAt: optionalTime(value.completed_at), generationId: optionalId(value.generation_id), sourceKind: sandboxId ? "SANDBOX" : value.sandbox_id === null && hasCompleteDirectIdentity(value) ? "DIRECT" : "UNKNOWN" };
+}
+
+function hasCompleteDirectIdentity(value: RawRecord) {
+  return Boolean(optionalText(value.prediction_id) && optionalText(value.source_job_id) && optionalText(value.selected_market_id) && optionalText(value.model_name) && optionalTime(value.prediction_as_of) && optionalText(value.market_source) && optionalText(value.execution_mode) === "LIVE");
 }
 
 function decodePredictionTask(value: RawRecord): ConsoleV2PredictionTask {
-  return { predictionId: requiredText(value.prediction_id, "prediction_task.prediction_id"), sourceJobId: optionalText(value.source_job_id), predictionModelId: requiredText(value.prediction_model_id, "prediction_task.prediction_model_id"), marketSource: optionalText(value.market_source), selectionRunId: requiredId(value.selection_run_id, "prediction_task.selection_run_id"), selectedMarketId: requiredId(value.selected_market_id, "prediction_task.selected_market_id"), marketId: requiredText(value.market_id, "prediction_task.market_id"), conditionId: requiredText(value.condition_id, "prediction_task.condition_id"), question: requiredText(value.question, "prediction_task.question"), predictionAsOf: optionalTime(value.prediction_as_of), taskAvailableAt: optionalTime(value.task_available_at), status: requiredText(value.status, "prediction_task.status"), receivedAt: optionalTime(value.received_at), completedAt: optionalTime(value.completed_at) };
+  return { predictionId: requiredText(value.prediction_id, "prediction_task.prediction_id"), sourceJobId: optionalText(value.source_job_id), predictionModelId: requiredText(value.prediction_model_id, "prediction_task.prediction_model_id"), marketSource: optionalText(value.market_source), selectionRunId: requiredId(value.selection_run_id, "prediction_task.selection_run_id"), selectedMarketId: requiredId(value.selected_market_id, "prediction_task.selected_market_id"), marketId: requiredText(value.market_id, "prediction_task.market_id"), conditionId: requiredText(value.condition_id, "prediction_task.condition_id"), question: requiredText(value.question, "prediction_task.question"), predictionAsOf: optionalTime(value.prediction_as_of), taskAvailableAt: optionalTime(value.task_available_at), status: requiredText(value.status, "prediction_task.status"), receivedAt: optionalTime(value.received_at), completedAt: optionalTime(value.completed_at), generationId: optionalId(value.generation_id) };
 }
 
 function decodeAsset(value: RawRecord): ConsoleV2Asset {
-  return { assetKind: requiredText(value.asset_kind, "asset.asset_kind"), marketSource: optionalText(value.market_source), sandboxId: optionalText(value.sandbox_id), jobId: optionalText(value.job_id), marketId: optionalText(value.market_id), conditionId: optionalText(value.condition_id), question: optionalText(value.question), generatedQaId: optionalId(value.generated_qa_id), sourceQaId: optionalText(value.source_qa_id), qaVersion: nullableNumber(value.qa_version), mode: optionalText(value.mode), decisionAt: optionalTime(value.decision_at), informationCutoffAt: optionalTime(value.information_cutoff_at), builtAt: optionalTime(value.built_at), committedAt: optionalTime(value.committed_at), archiveSizeBytes: nullableNumber(value.archive_size_bytes), tradeEnabled: nullableBoolean(value.trade_enabled) };
+  return { assetKind: requiredText(value.asset_kind, "asset.asset_kind"), marketSource: optionalText(value.market_source), sandboxId: optionalText(value.sandbox_id), selectedMarketId: optionalId(value.selected_market_id), datasetMembershipIdentity: value.dataset_membership_identity ? decodeDatasetMembershipIdentity(asRecord(value.dataset_membership_identity)) : undefined, jobId: optionalText(value.job_id), marketId: optionalText(value.market_id), conditionId: optionalText(value.condition_id), question: optionalText(value.question), generatedQaId: optionalId(value.generated_qa_id), sourceQaId: optionalText(value.source_qa_id), qaVersion: nullableNumber(value.qa_version), mode: optionalText(value.mode), decisionAt: optionalTime(value.decision_at), informationCutoffAt: optionalTime(value.information_cutoff_at), builtAt: optionalTime(value.built_at), committedAt: optionalTime(value.committed_at), archiveSizeBytes: nullableNumber(value.archive_size_bytes), tradeEnabled: nullableBoolean(value.trade_enabled) };
+}
+
+function decodeDatasetMembershipIdentity(value: RawRecord): ConsoleV2DatasetMembershipIdentity {
+  return { sourceNamespace: requiredText(value.source_namespace, "dataset_membership_identity.source_namespace"), externalDirectoryId: requiredText(value.external_directory_id, "dataset_membership_identity.external_directory_id"), memberCount: nullableNumber(value.member_count) };
 }
 
 function decodeDatasetMember(value: RawRecord): ConsoleV2DatasetMember {
@@ -615,7 +728,16 @@ function decodeServiceMetric(value: RawRecord): ConsoleV2ServiceMetric {
 }
 
 function decodeRuntime(value: RawRecord): ConsoleV2Runtime {
-  return { observedAt: requiredTime(value.observed_at, "runtime.observed_at"), runner: decodeRuntimeRunner(asRecord(value.runner)), bindings: arrayRecords(value.bindings).map(decodeBinding), submission: asRecord(value.submission) };
+  const accountDataState = optionalText(value.account_data_state) ?? "unavailable";
+  return { observedAt: requiredTime(value.observed_at, "runtime.observed_at"), runner: decodeRuntimeRunner(asRecord(value.runner)), bindings: arrayRecords(value.bindings).map(decodeBinding), submission: decodeRuntimeSubmission(asRecord(value.submission)), accountDataState, accounts: arrayRecords(value.accounts).map(decodeRuntimeAccount) };
+}
+
+function decodeRuntimeSubmission(value: RawRecord): ConsoleV2RuntimeSubmission {
+  return { orderSubmissionEnabled: nullableBoolean(value.order_submission_enabled), entrySubmissionDisabled: nullableBoolean(value.entry_submission_disabled), submissionDisabledAccounts: textArray(value.submission_disabled_accounts), entryDisabledAccounts: textArray(value.entry_disabled_accounts), strategyDisabledAccounts: textArray(value.strategy_disabled_accounts), kalshiStrategyInputEnabled: nullableBoolean(value.kalshi_strategy_input_enabled) };
+}
+
+function decodeRuntimeAccount(value: RawRecord): ConsoleV2RuntimeAccount {
+  return { executionAccountId: requiredText(value.execution_account_id, "runtime.account.execution_account_id"), modelId: requiredText(value.model_id, "runtime.account.model_id"), strategyId: requiredText(value.strategy_id, "runtime.account.strategy_id"), sourceMode: optionalText(value.source_mode) ?? "unknown", configuredBinding: nullableBoolean(value.configured_binding), databaseBindingEnabled: nullableBoolean(value.database_binding_enabled), riskPolicyEnabled: nullableBoolean(value.risk_policy_enabled), accountPaused: nullableBoolean(value.account_paused), strategyInputState: requiredText(value.strategy_input_state, "runtime.account.strategy_input_state"), entryGateState: requiredText(value.entry_gate_state, "runtime.account.entry_gate_state"), orderSubmissionState: requiredText(value.order_submission_state, "runtime.account.order_submission_state"), lastCycleAt: optionalTime(value.last_cycle_at), lastCycleStatus: optionalText(value.last_cycle_status), lastCycleEntryBlockReason: optionalText(value.last_cycle_entry_block_reason), lastReconciliationAt: optionalTime(value.last_reconciliation_at), lastReconciliationStatus: optionalText(value.last_reconciliation_status), openIssueCount: nullableNumber(value.open_issue_count), openOrderCount: nullableNumber(value.open_order_count) };
 }
 
 function decodeRuntimeRunner(value: RawRecord): ConsoleV2RuntimeRunner {
@@ -630,11 +752,16 @@ function decodeBinding(value: RawRecord): ConsoleV2Binding {
 }
 
 function decodeDecisionCycle(value: RawRecord): ConsoleV2DecisionCycle {
-  return { cycleId: requiredText(value.cycle_id, "decision_cycle.cycle_id"), decisionAt: optionalTime(value.decision_at), modelId: optionalText(value.model_id), predictionModelId: optionalText(value.prediction_model_id), strategyId: optionalText(value.strategy_id), executionAccountId: optionalText(value.execution_account_id), inputId: optionalText(value.input_id), predictionSnapshotId: optionalText(value.prediction_snapshot_id), orderbookSnapshotSetId: optionalText(value.orderbook_snapshot_set_id), inputCreatedAt: optionalTime(value.input_created_at), outputRecordedAt: optionalTime(value.output_recorded_at), predictionCount: nullableNumber(value.prediction_count), positionLotCount: nullableNumber(value.position_lot_count), intentCount: nullableNumber(value.intent_count), deliveryPendingCount: nullableNumber(value.delivery_pending_count), deliveryFailedCount: nullableNumber(value.delivery_failed_count), status: requiredText(value.status, "decision_cycle.status") };
+  return { cycleId: requiredText(value.cycle_id, "decision_cycle.cycle_id"), decisionAt: optionalTime(value.decision_at), modelId: optionalText(value.model_id), predictionModelId: optionalText(value.prediction_model_id), strategyId: optionalText(value.strategy_id), executionAccountId: optionalText(value.execution_account_id), inputId: optionalText(value.input_id), predictionSnapshotId: optionalText(value.prediction_snapshot_id), orderbookSnapshotSetId: optionalText(value.orderbook_snapshot_set_id), inputCreatedAt: optionalTime(value.input_created_at), outputRecordedAt: optionalTime(value.output_recorded_at), orderSubmissionEnabled: nullableBoolean(value.order_submission_enabled), entrySubmissionEnabled: nullableBoolean(value.entry_submission_enabled), entryBlockReason: optionalText(value.entry_block_reason), predictionCount: nullableNumber(value.prediction_count), positionLotCount: nullableNumber(value.position_lot_count), intentCount: nullableNumber(value.intent_count), deliveryPendingCount: nullableNumber(value.delivery_pending_count), deliveryFailedCount: nullableNumber(value.delivery_failed_count), status: requiredText(value.status, "decision_cycle.status") };
 }
 
 function decodeOrder(value: RawRecord): ConsoleV2Order {
-  return { orderId: requiredText(value.order_id, "order.order_id"), clientOrderId: optionalText(value.client_order_id), venueOrderId: optionalText(value.venue_order_id), status: requiredText(value.status, "order.status"), side: optionalText(value.side), price: nullableNumber(value.price), shares: nullableNumber(value.shares), filledShares: nullableNumber(value.filled_shares), averageFillPrice: nullableNumber(value.average_fill_price), executionAccountId: optionalText(value.execution_account_id), modelId: optionalText(value.model_id), strategyId: optionalText(value.strategy_id), marketSource: optionalText(value.market_source), source: optionalText(value.venue ?? value.source), marketId: optionalText(value.market_id), conditionId: optionalText(value.condition_id), tokenId: optionalText(value.token_id), createdAt: optionalTime(value.created_at), updatedAt: optionalTime(value.updated_at) };
+  return { orderId: requiredText(value.order_id, "order.order_id"), clientOrderId: optionalText(value.client_order_id), venueOrderId: optionalText(value.venue_order_id), status: requiredText(value.status, "order.status"), side: optionalText(value.side), price: nullableNumber(value.price), shares: nullableNumber(value.shares), filledShares: nullableNumber(value.filled_shares), averageFillPrice: nullableNumber(value.average_fill_price), executionAccountId: optionalText(value.execution_account_id), modelId: optionalText(value.model_id), strategyId: optionalText(value.strategy_id), marketSource: optionalText(value.market_source), source: optionalText(value.venue ?? value.source), marketId: optionalText(value.market_id), conditionId: optionalText(value.condition_id), tokenId: optionalText(value.token_id), createdAt: optionalTime(value.created_at), updatedAt: optionalTime(value.updated_at), evidenceSummary: decodeOrderEvidenceSummary(value.evidence_summary) };
+}
+
+function decodeOrderEvidenceSummary(value: unknown): ConsoleV2OrderEvidenceSummary {
+  const record = asRecord(value);
+  return { fillEvidenceState: optionalText(record.fill_evidence_state) ?? "unknown", accountingState: optionalText(record.accounting_state) ?? "unknown", confirmedFillCount: nullableNumber(record.confirmed_fill_count), appliedFillCount: nullableNumber(record.applied_fill_count), pendingFillCount: nullableNumber(record.pending_fill_count), openIssueCount: nullableNumber(record.open_issue_count), reservationState: optionalText(record.reservation_state) ?? "unknown" };
 }
 
 function decodePositionLot(value: RawRecord): ConsoleV2PositionLot {
@@ -646,7 +773,7 @@ function decodeReconciliationRun(value: RawRecord): ConsoleV2ReconciliationRun {
 }
 
 function decodeReconciliationIssue(value: RawRecord): ConsoleV2ReconciliationIssue {
-  return { issueId: requiredText(value.issue_id, "reconciliation_issue.issue_id"), runId: optionalText(value.run_id), executionAccountId: optionalText(value.execution_account_id), issueType: optionalText(value.issue_type), resolution: optionalText(value.resolution), severity: optionalText(value.severity), status: requiredText(value.status, "reconciliation_issue.status"), reasonCode: optionalText(value.reason_code), orderId: optionalText(value.order_id), venueOrderId: optionalText(value.venue_order_id), venueTradeId: optionalText(value.venue_trade_id), marketId: optionalText(value.market_id), conditionId: optionalText(value.condition_id), tokenId: optionalText(value.token_id), localValue: optionalText(value.local_value), remoteValue: optionalText(value.remote_value), source: optionalText(value.source), observedAt: optionalTime(value.observed_at), resolvedAt: optionalTime(value.resolved_at) };
+  return { issueId: requiredText(value.issue_id, "reconciliation_issue.issue_id"), runId: optionalText(value.run_id), executionAccountId: optionalText(value.execution_account_id), issueType: optionalText(value.issue_type), resolution: optionalText(value.resolution), severity: optionalText(value.severity), status: requiredText(value.status, "reconciliation_issue.status"), reasonCode: optionalText(value.reason_code), orderId: optionalText(value.order_id), venueOrderId: optionalText(value.venue_order_id), venueTradeId: optionalText(value.venue_trade_id), marketId: optionalText(value.market_id), conditionId: optionalText(value.condition_id), tokenId: optionalText(value.token_id), localValue: optionalText(value.local_value), remoteValue: optionalText(value.remote_value), source: optionalText(value.source), observedAt: optionalTime(value.observed_at), firstObservedAt: optionalTime(value.first_observed_at), impactScope: optionalText(value.impact_scope), resolvedAt: optionalTime(value.resolved_at) };
 }
 
 function decodeRedemption(value: RawRecord): ConsoleV2Redemption {
@@ -672,5 +799,12 @@ function optionalId(value: unknown): string | undefined { return optionalText(va
 function optionalTime(value: unknown): string | undefined { return typeof value === "string" && !Number.isNaN(Date.parse(value)) ? value : undefined; }
 function requiredTime(value: unknown, field: string): string { const result = optionalTime(value); if (!result) throw new ConsoleV2ContractError(`V2 接口缺少有效 ${field}`); return result; }
 function nullableNumber(value: unknown): number | null { if (value === null || value === undefined || value === "") return null; const result = Number(value); return Number.isFinite(result) ? result : null; }
-function finiteInteger(value: unknown, fallback: number): number { const result = Number(value); return Number.isSafeInteger(result) && result >= 0 ? result : fallback; }
+function exactPositiveInteger(value: unknown, field: string): number {
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value <= 0) throw new ConsoleV2ContractError(`V2 接口缺少有效 ${field}`);
+  return value;
+}
+function exactNonNegativeInteger(value: unknown, field: string): number {
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) throw new ConsoleV2ContractError(`V2 接口缺少有效 ${field}`);
+  return value;
+}
 function nullableBoolean(value: unknown): boolean | null { return typeof value === "boolean" ? value : value === null || value === undefined ? null : String(value).toLowerCase() === "true" ? true : String(value).toLowerCase() === "false" ? false : null; }

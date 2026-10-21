@@ -45,6 +45,7 @@ test("工作区切换 URL 只携带目标面板已应用的查询", () => {
   assert.equal(workspaceHrefWithAppliedQuery("/trading/orders", "http://localhost/trading/cycles?q=draft-not-applied", "v2-order"), "/trading/orders?q=v2-order");
   assert.equal(workspaceHrefWithAppliedQuery("/trading/orders", "http://localhost/trading/cycles?q=draft-not-applied", " v2-order "), "/trading/orders?q=v2-order");
   assert.equal(workspaceHrefWithAppliedQuery("/trading/orders?q=stale", "http://localhost/trading/cycles?q=cycle", ""), "/trading/orders");
+  assert.equal(workspaceHrefWithAppliedQuery("/trading/orders?status=stale", "http://localhost/trading/cycles?status=cycle", "status=FILLED&execution_account_id=wallet-1&limit=50"), "/trading/orders?status=FILLED&execution_account_id=wallet-1&limit=50");
 });
 
 test("服务端可渲染 Prediction Console 首页", async () => {
@@ -59,18 +60,19 @@ test("服务端可渲染 Prediction Console 首页", async () => {
   assert.match(html, /预测工作区/);
   assert.match(html, /资料数据工作区/);
   assert.match(html, /交易工作区/);
-  assert.match(html, /独立页面/);
   assert.match(html, /系统运行/);
-  assert.match(html, /href="\/observability"[^>]*>.*服务监控/s);
+  assert.match(html, /href="\/system"[^>]*>.*系统工作区/s);
   assert.match(html, /href="\/questions"[^>]*>.*题目库/s);
   assert.match(html, /市场工作区/);
   assert.doesNotMatch(html, /回测数据产品/);
   assert.doesNotMatch(html, /href="\/backtests"/);
-  assert.match(html, /href="http:\/\/172\.21\.20\.221:8501\/"[^>]*>.*PM Backtest/s);
+  assert.doesNotMatch(html, /href="http:\/\/172\.21\.20\.221:8501\/"[^>]*>.*PM Backtest/s);
   assert.doesNotMatch(html, /Your site is taking shape/);
 
-  for (const href of ["/markets", "/predictions", "/assets", "/trading/cycles"]) {
-    assert.equal((html.match(new RegExp(`<a[^>]*href="${href}"`, "g")) ?? []).length, 1, `sidebar should expose one ${href} entry`);
+  const sidebar = html.match(/<aside id="console-sidebar"[\s\S]*?<\/aside>/)?.[0] ?? "";
+  assert.ok(sidebar, "sidebar should render");
+  for (const href of ["/markets", "/predictions", "/assets", "/trading"]) {
+    assert.equal((sidebar.match(new RegExp(`<a[^>]*href="${href}"`, "g")) ?? []).length, 1, `sidebar should expose one ${href} entry`);
   }
 });
 
@@ -97,7 +99,9 @@ test("服务端可渲染独立的市场页面", async () => {
   const response = await render("/markets");
   assert.equal(response.status, 200);
   const html = await response.text();
-  assert.match(html, /选盘批次与历史/);
+  assert.match(html, /<h1>运行市场<\/h1>/);
+  assert.match(html, /id="v2-tab-markets-running"[^>]*aria-selected="true"/);
+  assert.doesNotMatch(html, /id="v2-tab-markets-selection"[^>]*aria-selected="true"/);
 });
 
 test("服务端可渲染数据集轮换页面并显示导航入口", async () => {
@@ -105,7 +109,20 @@ test("服务端可渲染数据集轮换页面并显示导航入口", async () =>
   assert.equal(response.status, 200);
   const html = await response.text();
   assert.match(html, /数据集轮换/);
-  assert.match(html, /href="\/dataset-rotation"[^>]*>.*数据集轮换/s);
+  assert.match(html, /资料数据工作区/);
+});
+
+test("资料工作区把真实版本/变体/用途和轮换嵌入同一业务壳", async () => {
+  const datasets = await (await render("/datasets")).text();
+  assert.match(datasets, /各资料变体当前可用版本/);
+  assert.match(datasets, /选择版本 → variant → purpose/);
+  assert.match(datasets, /轮换执行、发布历史与规则/);
+  assert.equal((datasets.match(/class="brand"/g) ?? []).length, 1, "资料工作区只能有一个 ConsoleShell");
+
+  const sandboxes = await (await render("/sandboxes")).text();
+  assert.match(sandboxes, /资料归档/);
+  assert.match(sandboxes, /高级归档工具/);
+  assert.equal((sandboxes.match(/class="brand"/g) ?? []).length, 1, "资料归档只能有一个 ConsoleShell");
 });
 
 test("服务端可渲染交易与结算记录页面", async () => {
@@ -141,6 +158,20 @@ test("服务端可渲染实盘监控页面", async () => {
   assert.match(html, /正在读取真实实盘快照/);
   assert.doesNotMatch(html, /\$12,842\.36/);
   assert.doesNotMatch(html, />LIVE</);
+});
+
+test("交易旧 URL 复用新版工作区并保留实盘与账本内容", async () => {
+  const live = await (await render("/live")).text();
+  assert.match(live, /实盘快照与账户质量/);
+  assert.match(live, /从机会扫描到成交入账/);
+  assert.match(live, /id="v2-tab-trading-overview"[^>]*aria-selected="true"/);
+  assert.equal((live.match(/class="brand"/g) ?? []).length, 1, "实盘旧 URL 不应嵌套 ConsoleShell");
+
+  const ledger = await (await render("/trades")).text();
+  assert.match(ledger, /资金账本与结算/);
+  assert.match(ledger, /EXTERNAL_SELL/);
+  assert.match(ledger, /id="v2-tab-trading-ledger"[^>]*aria-selected="true"/);
+  assert.equal((ledger.match(/class="brand"/g) ?? []).length, 1, "账本旧 URL 不应嵌套 ConsoleShell");
 });
 
 test("服务端可渲染双服务基础监控页面", async () => {
@@ -270,13 +301,16 @@ test("数据集轮换 BFF 拒绝写请求", async () => {
   assert.equal(response.status, 404);
 });
 
-test("侧栏只有一个回测平台入口，旧 PM Backtest 外链保留，首页仍不出现 /backtests", async () => {
+test("侧栏只有八个业务入口，旧 PM Backtest 只在回测相关页面保留，首页仍不出现 /backtests", async () => {
   const html = await (await render("/")).text();
-  assert.equal((html.match(/<a[^>]*href="\/backtest-platform"/g) ?? []).length, 1);
-  assert.match(html, /href="\/backtest-platform"[^>]*>.*回测平台/s);
-  assert.match(html, /href="http:\/\/172\.21\.20\.221:8501\/"[^>]*>.*PM Backtest/s);
-  assert.doesNotMatch(html, /href="\/backtests"/);
-  assert.doesNotMatch(html, /回测数据产品/);
+  const sidebar = html.match(/<aside id="console-sidebar"[\s\S]*?<\/aside>/)?.[0] ?? "";
+  assert.equal((sidebar.match(/<a[^>]*href="\/backtest-platform"/g) ?? []).length, 1);
+  assert.match(sidebar, /href="\/backtest-platform"[^>]*>.*回测平台/s);
+  assert.equal((sidebar.match(/<a[^>]*href="\/(?:dataset-rotation|live|trades)"/g) ?? []).length, 0);
+  assert.doesNotMatch(sidebar, /独立页面/);
+  assert.doesNotMatch(sidebar, /href="http:\/\/172\.21\.20\.221:8501\/"[^>]*>.*PM Backtest/s);
+  assert.doesNotMatch(sidebar, /href="\/backtests"/);
+  assert.doesNotMatch(sidebar, /回测数据产品/);
 });
 
 test("回测平台工作区：Tab ARIA、默认交易回测、只渲染当前面板", async () => {

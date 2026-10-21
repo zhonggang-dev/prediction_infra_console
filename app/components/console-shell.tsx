@@ -29,26 +29,14 @@ const navigationGroups: NavigationGroup[] = [
       { href: "/predictions", label: "预测工作区", icon: "trend" as const },
       { href: "/questions", label: "题目库", icon: "questions" as const },
       { href: "/assets", label: "资料数据工作区", icon: "box" as const },
-      { href: "/trading/cycles", label: "交易工作区", icon: "trades" as const },
-    ],
-  },
-  {
-    label: "独立页面",
-    items: [
-      { href: "/dataset-rotation", label: "数据集轮换", icon: "archive" as const },
+      { href: "/trading", label: "交易工作区", icon: "trades" as const },
       { href: "/backtest-platform", label: "回测平台", icon: "trend" as const },
-      { href: "/live", label: "实盘监控", icon: "live" as const },
-      { href: "/trades", label: "交易与结算", icon: "trades" as const },
-      { href: "http://172.21.20.221:8501/", label: "PM Backtest", icon: "trend" as const, external: true },
     ],
   },
   {
     label: "系统运行",
     items: [
-      { href: "/observability", label: "服务监控", icon: "pulse" as const },
-      { href: "/delivery", label: "消息交付", icon: "send" as const },
-      { href: "/system/page-jobs", label: "网页库任务", icon: "archive" as const },
-      { href: "/settings", label: "系统设置", icon: "settings" as const },
+      { href: "/system", label: "系统工作区", icon: "settings" as const },
     ],
   },
 ];
@@ -60,8 +48,9 @@ export function ConsoleShell({ children, timezone }: { children: React.ReactNode
   const isActive = (href: string) => {
     if (!href.startsWith("/")) return false;
     if (href === "/") return pathname === "/";
-    if (href === "/assets") return ["/assets", "/datasets", "/backtests"].some((prefix) => pathname.startsWith(prefix));
-    if (href === "/trading/cycles") return pathname.startsWith("/trading/");
+    if (href === "/assets") return ["/assets", "/datasets", "/backtests", "/dataset-rotation"].some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+    if (href === "/trading") return ["/trading", "/live", "/trades"].some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
+    if (href === "/system") return ["/system", "/observability", "/delivery", "/settings"].some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));
     return pathname === href || pathname.startsWith(`${href}/`);
   };
 
@@ -82,7 +71,7 @@ export function ConsoleShell({ children, timezone }: { children: React.ReactNode
     </aside>
     <button className={`drawer-backdrop ${isOpen ? "open" : ""}`} aria-label="关闭导航" onClick={() => setIsOpen(false)} />
     <div className="content">
-      <header className="topbar"><div className="top-actions"><button className="button icon-button mobile-menu" aria-label="打开导航" aria-controls="console-sidebar" aria-expanded={isOpen} onClick={() => setIsOpen(true)}><Icon name="menu" /></button><span className="breadcrumb">Prediction Infra / 内部运维</span><span className="console-version">新版</span></div><div className="top-actions"><span className="utc">{timezone ? `${timezone} 数据标准` : "UTC 数据标准"}</span><a className="button" href="/settings">连接设置</a></div></header>
+      <header className="topbar"><div className="top-actions"><button className="button icon-button mobile-menu" aria-label="打开导航" aria-controls="console-sidebar" aria-expanded={isOpen} onClick={() => setIsOpen(true)}><Icon name="menu" /></button><span className="breadcrumb">Prediction Infra / 内部运维</span><span className="console-version">新版</span></div><div className="top-actions"><span className="utc">{timezone ? `${timezone} 数据标准` : "UTC 数据标准"}</span><a className="button" href="/system/settings">连接设置</a></div></header>
       <main className="main">{children}</main>
     </div>
   </div>;

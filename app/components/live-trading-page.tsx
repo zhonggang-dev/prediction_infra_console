@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { consoleApi } from "../lib/console-api";
-import { consoleV2, type ConsoleV2Runtime } from "../lib/console-v2";
+import { consoleV2, type ConsoleV2Runtime, type ConsoleV2RuntimeAccount } from "../lib/console-v2";
 import { demoLiveOperations } from "../lib/demo-live";
 import { calculateMaximumDrawdown } from "../lib/pnl-metrics";
 import type { ApiMode, DailyPnLReport, EdgeDistribution, LiveEvent, LiveHealth, LiveOperationsSnapshot, LiveOrder, LivePosition, LiveRiskMetric, LiveWalletSummary } from "../lib/types";
@@ -14,7 +14,7 @@ import { Icon } from "./icons";
 type EventFilter = "all" | "risk" | "trade";
 
 /** 实盘值班主视图：把线程健康、交易漏斗、订单生命周期、风险与对账放在同一张屏幕。 */
-export function LiveTradingPage({ previewObservedAt }: { previewObservedAt: string }) {
+export function LiveTradingPage({ previewObservedAt, embedded = false }: { previewObservedAt: string; embedded?: boolean }) {
   const previewSnapshot = useMemo(() => demoLiveOperations(previewObservedAt), [previewObservedAt]);
   const [snapshot, setSnapshot] = useState<LiveOperationsSnapshot>();
   const [mode, setMode] = useState<ApiMode>("unavailable");
@@ -132,8 +132,15 @@ export function LiveTradingPage({ previewObservedAt }: { previewObservedAt: stri
   const currentPositionValue = walletPositions.reduce((total, position) => total + position.marketValue, 0);
   const maximumDrawdown = useMemo(() => calculateMaximumDrawdown(pnlReport, effectiveWalletId), [effectiveWalletId, pnlReport]);
 
-  return <ConsoleShell>
-    <header className="page-head live-page-head">
+  const content = <>
+    {embedded ? <div className="trading-embedded-toolbar">
+      <div><span className="eyebrow">Live Snapshot</span><strong>实盘快照与账户质量</strong><small>实盘监控：从机会扫描到成交入账，资金、仓位、订单生命周期与数据完整性保持原有口径。</small></div>
+      <div className="live-head-actions">
+        <label className="refresh-select"><span>刷新</span><select value={refreshMs} onChange={(event) => setRefreshMs(Number(event.target.value))} aria-label="自动刷新间隔"><option value={15000}>15 秒</option><option value={30000}>30 秒</option><option value={60000}>60 秒</option></select></label>
+        <button className={`button auto-refresh ${autoRefresh ? "active" : ""}`} aria-pressed={autoRefresh} onClick={() => setAutoRefresh((value) => !value)}><i /> 自动</button>
+        <button className="button" onClick={() => void load()} disabled={loading || pnlLoading || edgeLoading}><Icon name="refresh" /> {loading || pnlLoading || edgeLoading ? "刷新中" : "立即刷新"}</button>
+      </div>
+    </div> : <header className="page-head live-page-head">
       <div>
         <p className="eyebrow">Live Trading / Command Center</p>
         <div className="live-title-line"><h1>实盘监控</h1>{activeSnapshot ? <SnapshotStatusBadge snapshot={activeSnapshot} /> : <span className="health-badge unavailable"><i />{loading ? "读取中" : "数据不可用"}</span>}</div>
@@ -144,17 +151,17 @@ export function LiveTradingPage({ previewObservedAt }: { previewObservedAt: stri
         <button className={`button auto-refresh ${autoRefresh ? "active" : ""}`} aria-pressed={autoRefresh} onClick={() => setAutoRefresh((value) => !value)}><i /> 自动</button>
         <button className="button" onClick={() => void load()} disabled={loading || pnlLoading || edgeLoading}><Icon name="refresh" /> {loading || pnlLoading || edgeLoading ? "刷新中" : "立即刷新"}</button>
       </div>
-    </header>
+    </header>}
 
     {mode === "unavailable" && !loading && <div className="notice live-error-notice"><div><strong>真实钱包数据不可用</strong><p>为避免把演示值误认成真实收益，当前不会自动填充产品预览。原因：{error}</p></div><div className="notice-actions"><button className="button" onClick={retryLive}>重试真实数据</button><button className="button" onClick={showPreview}>查看产品预览</button></div></div>}
     {mode === "demo" && <div className="notice live-preview-notice"><div><strong>当前为用户主动打开的产品预览</strong><p>以下钱包、仓位与盈亏均为演示数据，不代表任何真实钱包。</p></div><button className="button" onClick={retryLive}>返回真实数据</button></div>}
     {mode === "live" && pnlMode === "unavailable" && !pnlLoading && <div className="notice live-error-notice"><div><strong>每日盈亏数据不可用</strong><p>实盘快照正常，但每日账本收益不会使用演示值替代。原因：{pnlError}</p></div><div className="notice-actions"><button className="button" onClick={() => void loadPnL(pnlDays)}>重试盈亏数据</button><button className="button" onClick={showPreview}>查看产品预览</button></div></div>}
 
+    <LiveRuntimeSummary />
     {activeSnapshot && <LiveStatusBar snapshot={activeSnapshot} mode={mode} />}
     <WalletPerformance wallets={activeSnapshot?.wallets ?? []} wallet={selectedWallet} selectedWalletId={effectiveWalletId} onWallet={setSelectedWalletId} loading={loading && !activeSnapshot} currentPositionValue={currentPositionValue} maximumDrawdown={maximumDrawdown} pnlDays={pnlReport?.days ?? pnlDays} />
     <DailyPnLDashboard report={pnlReport} loading={pnlLoading && !pnlReport} days={pnlDays} onDays={changePnLDays} preview={pnlMode === "demo"} />
     <EdgeDistributionPanel distribution={edgeDistribution} loading={edgeLoading} error={edgeError} onRetry={() => void loadEdges()} />
-    <LiveRuntimeSummary />
 
     {!activeSnapshot && <section className="section panel live-data-state"><strong>{loading ? "正在读取真实实盘快照" : "没有可展示的真实实盘快照"}</strong><p>{loading ? "钱包指标将在服务端返回完整快照后显示。" : "请重试真实数据，或明确选择查看产品预览。"}</p></section>}
     {activeSnapshot && <>
@@ -186,7 +193,8 @@ export function LiveTradingPage({ previewObservedAt }: { previewObservedAt: stri
       </div>
     </section>
     </>}
-  </ConsoleShell>;
+  </>;
+  return embedded ? content : <ConsoleShell>{content}</ConsoleShell>;
 }
 
 /** V2 runner summary replaces the old synthetic worker/funnel projection. */
@@ -204,12 +212,21 @@ function LiveRuntimeSummary() {
   }, []);
   const runner = runtime?.runner;
   return <section className="section panel live-runtime-summary">
-    <div className="section-head"><div><h2 className="section-title">决策运行状态</h2><p className="section-caption">这里显示持久化决策运行与绑定的真实摘要；订单、成交和账本请进入交易中心核对。</p></div><a className="link" href="/trading/cycles">打开决策周期 <Icon name="arrow" /></a></div>
+    <div className="section-head"><div><h2 className="section-title">决策运行状态与账户绑定</h2><p className="section-caption">这里显示持久化决策运行、当前配置和数据库账户事实；订单、成交和账本在同一交易工作区继续核对。</p></div><a className="link" href="/trading/cycles">打开决策周期 <Icon name="arrow" /></a></div>
     {error && <p className="v2-inline-note">决策运行状态不可用：{error}</p>}
     {!runtime && !error && <p className="v2-inline-note">正在读取决策运行状态…</p>}
-    {runtime && <div className="v2-facts"><div className="v2-fact"><span>运行状态</span><strong>{runtimeValue(runner?.state ?? runner?.running)}</strong></div><div className="v2-fact"><span>绑定数</span><strong>{runtime.bindings.length}</strong></div><div className="v2-fact"><span>最近完成</span><strong>{formatRuntimeTime(runner?.lastCompletedAt)}</strong></div><div className="v2-fact"><span>观测时间</span><strong>{formatRuntimeTime(runtime.observedAt)}</strong></div></div>}
+    {runtime && <><div className="v2-facts"><div className="v2-fact"><span>运行状态</span><strong>{runtimeValue(runner?.state ?? runner?.running)}</strong></div><div className="v2-fact"><span>绑定数</span><strong>{runtime.bindings.length}</strong></div><div className="v2-fact"><span>账户事实</span><strong>{runtime.accountDataState === "available" ? `${runtime.accounts.length} 个` : "未采集"}</strong></div><div className="v2-fact"><span>最近完成</span><strong>{formatRuntimeTime(runner?.lastCompletedAt)}</strong></div><div className="v2-fact"><span>订单提交</span><strong>{runtimeBool(runtime.submission.orderSubmissionEnabled)}</strong></div><div className="v2-fact"><span>入场提交</span><strong>{runtimeBool(runtime.submission.entrySubmissionDisabled === null ? null : !runtime.submission.entrySubmissionDisabled)}</strong></div><div className="v2-fact"><span>策略禁用账户</span><strong>{runtimeAccounts(runtime.submission.strategyDisabledAccounts)}</strong></div><div className="v2-fact"><span>入场禁用账户</span><strong>{runtimeAccounts(runtime.submission.entryDisabledAccounts)}</strong></div><div className="v2-fact"><span>订单禁用账户</span><strong>{runtimeAccounts(runtime.submission.submissionDisabledAccounts)}</strong></div><div className="v2-fact"><span>观测时间</span><strong>{formatRuntimeTime(runtime.observedAt)}</strong></div></div>{runtime.accountDataState === "available" && <RuntimeAccountTable accounts={runtime.accounts} />}{runtime.accountDataState !== "available" && <p className="v2-inline-note">runner/config 仍可用，但数据库账户事实未采集；这里不把未采集渲染成零账户或正常许可。</p>}</>}
   </section>;
 }
+
+function RuntimeAccountTable({ accounts }: { accounts: ConsoleV2RuntimeAccount[] }) {
+  if (!accounts.length) return <p className="v2-inline-note">当前没有返回账户投影。</p>;
+  return <div className="table-scroll v2-evidence-table live-runtime-accounts"><table className="v2-table"><thead><tr><th>账户 / binding</th><th>授权 / 风控</th><th>输入 / entry gate</th><th>最近周期 / 对账</th><th>开放问题 / 订单</th></tr></thead><tbody>{accounts.map((account) => <tr key={`${account.executionAccountId}:${account.strategyId}`}><td><div className="v2-cell-copy"><strong className="mono">{account.executionAccountId}</strong><small>{account.modelId} · {account.strategyId} · {account.sourceMode}</small></div></td><td><div className="v2-cell-copy"><span>{runtimeBool(account.configuredBinding)} / {runtimeBool(account.databaseBindingEnabled)}</span><small>风险策略 {runtimeBool(account.riskPolicyEnabled)} · 暂停 {runtimeBool(account.accountPaused, "是", "否")}</small></div></td><td><div className="v2-cell-copy"><span>{account.strategyInputState}</span><small>{account.entryGateState}{account.lastCycleEntryBlockReason ? ` · ${account.lastCycleEntryBlockReason}` : ""}</small></div></td><td><div className="v2-cell-copy"><span>{account.lastCycleStatus ?? "未知"}</span><small>{formatRuntimeTime(account.lastCycleAt)} · 对账 {account.lastReconciliationStatus ?? "未知"}</small></div></td><td>{runtimeNumber(account.openIssueCount)} / {runtimeNumber(account.openOrderCount)}</td></tr>)}</tbody></table></div>;
+}
+
+function runtimeBool(value: boolean | null | undefined, trueLabel = "允许", falseLabel = "禁用") { return value === null || value === undefined ? "未知" : value ? trueLabel : falseLabel; }
+function runtimeAccounts(values: string[]) { return values.length ? values.join(" · ") : "无"; }
+function runtimeNumber(value: number | null | undefined) { return value === null || value === undefined ? "未知" : String(value); }
 
 function SnapshotStatusBadge({ snapshot }: { snapshot: LiveOperationsSnapshot }) {
   const refreshIssue = snapshot.dataQuality.some((item) => item.id === "aggregator" && item.status !== "healthy");

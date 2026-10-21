@@ -91,6 +91,7 @@ export interface GeneratedQAList {
   total: number;
   limit: number;
   offset: number;
+  observedAt?: string;
   statusCounts: Record<string, number>;
   marketCompatibleCounts: Record<string, number>;
   domainOptions: string[];

@@ -1,49 +1,71 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { consoleV2, type ConsoleV2DecisionCycle, type ConsoleV2Order, type ConsoleV2PositionLot, type ConsoleV2ReconciliationIssue, type ConsoleV2ReconciliationRun, type ConsoleV2Redemption, type ConsoleV2Runtime } from "../lib/console-v2";
-import { formatV2Number, formatV2Time, V2Facts, V2Frame, V2ListPage, V2Tabs, V2WorkspacePanel, useVisitedTabs, useWorkspaceTabs, v2Status, v2Unknown } from "./console-v2-resource";
+import { consoleV2, type ConsoleV2DecisionCycle, type ConsoleV2Order, type ConsoleV2PositionLot, type ConsoleV2ReconciliationIssue, type ConsoleV2ReconciliationRun, type ConsoleV2Redemption, type ConsoleV2Runtime, type ConsoleV2RuntimeAccount } from "../lib/console-v2";
+import { formatV2Number, formatV2Time, V2Facts, V2Frame, V2ListPage, V2Tabs, V2WorkspacePanel, useV2Filter, useVisitedTabs, useWorkspaceTabs, v2Status, v2Unknown } from "./console-v2-resource";
+import { LiveTradingPage } from "./live-trading-page";
+import { TradeRecordsPage } from "./trade-records-page";
 
-type TradingView = "cycles" | "orders" | "positions" | "reconciliation" | "redemptions";
+type TradingView = "overview" | "cycles" | "orders" | "positions" | "ledger" | "reconciliation" | "redemptions";
 
-export function TradingV2Page({ view = "cycles" }: { view?: TradingView }) {
-  const tabs = [{ href: "/trading/cycles", label: "决策周期" }, { href: "/trading/orders", label: "订单执行" }, { href: "/trading/positions", label: "仓位" }, { href: "/trading/reconciliation", label: "账户对账" }, { href: "/trading/redemptions", label: "赎回" }] as const;
-  const initialHref = `/trading/${view}` as typeof tabs[number]["href"];
+export function TradingV2Page({ view = "overview" }: { view?: TradingView }) {
+  const tabs = [{ href: "/trading/overview", label: "实盘概况", aliases: ["/trading", "/live"] }, { href: "/trading/cycles", label: "决策周期" }, { href: "/trading/orders", label: "订单执行" }, { href: "/trading/positions", label: "仓位" }, { href: "/trading/ledger", label: "资金账本", aliases: ["/trades"] }, { href: "/trading/reconciliation", label: "开放问题 / 对账" }, { href: "/trading/redemptions", label: "结算 / 赎回" }] as const;
+  const initialHref = view === "overview" ? "/trading/overview" : `/trading/${view}` as typeof tabs[number]["href"];
   const workspace = useWorkspaceTabs(tabs, initialHref);
-  const config = workspace.active === "/trading/orders"
+  const previewObservedAt = useMemo(() => new Date().toISOString(), []);
+  const config = workspace.active === "/trading/overview"
+    ? { eyebrow: "Trading / Live", title: "实盘概况", description: "当前运行状态、账户事实、最近周期和待处理事项分开查看；历史成交与账本按原有记录核对。" }
+    : workspace.active === "/trading/orders"
     ? { eyebrow: "Trading / Orders", title: "订单执行", description: "订单履历、确认成交和账本应用分别展示；页面只读。" }
     : workspace.active === "/trading/positions"
       ? { eyebrow: "Trading / Positions", title: "仓位与 Lot", description: "按 lot 保留 model、strategy、execution account 归属；不把账户聚合成失去 binding 的单行仓位。" }
+      : workspace.active === "/trading/ledger"
+        ? { eyebrow: "Trading / Ledger", title: "资金账本与结算", description: "BUY、SELL、EXTERNAL_SELL 与 REDEEM 沿用统一账本活动口径；订单接受不等于成交，赎回不混作卖出。" }
       : workspace.active === "/trading/reconciliation"
-        ? { eyebrow: "Trading / Reconciliation", title: "账户对账", description: "对账运行与开放 issue 分层展示；查询失败不会被渲染成零差异，也不会触发恢复动作。" }
+        ? { eyebrow: "Trading / Reconciliation", title: "账户对账", description: "对账运行与待处理问题分层展示；读取失败不会被显示成零差异，也不会触发恢复动作。" }
         : workspace.active === "/trading/redemptions"
           ? { eyebrow: "Trading / Redemptions", title: "赎回", description: "市场终态、链上确认和账本应用分层展示；未确认或未应用不冒充到账。" }
           : { eyebrow: "Trading / Decision Cycles", title: "决策周期", description: "按持久化决策周期核对输入、输出、交付和订单链路；页面只读。" };
   return <V2Frame eyebrow={config.eyebrow} title={config.title} description={config.description}>
     <V2Tabs tabs={tabs} active={workspace.active} onSelect={(href) => workspace.select(href as typeof workspace.active)} />
+    <V2WorkspacePanel active={workspace.active} href="/trading/overview" visited={workspace.visited.has("/trading/overview")}><TradingOverview previewObservedAt={previewObservedAt} /></V2WorkspacePanel>
     <V2WorkspacePanel active={workspace.active} href="/trading/cycles" visited={workspace.visited.has("/trading/cycles")}><DecisionCycles /></V2WorkspacePanel>
     <V2WorkspacePanel active={workspace.active} href="/trading/orders" visited={workspace.visited.has("/trading/orders")}><Orders /></V2WorkspacePanel>
     <V2WorkspacePanel active={workspace.active} href="/trading/positions" visited={workspace.visited.has("/trading/positions")}><Positions /></V2WorkspacePanel>
+    <V2WorkspacePanel active={workspace.active} href="/trading/ledger" visited={workspace.visited.has("/trading/ledger")}><Ledger /></V2WorkspacePanel>
     <V2WorkspacePanel active={workspace.active} href="/trading/reconciliation" visited={workspace.visited.has("/trading/reconciliation")}><Reconciliation /></V2WorkspacePanel>
     <V2WorkspacePanel active={workspace.active} href="/trading/redemptions" visited={workspace.visited.has("/trading/redemptions")}><Redemptions /></V2WorkspacePanel>
   </V2Frame>;
+}
+
+function TradingOverview({ previewObservedAt }: { previewObservedAt: string }) {
+  return <LiveTradingPage previewObservedAt={previewObservedAt} embedded />;
+}
+
+function Ledger() {
+  return <TradeRecordsPage embedded />;
+}
+
+function AccountTable({ accounts }: { accounts: ConsoleV2RuntimeAccount[] }) {
+  return <div className="table-scroll v2-evidence-table"><table className="v2-table"><thead><tr><th>账户 / 绑定</th><th>输入 / 最近周期 gate</th><th>订单提交</th><th>最近周期</th><th>开放问题 / 订单</th></tr></thead><tbody>{accounts.map((account) => <tr key={`${account.executionAccountId}:${account.strategyId}`}><td><div className="v2-cell-copy"><strong className="mono">{account.executionAccountId}</strong><small>{account.modelId} · {account.strategyId} · {account.sourceMode}</small></div></td><td><div className="v2-cell-copy"><span>{account.strategyInputState}</span><small>{account.entryGateState}{account.lastCycleEntryBlockReason ? ` · ${account.lastCycleEntryBlockReason}` : ""}</small></div></td><td>{account.orderSubmissionState}</td><td><div className="v2-cell-copy"><span>{v2Unknown(account.lastCycleStatus)}</span><small>{formatV2Time(account.lastCycleAt)}</small></div></td><td>{formatV2Number(account.openIssueCount, 0)} / {formatV2Number(account.openOrderCount, 0)}</td></tr>)}</tbody></table></div>;
 }
 
 function DecisionCycles() {
   const [runtime, setRuntime] = useState<ConsoleV2Runtime>();
   const [runtimeError, setRuntimeError] = useState<string>();
   useEffect(() => { let cancelled = false; void consoleV2.trading.runtime().then((result) => { if (!cancelled) setRuntime(result.data); }).catch((error: unknown) => { if (!cancelled) setRuntimeError(error instanceof Error ? error.message : "交易运行状态不可用"); }); return () => { cancelled = true; }; }, []);
-  const [status, setStatus] = useState("");
-  const [model, setModel] = useState("");
-  const [account, setAccount] = useState("");
+  const [status, setStatus] = useV2Filter("status");
+  const [model, setModel] = useV2Filter("model_id");
+  const [account, setAccount] = useV2Filter("execution_account_id");
   const params = useMemo(() => ({ status: status || undefined, model_id: model || undefined, execution_account_id: account || undefined }), [status, model, account]);
   const controls = <><select className="select" aria-label="周期状态" value={status} onChange={(event) => setStatus(event.target.value)}><option value="">全部状态</option><option value="INPUT_RECORDED">已记录输入</option><option value="OUTPUT_RECORDED">已记录输出</option><option value="DELIVERY_PENDING">交付中</option><option value="DELIVERY_ATTENTION">交付需关注</option></select><input className="input" aria-label="模型" placeholder="模型 ID" value={model} onChange={(event) => setModel(event.target.value)} /><input className="input" aria-label="执行账户" placeholder="执行账户 ID" value={account} onChange={(event) => setAccount(event.target.value)} /></>;
-  return <><section className="v2-runtime-card v2-cycle-runtime"><div className="section-head"><h2 className="section-title">决策运行状态与绑定</h2>{v2Status(runtime ? String(runtime.runner.state ?? runtime.runner.running ?? "unknown") : "unknown", runtime ? v2Unknown(runtime.runner.state ?? runtime.runner.running) : "未知")}</div>{runtime ? <><V2Facts values={[{ label: "观测时间", value: formatV2Time(runtime.observedAt) }, { label: "绑定数", value: String(runtime.bindings.length) }, { label: "运行间隔", value: v2Unknown(runtime.runner.intervalSeconds) }, { label: "最近完成", value: formatV2Time(runtime.runner.lastCompletedAt) }, { label: "最近错误", value: runtime.runner.hasLastError ? v2Unknown(runtime.runner.lastErrorCode) : "无" }]} /><BindingTable bindings={runtime.bindings} /></> : <p className="v2-inline-note">{runtimeError ?? "读取交易运行状态…"}</p>}<p className="v2-inline-note">这里显示决策服务当前返回的绑定关系；历史周期仍以自身保存的身份为准。</p></section><V2ListPage<ConsoleV2DecisionCycle> title="决策周期" load={consoleV2.trading.decisionCycles} params={params} controls={controls} rowKey={(item) => item.cycleId} searchPlaceholder="搜索 cycle、input、snapshot、模型或账户" columns={[
+  return <><section className="v2-runtime-card v2-cycle-runtime"><div className="section-head"><h2 className="section-title">决策运行状态与绑定</h2>{v2Status(runtime ? String(runtime.runner.state ?? runtime.runner.running ?? "unknown") : "unknown", runtime ? v2Unknown(runtime.runner.state ?? runtime.runner.running) : "未知")}</div>{runtime ? <><V2Facts values={[{ label: "观测时间", value: formatV2Time(runtime.observedAt) }, { label: "配置绑定条数", value: String(runtime.bindings.length) }, { label: "账户数据", value: runtime.accountDataState === "available" ? `${runtime.accounts.length} 个账户` : "未采集" }, { label: "运行间隔", value: v2Unknown(runtime.runner.intervalSeconds) }, { label: "最近完成", value: formatV2Time(runtime.runner.lastCompletedAt) }, { label: "最近错误", value: runtime.runner.hasLastError ? v2Unknown(runtime.runner.lastErrorCode) : "无" }]} />{runtime.accountDataState === "available" ? <AccountTable accounts={runtime.accounts} /> : <BindingTable bindings={runtime.bindings} />}</> : <p className="v2-inline-note">{runtimeError ?? "读取交易运行状态…"}</p>}<p className="v2-inline-note">这里显示决策服务当前返回的绑定关系；历史周期仍以自身保存的身份为准。数据库账户事实未采集时不生成假账户数。</p></section><V2ListPage<ConsoleV2DecisionCycle> title="决策周期" load={consoleV2.trading.decisionCycles} params={params} controls={controls} rowKey={(item) => item.cycleId} searchPlaceholder="搜索 cycle、input、snapshot、模型或账户" columns={[
     { label: "Cycle / decision_at", className: "primary", render: (item) => <div className="v2-cell-copy"><strong className="mono">{item.cycleId}</strong><small>{formatV2Time(item.decisionAt)}</small></div> },
     { label: "Binding", render: (item) => <div className="v2-cell-copy"><span>{v2Unknown(item.modelId)}</span><small>{v2Unknown(item.predictionModelId, "producer 未提供")} · {v2Unknown(item.strategyId)} · {v2Unknown(item.executionAccountId)}</small></div> },
     { label: "输入快照", render: (item) => <div className="v2-cell-copy mono"><span>{v2Unknown(item.inputId)}</span><small>{v2Unknown(item.predictionSnapshotId)}</small></div> },
     { label: "预测 / Lot / Intent", render: (item) => `${formatV2Number(item.predictionCount, 0)} / ${formatV2Number(item.positionLotCount, 0)} / ${formatV2Number(item.intentCount, 0)}` },
     { label: "交付 pending / failed", render: (item) => `${formatV2Number(item.deliveryPendingCount, 0)} / ${formatV2Number(item.deliveryFailedCount, 0)}` },
+    { label: "入场 gate", render: (item) => <div className="v2-cell-copy"><span>{item.entrySubmissionEnabled === null ? "未采集" : item.entrySubmissionEnabled ? "允许" : "阻断"}</span><small>{v2Unknown(item.entryBlockReason)}</small></div> },
     { label: "状态", render: (item) => v2Status(item.status, item.status) },
   ]} renderDetail={(item) => <CycleDetail item={item} />} /></>;
 }
@@ -74,9 +96,9 @@ function OrderTraceEvidence({ item, trace }: { item: ConsoleV2Order; trace: Awai
   const fills = traceRecords(trace.fills);
   const lots = traceRecords(trace.positionLots);
   const issues = traceRecords(trace.reconciliationIssues);
-  const confirmed = fills.filter((fill) => detailText(fill.confirmed_at) !== "未知").length;
-  const applied = fills.filter((fill) => detailText(fill.applied_at) !== "未知").length;
-  return <section className="v2-evidence-section"><h4 className="v2-evidence-title">订单履历</h4><V2Facts values={[{ label: "当前订单状态", value: item.status }, { label: "订单更新时间", value: formatV2Time(item.updatedAt) }, { label: "确认成交数", value: String(confirmed) }, { label: "已入账成交数", value: String(applied) }, { label: "Trace 观测时间", value: formatV2Time(trace.observedAt) }]} /><div className="v2-trace-counts"><TraceCount label="交付" count={deliveries.length} /><TraceCount label="状态事件" count={events.length} /><TraceCount label="提交尝试" count={attempts.length} /><TraceCount label="成交" count={fills.length} /><TraceCount label="仓位批次" count={lots.length} /><TraceCount label="对账问题" count={issues.length} /></div><ProjectionTable title="交付" items={deliveries} columns={[{ label: "状态", value: (row) => detailText(row.status) }, { label: "周期", value: (row) => detailText(row.cycle_id) }, { label: "订单", value: (row) => orderLink(row.order_id) }, { label: "创建时间", value: (row) => detailTime(row.created_at) }, { label: "完成时间", value: (row) => detailTime(row.completed_at) }]} /><ProjectionTable title="状态事件" items={events} columns={[{ label: "状态", value: (row) => detailText(row.to_status) }, { label: "触发", value: (row) => detailText(row.trigger) }, { label: "原因", value: (row) => detailText(row.reason_code) }, { label: "发生时间", value: (row) => detailTime(row.occurred_at) }]} /><ProjectionTable title="提交尝试" items={attempts} columns={[{ label: "类型", value: (row) => detailText(row.kind) }, { label: "结果", value: (row) => detailText(row.outcome) }, { label: "错误码", value: (row) => detailText(row.error_code) }, { label: "开始时间", value: (row) => detailTime(row.started_at) }, { label: "完成时间", value: (row) => detailTime(row.completed_at) }]} /><ProjectionTable title="成交" items={fills} columns={[{ label: "状态", value: (row) => detailText(row.status) }, { label: "份额 / 价格", value: (row) => `${detailText(row.shares)} / ${detailText(row.price)}` }, { label: "匹配时间", value: (row) => detailTime(row.matched_at) }, { label: "确认时间", value: (row) => detailTime(row.confirmed_at) }, { label: "入账时间", value: (row) => detailTime(row.applied_at) }]} /><ProjectionTable title="仓位批次" items={lots} columns={[{ label: "Lot ID", value: (row) => detailText(row.lot_id) }, { label: "状态", value: (row) => detailText(row.status) }, { label: "剩余份额", value: (row) => detailText(row.remaining_shares) }, { label: "开启时间", value: (row) => detailTime(row.opened_at) }, { label: "关闭时间", value: (row) => detailTime(row.closed_at) }]} /><ProjectionTable title="对账问题" items={issues} columns={[{ label: "状态", value: (row) => detailText(row.status) }, { label: "类型", value: (row) => detailText(row.issue_type) }, { label: "原因", value: (row) => detailText(row.reason_code) }, { label: "观测时间", value: (row) => detailTime(row.observed_at) }, { label: "解决时间", value: (row) => detailTime(row.resolved_at) }]} /></section>;
+  const confirmed = item.evidenceSummary.confirmedFillCount ?? fills.filter((fill) => detailText(fill.confirmed_at) !== "未知").length;
+  const applied = item.evidenceSummary.appliedFillCount ?? fills.filter((fill) => detailText(fill.applied_at) !== "未知").length;
+  return <section className="v2-evidence-section"><h4 className="v2-evidence-title">订单履历</h4><V2Facts values={[{ label: "当前订单状态", value: item.status }, { label: "订单更新时间", value: formatV2Time(item.updatedAt) }, { label: "确认成交数（汇总）", value: String(confirmed) }, { label: "已入账成交数（汇总）", value: String(applied) }, { label: "Trace 观测时间", value: formatV2Time(trace.observedAt) }]} /><div className="v2-trace-counts"><TraceCount label="交付（当前 trace）" count={deliveries.length} /><TraceCount label="状态事件（当前 trace）" count={events.length} /><TraceCount label="提交尝试（当前 trace）" count={attempts.length} /><TraceCount label="成交记录（当前 trace）" count={fills.length} /><TraceCount label="仓位批次（当前 trace）" count={lots.length} /><TraceCount label="对账问题（当前 trace）" count={issues.length} /></div><ProjectionTable title="交付" items={deliveries} columns={[{ label: "状态", value: (row) => detailText(row.status) }, { label: "周期", value: (row) => detailText(row.cycle_id) }, { label: "订单", value: (row) => orderLink(row.order_id) }, { label: "创建时间", value: (row) => detailTime(row.created_at) }, { label: "完成时间", value: (row) => detailTime(row.completed_at) }]} /><ProjectionTable title="状态事件" items={events} columns={[{ label: "状态", value: (row) => detailText(row.to_status) }, { label: "触发", value: (row) => detailText(row.trigger) }, { label: "原因", value: (row) => detailText(row.reason_code) }, { label: "发生时间", value: (row) => detailTime(row.occurred_at) }]} /><ProjectionTable title="提交尝试" items={attempts} columns={[{ label: "类型", value: (row) => detailText(row.kind) }, { label: "结果", value: (row) => detailText(row.outcome) }, { label: "错误码", value: (row) => detailText(row.error_code) }, { label: "开始时间", value: (row) => detailTime(row.started_at) }, { label: "完成时间", value: (row) => detailTime(row.completed_at) }]} /><ProjectionTable title="成交" items={fills} columns={[{ label: "状态", value: (row) => detailText(row.status) }, { label: "份额 / 价格", value: (row) => `${detailText(row.shares)} / ${detailText(row.price)}` }, { label: "匹配时间", value: (row) => detailTime(row.matched_at) }, { label: "确认时间", value: (row) => detailTime(row.confirmed_at) }, { label: "入账时间", value: (row) => detailTime(row.applied_at) }]} /><ProjectionTable title="仓位批次" items={lots} columns={[{ label: "Lot ID", value: (row) => detailText(row.lot_id) }, { label: "状态", value: (row) => detailText(row.status) }, { label: "剩余份额", value: (row) => detailText(row.remaining_shares) }, { label: "开启时间", value: (row) => detailTime(row.opened_at) }, { label: "关闭时间", value: (row) => detailTime(row.closed_at) }]} /><ProjectionTable title="对账问题" items={issues} columns={[{ label: "状态", value: (row) => detailText(row.status) }, { label: "类型", value: (row) => detailText(row.issue_type) }, { label: "原因", value: (row) => detailText(row.reason_code) }, { label: "观测时间", value: (row) => detailTime(row.observed_at) }, { label: "解决时间", value: (row) => detailTime(row.resolved_at) }]} /></section>;
 }
 
 function ProjectionTable({ title, items, columns }: { title: string; items: Record<string, unknown>[]; columns: Array<{ label: string; value: (row: Record<string, unknown>) => React.ReactNode }> }) {
@@ -94,8 +116,8 @@ function orderLink(value: unknown) { const id = detailText(value); return id ===
 function reconciliationIdentity(item: ConsoleV2ReconciliationIssue) { const values = [item.orderId, item.venueOrderId, item.venueTradeId, item.marketId, item.conditionId, item.tokenId].filter((value): value is string => Boolean(value)); return values.length ? values.join(" · ") : item.executionAccountId ? `账户 ${item.executionAccountId}` : "未知"; }
 
 function Orders() {
-  const [status, setStatus] = useState("");
-  const [account, setAccount] = useState("");
+  const [status, setStatus] = useV2Filter("status");
+  const [account, setAccount] = useV2Filter("execution_account_id");
   const params = useMemo(() => ({ status: status || undefined, execution_account_id: account || undefined }), [status, account]);
   const controls = <><select className="select" aria-label="订单状态" value={status} onChange={(event) => setStatus(event.target.value)}><option value="">全部状态</option><option value="RECEIVED">已接收</option><option value="VALIDATING">校验中</option><option value="RESERVED">已预留</option><option value="SUBMITTING">提交中</option><option value="ACKNOWLEDGED">已确认</option><option value="LIVE">活动中</option><option value="PARTIALLY_FILLED">部分成交</option><option value="FILLED">已成交</option><option value="REJECTED">已拒绝</option><option value="UNKNOWN">未知</option><option value="CANCEL_PENDING">取消中</option><option value="CANCELLED">已取消</option><option value="RECONCILING">对账中</option><option value="MANUAL_REVIEW">人工复核</option></select><input className="input" aria-label="执行账户" placeholder="执行账户 ID" value={account} onChange={(event) => setAccount(event.target.value)} /></>;
   return <V2ListPage<ConsoleV2Order> title="订单执行" load={consoleV2.trading.orders} params={params} controls={controls} rowKey={(item) => item.orderId} searchPlaceholder="搜索 order、client order、venue order、market 或 token" columns={[
@@ -104,8 +126,9 @@ function Orders() {
     { label: "Binding", render: (item) => <div className="v2-cell-copy"><span>{v2Unknown(item.modelId)}</span><small>{v2Unknown(item.strategyId)} · {v2Unknown(item.executionAccountId)}</small></div> },
     { label: "市场 / 条件", render: (item) => <div className="v2-cell-copy mono"><span>{v2Unknown(item.marketId)}</span><small>{v2Unknown(item.conditionId)}</small></div> },
     { label: "Price / Shares", render: (item) => <div className="v2-cell-copy"><span>{formatV2Number(item.price, 6)} · {formatV2Number(item.shares, 4)}</span><small>filled {formatV2Number(item.filledShares, 4)}</small></div> },
+    { label: "成交 / 账本证据", render: (item) => <div className="v2-cell-copy"><span>{item.evidenceSummary.fillEvidenceState}</span><small>{item.evidenceSummary.confirmedFillCount ?? "未知"} confirmed · {item.evidenceSummary.appliedFillCount ?? "未知"} applied</small></div> },
     { label: "创建 / 更新", render: (item) => <div className="v2-cell-copy"><span>{formatV2Time(item.createdAt)}</span><small>{formatV2Time(item.updatedAt)}</small></div> },
-  ]} renderDetail={(item) => <OrderDetail item={item} />} />;
+  ]} renderDetail={(item) => <><V2Facts values={[{ label: "成交证据", value: item.evidenceSummary.fillEvidenceState }, { label: "账本状态", value: item.evidenceSummary.accountingState }, { label: "Confirmed fills", value: formatV2Number(item.evidenceSummary.confirmedFillCount, 0) }, { label: "Applied fills", value: formatV2Number(item.evidenceSummary.appliedFillCount, 0) }, { label: "Pending fills", value: formatV2Number(item.evidenceSummary.pendingFillCount, 0) }, { label: "开放问题", value: formatV2Number(item.evidenceSummary.openIssueCount, 0) }, { label: "Reservation", value: item.evidenceSummary.reservationState }]} /><OrderDetail item={item} /></>} />;
 }
 
 function OrderDetail({ item }: { item: ConsoleV2Order }) {
@@ -143,19 +166,19 @@ function ReconciliationRuns() {
 }
 
 function ReconciliationIssues() {
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useV2Filter("status");
   const params = useMemo(() => ({ status: status || undefined }), [status]);
   return <V2ListPage<ConsoleV2ReconciliationIssue> title="对账问题" load={consoleV2.trading.reconciliationIssues} params={params} controls={<select className="select" aria-label="问题状态" value={status} onChange={(event) => setStatus(event.target.value)}><option value="">全部状态</option><option value="OPEN">OPEN</option><option value="RESOLVED">RESOLVED</option></select>} rowKey={(item) => item.issueId} searchPlaceholder="搜索 issue、run、entity 或原因码" columns={[
     { label: "Issue ID", className: "primary mono", render: (item) => item.issueId },
     { label: "状态 / 类型", render: (item) => <div className="v2-cell-copy"><span>{v2Status(item.status, item.status)}</span><small>{v2Unknown(item.issueType)}</small></div> },
     { label: "Reason / Resolution", className: "mono", render: (item) => <div className="v2-cell-copy"><span>{v2Unknown(item.reasonCode)}</span><small>{v2Unknown(item.resolution)}</small></div> },
     { label: "关联身份", render: (item) => reconciliationIdentity(item) },
-    { label: "Observed", render: (item) => formatV2Time(item.observedAt) },
-  ]} renderDetail={(item) => <V2Facts values={[{ label: "Issue ID", value: item.issueId, mono: true }, { label: "Run ID", value: v2Unknown(item.runId), mono: true }, { label: "Account", value: v2Unknown(item.executionAccountId), mono: true }, { label: "Issue type", value: v2Unknown(item.issueType) }, { label: "Reason code", value: v2Unknown(item.reasonCode), mono: true }, { label: "Resolution", value: v2Unknown(item.resolution) }, { label: "关联身份", value: reconciliationIdentity(item) }, { label: "Source", value: v2Unknown(item.source) }, { label: "Local / remote", value: `${v2Unknown(item.localValue)} / ${v2Unknown(item.remoteValue)}` }, { label: "Resolved at", value: formatV2Time(item.resolvedAt) }]} />} emptyDescription="没有返回对账问题时显示为空；查询失败仍保持未知，不替换为零差异。" />;
+    { label: "首次 / 最近观测", render: (item) => <div className="v2-cell-copy"><span>{formatV2Time(item.firstObservedAt)}</span><small>{formatV2Time(item.observedAt)}</small></div> },
+  ]} renderDetail={(item) => <V2Facts values={[{ label: "Issue ID", value: item.issueId, mono: true }, { label: "Run ID", value: v2Unknown(item.runId), mono: true }, { label: "Account", value: v2Unknown(item.executionAccountId), mono: true }, { label: "Issue type", value: v2Unknown(item.issueType) }, { label: "Reason code", value: v2Unknown(item.reasonCode), mono: true }, { label: "Impact scope", value: v2Unknown(item.impactScope) }, { label: "Resolution", value: v2Unknown(item.resolution) }, { label: "关联身份", value: reconciliationIdentity(item) }, { label: "Source", value: v2Unknown(item.source) }, { label: "Local / remote", value: `${v2Unknown(item.localValue)} / ${v2Unknown(item.remoteValue)}` }, { label: "First observed", value: formatV2Time(item.firstObservedAt) }, { label: "Resolved at", value: formatV2Time(item.resolvedAt) }]} />} emptyDescription="没有返回对账问题时显示为空；查询失败仍保持未知，不替换为零差异。" />;
 }
 
 function Redemptions() {
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useV2Filter("status");
   const params = useMemo(() => ({ status: status || undefined }), [status]);
   return <V2ListPage<ConsoleV2Redemption> title="赎回" load={consoleV2.trading.redemptions} params={params} controls={<select className="select" aria-label="赎回状态" value={status} onChange={(event) => setStatus(event.target.value)}><option value="">全部状态</option><option value="READY">待处理</option><option value="APPROVAL_SUBMITTING">提交授权中</option><option value="APPROVAL_SUBMITTED">授权已提交</option><option value="REDEEM_SUBMITTING">提交赎回中</option><option value="REDEEM_SUBMITTED">赎回已提交</option><option value="CONFIRMED">已确认</option><option value="APPLIED">已入账</option><option value="MANUAL_REVIEW">人工复核</option></select>} rowKey={(item) => item.redemptionId} searchPlaceholder="搜索 redemption、condition、账户或交易哈希" columns={[
     { label: "Redemption ID", className: "primary mono", render: (item) => item.redemptionId },
