@@ -14,7 +14,7 @@ import { Icon } from "./icons";
 type EventFilter = "all" | "risk" | "trade";
 
 /** 实盘值班主视图：把线程健康、交易漏斗、订单生命周期、风险与对账放在同一张屏幕。 */
-export function LiveTradingPage({ previewObservedAt, embedded = false }: { previewObservedAt: string; embedded?: boolean }) {
+export function LiveTradingPage({ previewObservedAt, embedded = false, contextAccountId }: { previewObservedAt: string; embedded?: boolean; contextAccountId?: string }) {
   const previewSnapshot = useMemo(() => demoLiveOperations(previewObservedAt), [previewObservedAt]);
   const [snapshot, setSnapshot] = useState<LiveOperationsSnapshot>();
   const [mode, setMode] = useState<ApiMode>("unavailable");
@@ -122,8 +122,9 @@ export function LiveTradingPage({ previewObservedAt, embedded = false }: { previ
   };
 
   const activeSnapshot = snapshot;
-  const selectedWallet = activeSnapshot?.wallets.find((wallet) => wallet.executionAccountId === selectedWalletId) ?? activeSnapshot?.wallets[0];
+  const selectedWallet = contextAccountId ? activeSnapshot?.wallets.find((wallet) => wallet.executionAccountId === contextAccountId) : activeSnapshot?.wallets.find((wallet) => wallet.executionAccountId === selectedWalletId) ?? activeSnapshot?.wallets[0];
   const effectiveWalletId = selectedWallet?.executionAccountId;
+  const contextAccountMissing = Boolean(contextAccountId && activeSnapshot && !selectedWallet);
   const walletOrders = activeSnapshot?.orders.filter((order) => order.executionAccountId === effectiveWalletId) ?? [];
   const walletPositions = activeSnapshot?.positions.filter((position) => position.executionAccountId === effectiveWalletId && position.managed) ?? [];
   const effectiveOrderId = walletOrders.some((order) => order.orderId === selectedOrderId) ? selectedOrderId : walletOrders[0]?.orderId;
@@ -156,10 +157,11 @@ export function LiveTradingPage({ previewObservedAt, embedded = false }: { previ
     {mode === "unavailable" && !loading && <div className="notice live-error-notice"><div><strong>真实钱包数据不可用</strong><p>为避免把演示值误认成真实收益，当前不会自动填充产品预览。原因：{error}</p></div><div className="notice-actions"><button className="button" onClick={retryLive}>重试真实数据</button><button className="button" onClick={showPreview}>查看产品预览</button></div></div>}
     {mode === "demo" && <div className="notice live-preview-notice"><div><strong>当前为用户主动打开的产品预览</strong><p>以下钱包、仓位与盈亏均为演示数据，不代表任何真实钱包。</p></div><button className="button" onClick={retryLive}>返回真实数据</button></div>}
     {mode === "live" && pnlMode === "unavailable" && !pnlLoading && <div className="notice live-error-notice"><div><strong>每日盈亏数据不可用</strong><p>实盘快照正常，但每日账本收益不会使用演示值替代。原因：{pnlError}</p></div><div className="notice-actions"><button className="button" onClick={() => void loadPnL(pnlDays)}>重试盈亏数据</button><button className="button" onClick={showPreview}>查看产品预览</button></div></div>}
+    {contextAccountMissing && <div className="notice live-error-notice"><div><strong>当前账户上下文暂无实盘快照</strong><p>{contextAccountId} 没有出现在本次 live-operations 快照中，页面不会切换到其他账户代替。</p></div></div>}
 
     <LiveRuntimeSummary />
     {activeSnapshot && <LiveStatusBar snapshot={activeSnapshot} mode={mode} />}
-    <WalletPerformance wallets={activeSnapshot?.wallets ?? []} wallet={selectedWallet} selectedWalletId={effectiveWalletId} onWallet={setSelectedWalletId} loading={loading && !activeSnapshot} currentPositionValue={currentPositionValue} maximumDrawdown={maximumDrawdown} pnlDays={pnlReport?.days ?? pnlDays} />
+    <WalletPerformance wallets={activeSnapshot?.wallets ?? []} wallet={selectedWallet} selectedWalletId={contextAccountId ?? effectiveWalletId} contextAccountId={contextAccountId} onWallet={setSelectedWalletId} loading={loading && !activeSnapshot} currentPositionValue={currentPositionValue} maximumDrawdown={maximumDrawdown} pnlDays={pnlReport?.days ?? pnlDays} />
     <DailyPnLDashboard report={pnlReport} loading={pnlLoading && !pnlReport} days={pnlDays} onDays={changePnLDays} preview={pnlMode === "demo"} />
     <EdgeDistributionPanel distribution={edgeDistribution} loading={edgeLoading} error={edgeError} onRetry={() => void loadEdges()} />
 
@@ -254,7 +256,7 @@ function LiveStatusBar({ snapshot, mode }: { snapshot: LiveOperationsSnapshot; m
 
 function StatusCheck({ label, health }: { label: string; health: LiveHealth }) { return <span className={health}><i />{label}</span>; }
 
-function WalletPerformance({ wallets, wallet, selectedWalletId, onWallet, loading, currentPositionValue, maximumDrawdown, pnlDays }: { wallets: LiveWalletSummary[]; wallet?: LiveWalletSummary; selectedWalletId?: string; onWallet: (id: string) => void; loading: boolean; currentPositionValue: number; maximumDrawdown: number | null; pnlDays: number }) {
+function WalletPerformance({ wallets, wallet, selectedWalletId, contextAccountId, onWallet, loading, currentPositionValue, maximumDrawdown, pnlDays }: { wallets: LiveWalletSummary[]; wallet?: LiveWalletSummary; selectedWalletId?: string; contextAccountId?: string; onWallet: (id: string) => void; loading: boolean; currentPositionValue: number; maximumDrawdown: number | null; pnlDays: number }) {
   const metrics = [
     { label: "系统管理持仓", value: wallet ? String(wallet.positionCount) : "—", meta: "不含未纳管链上仓位", tone: "" },
     { label: "当前持仓价值", value: wallet ? usd(currentPositionValue) : "—", meta: "系统管理持仓按最新标记价", tone: "" },
@@ -267,7 +269,7 @@ function WalletPerformance({ wallets, wallet, selectedWalletId, onWallet, loadin
     { label: "最大回撤", value: maximumDrawdown === null ? "—" : maximumDrawdown > 0 ? `−${usd(maximumDrawdown)}` : usd(0), meta: `近 ${pnlDays} 天累计已实现 PnL`, tone: maximumDrawdown && maximumDrawdown > 0 ? "negative" : "" },
   ];
   return <section className="section wallet-performance" aria-labelledby="wallet-performance-title">
-    <div className="section-head wallet-performance-head"><div><h2 className="section-title" id="wallet-performance-title">钱包核心指标</h2><p className="section-caption">单钱包累计口径；全局线程与风险状态不随选择器变化</p></div><label className="wallet-selector"><span>选择钱包</span><select className="select" value={selectedWalletId ?? ""} onChange={(event) => onWallet(event.target.value)} disabled={!wallets.length} aria-label="选择实盘钱包">{wallets.length ? wallets.map((item) => <option value={item.executionAccountId} key={item.executionAccountId}>{item.executionAccountId}</option>) : <option value="">{loading ? "正在读取钱包" : "暂无真实钱包"}</option>}</select></label></div>
+    <div className="section-head wallet-performance-head"><div><h2 className="section-title" id="wallet-performance-title">钱包核心指标</h2><p className="section-caption">单钱包累计口径；全局线程与风险状态不随选择器变化</p></div><label className="wallet-selector"><span>{contextAccountId ? "业务上下文账户" : "选择钱包"}</span><select className="select" value={selectedWalletId ?? ""} onChange={(event) => onWallet(event.target.value)} disabled={!wallets.length || Boolean(contextAccountId)} aria-label="选择实盘钱包">{contextAccountId && !wallets.some((item) => item.executionAccountId === contextAccountId) && <option value={contextAccountId}>{contextAccountId} · 当前快照无此账户</option>}{wallets.length ? wallets.map((item) => <option value={item.executionAccountId} key={item.executionAccountId}>{item.executionAccountId}</option>) : <option value="">{loading ? "正在读取钱包" : "暂无真实钱包"}</option>}</select></label></div>
     <div className={`live-metrics wallet-metrics ${loading ? "is-loading" : ""}`}>{metrics.map((metric) => <div className="live-metric" key={metric.label}><span>{metric.label}</span><strong className={metric.tone}>{metric.value}</strong><small>{metric.meta}</small></div>)}</div>
   </section>;
 }

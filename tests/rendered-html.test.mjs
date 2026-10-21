@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { workspaceHrefWithAppliedQuery } from "../app/lib/console-workspace.ts";
+import { appliedFilterFromUrl, mergeSharedQuery, workspaceHrefWithAppliedQuery } from "../app/lib/console-workspace.ts";
 
 async function render(pathname = "/", init = {}) {
   const workerUrl = new URL("../dist/server/index.js", import.meta.url);
@@ -46,6 +46,24 @@ test("工作区切换 URL 只携带目标面板已应用的查询", () => {
   assert.equal(workspaceHrefWithAppliedQuery("/trading/orders", "http://localhost/trading/cycles?q=draft-not-applied", " v2-order "), "/trading/orders?q=v2-order");
   assert.equal(workspaceHrefWithAppliedQuery("/trading/orders?q=stale", "http://localhost/trading/cycles?q=cycle", ""), "/trading/orders");
   assert.equal(workspaceHrefWithAppliedQuery("/trading/orders?status=stale", "http://localhost/trading/cycles?status=cycle", "status=FILLED&execution_account_id=wallet-1&limit=50"), "/trading/orders?status=FILLED&execution_account_id=wallet-1&limit=50");
+});
+
+test("预测视图切换只继承共享范围，不继承结果/任务私有筛选", () => {
+  const current = new URLSearchParams("scope=current&model=model-fixture&generation_id=7&source=POLYMARKET&status=PENDING");
+  assert.equal(mergeSharedQuery("", current, ["scope", "model", "generation_id", "prediction_as_of"]), "scope=current&model=model-fixture&generation_id=7");
+  assert.equal(workspaceHrefWithAppliedQuery("/predictions/tasks", "http://localhost/predictions", "scope=current&model=model-fixture&generation_id=7"), "/predictions/tasks?scope=current&model=model-fixture&generation_id=7");
+});
+
+test("共享上下文重置后切回目标 panel 会清除旧身份与日期", () => {
+  const ordersApplied = "q=order&execution_account_id=account-a&from=2026-10-15&to=2026-10-16&limit=50";
+  assert.equal(mergeSharedQuery(ordersApplied, new URLSearchParams(""), ["execution_account_id", "model_id", "strategy_id", "from", "to"]), "q=order&limit=50");
+});
+
+test("隐藏 panel 的私有筛选在 workspace URL 缺失时保留，popstate 才清空", () => {
+  const current = new URLSearchParams("scope=current&model=model-fixture");
+  assert.equal(appliedFilterFromUrl(current, "source", "", true), undefined);
+  assert.equal(appliedFilterFromUrl(current, "source", "", false), "");
+  assert.equal(appliedFilterFromUrl(new URLSearchParams("source=GENERATED"), "source", "", true), "GENERATED");
 });
 
 test("服务端可渲染 Prediction Console 首页", async () => {
@@ -114,8 +132,8 @@ test("服务端可渲染数据集轮换页面并显示导航入口", async () =>
 
 test("资料工作区把真实版本/变体/用途和轮换嵌入同一业务壳", async () => {
   const datasets = await (await render("/datasets")).text();
-  assert.match(datasets, /各资料变体当前可用版本/);
-  assert.match(datasets, /选择版本 → variant → purpose/);
+  assert.match(datasets, /各资料类型当前可用版本/);
+  assert.match(datasets, /选择版本 → 资料类型 → 用途/);
   assert.match(datasets, /轮换执行、发布历史与规则/);
   assert.equal((datasets.match(/class="brand"/g) ?? []).length, 1, "资料工作区只能有一个 ConsoleShell");
 
@@ -172,6 +190,31 @@ test("交易旧 URL 复用新版工作区并保留实盘与账本内容", async 
   assert.match(ledger, /EXTERNAL_SELL/);
   assert.match(ledger, /id="v2-tab-trading-ledger"[^>]*aria-selected="true"/);
   assert.equal((ledger.match(/class="brand"/g) ?? []).length, 1, "账本旧 URL 不应嵌套 ConsoleShell");
+});
+
+test("账本嵌入工作区服从顶部共享身份与日期上下文", async () => {
+  const response = await render("/trading/ledger?execution_account_id=wallet-1&model_id=model-1&strategy_id=strategy-1&from=2026-10-15&to=2026-10-16");
+  const html = await response.text();
+  const filters = html.match(/<form class="trade-filters"[\s\S]*?<\/form>/)?.[0] ?? "";
+  assert.ok(filters, "嵌入账本应渲染筛选区域");
+  assert.match(filters, /账本共享时间上下文/);
+  assert.match(filters, /模型（顶部上下文）/);
+  assert.match(filters, /策略（顶部上下文）/);
+  assert.match(filters, /执行账户（顶部上下文）/);
+  assert.match(filters, /disabled/);
+  assert.doesNotMatch(filters, /placeholder="例如 forecast-v2"/);
+});
+
+test("账本保留已应用列表状态供工作区切换恢复", async () => {
+  const response = await render("/trading/ledger?activity_type=REDEEM&ledger_range=7d&q=chain-hash&limit=50&offset=50");
+  const html = await response.text();
+  const state = html.match(/<div[^>]*data-v2-list-state[\s\S]*?>/)?.[0] ?? "";
+  assert.ok(state, "账本应暴露工作区列表状态");
+  assert.match(state, /data-v2-list-query="chain-hash"/);
+  assert.match(state, /data-v2-list-limit="50"/);
+  assert.match(state, /data-v2-list-offset="50"/);
+  assert.match(html, /activity_type/);
+  assert.match(html, /ledger_range/);
 });
 
 test("服务端可渲染双服务基础监控页面", async () => {

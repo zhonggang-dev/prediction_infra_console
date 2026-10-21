@@ -14,9 +14,9 @@ export function PredictionsV2Page({ tasks = false }: { tasks?: boolean }) {
   const [model, setModel] = useV2Filter("model");
   const [generationId, setGenerationId] = useV2Filter("generation_id");
   const [predictionAsOf, setPredictionAsOf] = useV2Filter("prediction_as_of");
-  const workspace = useWorkspaceTabs([{ href: "/predictions", label: "结果" }, { href: "/predictions/tasks", label: "任务核对" }] as const, tasks ? "/predictions/tasks" : "/predictions");
+  const workspace = useWorkspaceTabs([{ href: "/predictions", label: "结果" }, { href: "/predictions/tasks", label: "任务核对" }] as const, tasks ? "/predictions/tasks" : "/predictions", { sharedQueryKeys: ["scope", "model", "generation_id", "prediction_as_of"] });
   const historicalIdentity = Boolean(searchParams.get("selection_run_id") || searchParams.get("selected_market_id") || searchParams.get("generation_id"));
-  const effectiveScope = scope === "current" && historicalIdentity ? "history" : scope;
+  const effectiveScope = searchParams.get("scope") === "current" ? "current" : scope === "current" && historicalIdentity ? "history" : scope;
 
   useEffect(() => {
     let cancelled = false;

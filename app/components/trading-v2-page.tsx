@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { consoleV2, type ConsoleV2DecisionCycle, type ConsoleV2Order, type ConsoleV2PositionLot, type ConsoleV2ReconciliationIssue, type ConsoleV2ReconciliationRun, type ConsoleV2Redemption, type ConsoleV2Runtime, type ConsoleV2RuntimeAccount } from "../lib/console-v2";
-import { formatV2Number, formatV2Time, V2Facts, V2Frame, V2ListPage, V2Tabs, V2WorkspacePanel, useV2Filter, useVisitedTabs, useWorkspaceTabs, v2Status, v2Unknown } from "./console-v2-resource";
+import { formatV2Number, formatV2Time, V2Facts, V2Frame, V2ListPage, V2Tabs, V2WorkspacePanel, WORKSPACE_FILTER_CHANGE_EVENT, useV2Filter, useVisitedTabs, useWorkspaceTabs, v2Status, v2Unknown } from "./console-v2-resource";
 import { LiveTradingPage } from "./live-trading-page";
 import { TradeRecordsPage } from "./trade-records-page";
 
@@ -11,7 +11,8 @@ type TradingView = "overview" | "cycles" | "orders" | "positions" | "ledger" | "
 export function TradingV2Page({ view = "overview" }: { view?: TradingView }) {
   const tabs = [{ href: "/trading/overview", label: "实盘概况", aliases: ["/trading", "/live"] }, { href: "/trading/cycles", label: "决策周期" }, { href: "/trading/orders", label: "订单执行" }, { href: "/trading/positions", label: "仓位" }, { href: "/trading/ledger", label: "资金账本", aliases: ["/trades"] }, { href: "/trading/reconciliation", label: "开放问题 / 对账" }, { href: "/trading/redemptions", label: "结算 / 赎回" }] as const;
   const initialHref = view === "overview" ? "/trading/overview" : `/trading/${view}` as typeof tabs[number]["href"];
-  const workspace = useWorkspaceTabs(tabs, initialHref);
+  const context = useTradingContext();
+  const workspace = useWorkspaceTabs(tabs, initialHref, { sharedQueryKeys: ["execution_account_id", "model_id", "strategy_id", "from", "to"] });
   const previewObservedAt = useMemo(() => new Date().toISOString(), []);
   const config = workspace.active === "/trading/overview"
     ? { eyebrow: "Trading / Live", title: "实盘概况", description: "当前运行状态、账户事实、最近周期和待处理事项分开查看；历史成交与账本按原有记录核对。" }
@@ -27,8 +28,9 @@ export function TradingV2Page({ view = "overview" }: { view?: TradingView }) {
           ? { eyebrow: "Trading / Redemptions", title: "赎回", description: "市场终态、链上确认和账本应用分层展示；未确认或未应用不冒充到账。" }
           : { eyebrow: "Trading / Decision Cycles", title: "决策周期", description: "按持久化决策周期核对输入、输出、交付和订单链路；页面只读。" };
   return <V2Frame eyebrow={config.eyebrow} title={config.title} description={config.description}>
+    <TradingContextToolbar context={context} />
     <V2Tabs tabs={tabs} active={workspace.active} onSelect={(href) => workspace.select(href as typeof workspace.active)} />
-    <V2WorkspacePanel active={workspace.active} href="/trading/overview" visited={workspace.visited.has("/trading/overview")}><TradingOverview previewObservedAt={previewObservedAt} /></V2WorkspacePanel>
+    <V2WorkspacePanel active={workspace.active} href="/trading/overview" visited={workspace.visited.has("/trading/overview")}><TradingOverview previewObservedAt={previewObservedAt} account={context.account} /></V2WorkspacePanel>
     <V2WorkspacePanel active={workspace.active} href="/trading/cycles" visited={workspace.visited.has("/trading/cycles")}><DecisionCycles /></V2WorkspacePanel>
     <V2WorkspacePanel active={workspace.active} href="/trading/orders" visited={workspace.visited.has("/trading/orders")}><Orders /></V2WorkspacePanel>
     <V2WorkspacePanel active={workspace.active} href="/trading/positions" visited={workspace.visited.has("/trading/positions")}><Positions /></V2WorkspacePanel>
@@ -38,8 +40,45 @@ export function TradingV2Page({ view = "overview" }: { view?: TradingView }) {
   </V2Frame>;
 }
 
-function TradingOverview({ previewObservedAt }: { previewObservedAt: string }) {
-  return <LiveTradingPage previewObservedAt={previewObservedAt} embedded />;
+type TradingContext = { account: string; model: string; strategy: string; from: string; to: string; draft: { account: string; model: string; strategy: string; from: string; to: string }; setDraft: (key: keyof TradingContext["draft"], value: string) => void; apply: () => void; reset: () => void; runtime?: ConsoleV2Runtime };
+
+function useTradingContext(): TradingContext {
+  const [account, setAccount] = useV2Filter("execution_account_id");
+  const [model, setModel] = useV2Filter("model_id");
+  const [strategy, setStrategy] = useV2Filter("strategy_id");
+  const [from, setFrom] = useV2Filter("from");
+  const [to, setTo] = useV2Filter("to");
+  const [runtime, setRuntime] = useState<ConsoleV2Runtime>();
+  useEffect(() => { let cancelled = false; void consoleV2.trading.runtime().then((result) => { if (!cancelled) setRuntime(result.data); }).catch(() => { if (!cancelled) setRuntime(undefined); }); return () => { cancelled = true; }; }, []);
+  const [draft, setDraftState] = useState({ account, model, strategy, from, to });
+  useEffect(() => {
+    const syncDraft = () => { const params = new URL(window.location.href).searchParams; setDraftState({ account: params.get("execution_account_id")?.trim() ?? "", model: params.get("model_id")?.trim() ?? "", strategy: params.get("strategy_id")?.trim() ?? "", from: params.get("from")?.trim().slice(0, 10) ?? "", to: params.get("to")?.trim().slice(0, 10) ?? "" }); };
+    window.addEventListener("popstate", syncDraft);
+    window.addEventListener("v2-workspace-url-change", syncDraft);
+    window.addEventListener(WORKSPACE_FILTER_CHANGE_EVENT, syncDraft);
+    return () => { window.removeEventListener("popstate", syncDraft); window.removeEventListener("v2-workspace-url-change", syncDraft); window.removeEventListener(WORKSPACE_FILTER_CHANGE_EVENT, syncDraft); };
+  }, []);
+  const setDraft = (key: keyof typeof draft, value: string) => setDraftState((current) => ({ ...current, [key]: value }));
+  const notifyFilterChange = () => { window.dispatchEvent(new Event(WORKSPACE_FILTER_CHANGE_EVENT)); };
+  const apply = () => { setAccount(draft.account); setModel(draft.model); setStrategy(draft.strategy); setFrom(draft.from); setTo(draft.to); notifyFilterChange(); };
+  const reset = () => { const empty = { account: "", model: "", strategy: "", from: "", to: "" }; setDraftState(empty); setAccount(""); setModel(""); setStrategy(""); setFrom(""); setTo(""); notifyFilterChange(); };
+  return { account, model, strategy, from, to, draft, setDraft, apply, reset, runtime };
+}
+
+function TradingContextToolbar({ context }: { context: TradingContext }) {
+  const bindings = context.runtime?.bindings ?? [];
+  const accounts = uniqueContextValues([...bindings.map((item) => item.executionAccountId), ...(context.runtime?.accounts ?? []).map((item) => item.executionAccountId), context.draft.account]);
+  const models = uniqueContextValues([...bindings.map((item) => item.modelId), ...(context.runtime?.accounts ?? []).map((item) => item.modelId), context.draft.model]);
+  const strategies = uniqueContextValues([...bindings.map((item) => item.strategyId), ...(context.runtime?.accounts ?? []).map((item) => item.strategyId), context.draft.strategy]);
+  return <section className="trading-context-toolbar" aria-label="交易业务上下文"><div className="trading-context-title"><strong>业务上下文</strong><small>先选择账户、模型、策略和日期，再应用到交易工作区。</small></div><label><span>账户</span><select className="select" aria-label="交易上下文账户" value={context.draft.account} onChange={(event) => context.setDraft("account", event.target.value)}><option value="">全部账户</option>{accounts.map((item) => <option key={item} value={item}>{item}{item === context.draft.account && !bindings.some((binding) => binding.executionAccountId === item) ? " · 当前无运行投影" : ""}</option>)}</select></label><label><span>模型</span><select className="select" aria-label="交易上下文模型" value={context.draft.model} onChange={(event) => context.setDraft("model", event.target.value)}><option value="">全部模型</option>{models.map((item) => <option key={item} value={item}>{item}</option>)}</select></label><label><span>策略</span><select className="select" aria-label="交易上下文策略" value={context.draft.strategy} onChange={(event) => context.setDraft("strategy", event.target.value)}><option value="">全部策略</option>{strategies.map((item) => <option key={item} value={item}>{item}</option>)}</select></label><label><span>开始日期</span><input className="input" aria-label="交易上下文开始日期" type="date" value={context.draft.from} onChange={(event) => context.setDraft("from", event.target.value)} /></label><label><span>结束日期</span><input className="input" aria-label="交易上下文结束日期" type="date" value={context.draft.to} onChange={(event) => context.setDraft("to", event.target.value)} /></label><div className="trading-context-actions"><button type="button" className="button" onClick={context.reset}>重置</button><button type="button" className="button primary" onClick={context.apply}>应用筛选</button></div><small className="trading-context-note">实盘展示当前账户快照；周期、订单、仓位和账本可按模型、策略与日期查询；对账与赎回按账户和日期核对。</small></section>;
+}
+
+function uniqueContextValues(values: Array<string | undefined>) {
+  return [...new Set(values.filter((value): value is string => Boolean(value)))];
+}
+
+function TradingOverview({ previewObservedAt, account }: { previewObservedAt: string; account: string }) {
+  return <LiveTradingPage previewObservedAt={previewObservedAt} contextAccountId={account || undefined} embedded />;
 }
 
 function Ledger() {
@@ -47,7 +86,7 @@ function Ledger() {
 }
 
 function AccountTable({ accounts }: { accounts: ConsoleV2RuntimeAccount[] }) {
-  return <div className="table-scroll v2-evidence-table"><table className="v2-table"><thead><tr><th>账户 / 绑定</th><th>输入 / 最近周期 gate</th><th>订单提交</th><th>最近周期</th><th>开放问题 / 订单</th></tr></thead><tbody>{accounts.map((account) => <tr key={`${account.executionAccountId}:${account.strategyId}`}><td><div className="v2-cell-copy"><strong className="mono">{account.executionAccountId}</strong><small>{account.modelId} · {account.strategyId} · {account.sourceMode}</small></div></td><td><div className="v2-cell-copy"><span>{account.strategyInputState}</span><small>{account.entryGateState}{account.lastCycleEntryBlockReason ? ` · ${account.lastCycleEntryBlockReason}` : ""}</small></div></td><td>{account.orderSubmissionState}</td><td><div className="v2-cell-copy"><span>{v2Unknown(account.lastCycleStatus)}</span><small>{formatV2Time(account.lastCycleAt)}</small></div></td><td>{formatV2Number(account.openIssueCount, 0)} / {formatV2Number(account.openOrderCount, 0)}</td></tr>)}</tbody></table></div>;
+  return <div className="table-scroll v2-evidence-table"><table className="v2-table"><thead><tr><th>账户 / 绑定</th><th>输入 / 最近周期门禁</th><th>订单提交</th><th>最近周期</th><th>开放问题 / 订单</th></tr></thead><tbody>{accounts.map((account) => <tr key={`${account.executionAccountId}:${account.strategyId}`}><td><div className="v2-cell-copy"><strong className="mono">{account.executionAccountId}</strong><small>{account.modelId} · {account.strategyId} · {account.sourceMode}</small></div></td><td><div className="v2-cell-copy"><span>{account.strategyInputState}</span><small>{account.entryGateState}{account.lastCycleEntryBlockReason ? ` · ${account.lastCycleEntryBlockReason}` : ""}</small></div></td><td>{account.orderSubmissionState}</td><td><div className="v2-cell-copy"><span>{v2Unknown(account.lastCycleStatus)}</span><small>{formatV2Time(account.lastCycleAt)}</small></div></td><td>{formatV2Number(account.openIssueCount, 0)} / {formatV2Number(account.openOrderCount, 0)}</td></tr>)}</tbody></table></div>;
 }
 
 function DecisionCycles() {
@@ -55,10 +94,13 @@ function DecisionCycles() {
   const [runtimeError, setRuntimeError] = useState<string>();
   useEffect(() => { let cancelled = false; void consoleV2.trading.runtime().then((result) => { if (!cancelled) setRuntime(result.data); }).catch((error: unknown) => { if (!cancelled) setRuntimeError(error instanceof Error ? error.message : "交易运行状态不可用"); }); return () => { cancelled = true; }; }, []);
   const [status, setStatus] = useV2Filter("status");
-  const [model, setModel] = useV2Filter("model_id");
-  const [account, setAccount] = useV2Filter("execution_account_id");
-  const params = useMemo(() => ({ status: status || undefined, model_id: model || undefined, execution_account_id: account || undefined }), [status, model, account]);
-  const controls = <><select className="select" aria-label="周期状态" value={status} onChange={(event) => setStatus(event.target.value)}><option value="">全部状态</option><option value="INPUT_RECORDED">已记录输入</option><option value="OUTPUT_RECORDED">已记录输出</option><option value="DELIVERY_PENDING">交付中</option><option value="DELIVERY_ATTENTION">交付需关注</option></select><input className="input" aria-label="模型" placeholder="模型 ID" value={model} onChange={(event) => setModel(event.target.value)} /><input className="input" aria-label="执行账户" placeholder="执行账户 ID" value={account} onChange={(event) => setAccount(event.target.value)} /></>;
+  const [model] = useV2Filter("model_id");
+  const [strategy] = useV2Filter("strategy_id");
+  const [account] = useV2Filter("execution_account_id");
+  const [from] = useV2Filter("from");
+  const [to] = useV2Filter("to");
+  const params = useMemo(() => ({ status: status || undefined, model_id: model || undefined, strategy_id: strategy || undefined, execution_account_id: account || undefined, from: dateStart(from), to: dateEnd(to) }), [status, model, strategy, account, from, to]);
+  const controls = <select className="select" aria-label="周期状态" value={status} onChange={(event) => setStatus(event.target.value)}><option value="">全部状态</option><option value="INPUT_RECORDED">已记录输入</option><option value="OUTPUT_RECORDED">已记录输出</option><option value="DELIVERY_PENDING">交付中</option><option value="DELIVERY_ATTENTION">交付需关注</option></select>;
   return <><section className="v2-runtime-card v2-cycle-runtime"><div className="section-head"><h2 className="section-title">决策运行状态与绑定</h2>{v2Status(runtime ? String(runtime.runner.state ?? runtime.runner.running ?? "unknown") : "unknown", runtime ? v2Unknown(runtime.runner.state ?? runtime.runner.running) : "未知")}</div>{runtime ? <><V2Facts values={[{ label: "观测时间", value: formatV2Time(runtime.observedAt) }, { label: "配置绑定条数", value: String(runtime.bindings.length) }, { label: "账户数据", value: runtime.accountDataState === "available" ? `${runtime.accounts.length} 个账户` : "未采集" }, { label: "运行间隔", value: v2Unknown(runtime.runner.intervalSeconds) }, { label: "最近完成", value: formatV2Time(runtime.runner.lastCompletedAt) }, { label: "最近错误", value: runtime.runner.hasLastError ? v2Unknown(runtime.runner.lastErrorCode) : "无" }]} />{runtime.accountDataState === "available" ? <AccountTable accounts={runtime.accounts} /> : <BindingTable bindings={runtime.bindings} />}</> : <p className="v2-inline-note">{runtimeError ?? "读取交易运行状态…"}</p>}<p className="v2-inline-note">这里显示决策服务当前返回的绑定关系；历史周期仍以自身保存的身份为准。数据库账户事实未采集时不生成假账户数。</p></section><V2ListPage<ConsoleV2DecisionCycle> title="决策周期" load={consoleV2.trading.decisionCycles} params={params} controls={controls} rowKey={(item) => item.cycleId} searchPlaceholder="搜索 cycle、input、snapshot、模型或账户" columns={[
     { label: "Cycle / decision_at", className: "primary", render: (item) => <div className="v2-cell-copy"><strong className="mono">{item.cycleId}</strong><small>{formatV2Time(item.decisionAt)}</small></div> },
     { label: "Binding", render: (item) => <div className="v2-cell-copy"><span>{v2Unknown(item.modelId)}</span><small>{v2Unknown(item.predictionModelId, "producer 未提供")} · {v2Unknown(item.strategyId)} · {v2Unknown(item.executionAccountId)}</small></div> },
@@ -114,12 +156,20 @@ function detailTime(value: unknown) { return typeof value === "string" ? formatV
 function detailBool(value: unknown) { return value === true ? "是" : value === false ? "否" : "未知"; }
 function orderLink(value: unknown) { const id = detailText(value); return id === "未知" ? id : <a href={`/trading/orders?q=${encodeURIComponent(id)}`} className="link mono">{id}</a>; }
 function reconciliationIdentity(item: ConsoleV2ReconciliationIssue) { const values = [item.orderId, item.venueOrderId, item.venueTradeId, item.marketId, item.conditionId, item.tokenId].filter((value): value is string => Boolean(value)); return values.length ? values.join(" · ") : item.executionAccountId ? `账户 ${item.executionAccountId}` : "未知"; }
+function dateStart(value: string) { return value ? `${value}T00:00:00Z` : undefined; }
+function dateEnd(value: string) {
+  return value ? `${value}T23:59:59.999999Z` : undefined;
+}
 
 function Orders() {
   const [status, setStatus] = useV2Filter("status");
-  const [account, setAccount] = useV2Filter("execution_account_id");
-  const params = useMemo(() => ({ status: status || undefined, execution_account_id: account || undefined }), [status, account]);
-  const controls = <><select className="select" aria-label="订单状态" value={status} onChange={(event) => setStatus(event.target.value)}><option value="">全部状态</option><option value="RECEIVED">已接收</option><option value="VALIDATING">校验中</option><option value="RESERVED">已预留</option><option value="SUBMITTING">提交中</option><option value="ACKNOWLEDGED">已确认</option><option value="LIVE">活动中</option><option value="PARTIALLY_FILLED">部分成交</option><option value="FILLED">已成交</option><option value="REJECTED">已拒绝</option><option value="UNKNOWN">未知</option><option value="CANCEL_PENDING">取消中</option><option value="CANCELLED">已取消</option><option value="RECONCILING">对账中</option><option value="MANUAL_REVIEW">人工复核</option></select><input className="input" aria-label="执行账户" placeholder="执行账户 ID" value={account} onChange={(event) => setAccount(event.target.value)} /></>;
+  const [model] = useV2Filter("model_id");
+  const [strategy] = useV2Filter("strategy_id");
+  const [account] = useV2Filter("execution_account_id");
+  const [from] = useV2Filter("from");
+  const [to] = useV2Filter("to");
+  const params = useMemo(() => ({ status: status || undefined, model_id: model || undefined, strategy_id: strategy || undefined, execution_account_id: account || undefined, from: dateStart(from), to: dateEnd(to) }), [status, model, strategy, account, from, to]);
+  const controls = <select className="select" aria-label="订单状态" value={status} onChange={(event) => setStatus(event.target.value)}><option value="">全部状态</option><option value="RECEIVED">已接收</option><option value="VALIDATING">校验中</option><option value="RESERVED">已预留</option><option value="SUBMITTING">提交中</option><option value="ACKNOWLEDGED">已确认</option><option value="LIVE">活动中</option><option value="PARTIALLY_FILLED">部分成交</option><option value="FILLED">已成交</option><option value="REJECTED">已拒绝</option><option value="UNKNOWN">未知</option><option value="CANCEL_PENDING">取消中</option><option value="CANCELLED">已取消</option><option value="RECONCILING">对账中</option><option value="MANUAL_REVIEW">人工复核</option></select>;
   return <V2ListPage<ConsoleV2Order> title="订单执行" load={consoleV2.trading.orders} params={params} controls={controls} rowKey={(item) => item.orderId} searchPlaceholder="搜索 order、client order、venue order、market 或 token" columns={[
     { label: "Order / Client", className: "primary", render: (item) => <div className="v2-cell-copy"><strong className="mono">{item.orderId}</strong><small className="mono">{v2Unknown(item.clientOrderId)}</small></div> },
     { label: "状态 / Side", render: (item) => <div className="v2-cell-copy"><span>{v2Status(item.status, item.status)}</span><small>{v2Unknown(item.side)}</small></div> },
@@ -139,7 +189,13 @@ function OrderDetail({ item }: { item: ConsoleV2Order }) {
 }
 
 function Positions() {
-  return <V2ListPage<ConsoleV2PositionLot> title="仓位 Lot" load={consoleV2.trading.positionLots} rowKey={(item) => item.lotId} searchPlaceholder="搜索 lot、market、condition、token 或账户" columns={[
+  const [model] = useV2Filter("model_id");
+  const [strategy] = useV2Filter("strategy_id");
+  const [account] = useV2Filter("execution_account_id");
+  const [from] = useV2Filter("from");
+  const [to] = useV2Filter("to");
+  const params = useMemo(() => ({ model_id: model || undefined, strategy_id: strategy || undefined, execution_account_id: account || undefined, from: dateStart(from), to: dateEnd(to) }), [model, strategy, account, from, to]);
+  return <V2ListPage<ConsoleV2PositionLot> title="仓位 Lot" load={consoleV2.trading.positionLots} params={params} rowKey={(item) => item.lotId} searchPlaceholder="搜索 lot、market、condition、token 或账户" columns={[
     { label: "Lot", className: "primary mono", render: (item) => item.lotId },
     { label: "Binding", render: (item) => <div className="v2-cell-copy"><span>{v2Unknown(item.modelId)}</span><small>{v2Unknown(item.strategyId)} · {v2Unknown(item.executionAccountId)}</small></div> },
     { label: "市场 / Token", render: (item) => <div className="v2-cell-copy mono"><span>{v2Unknown(item.marketId)}</span><small>{v2Unknown(item.tokenId)}</small></div> },
@@ -156,7 +212,11 @@ function Reconciliation() {
 }
 
 function ReconciliationRuns() {
-  return <V2ListPage<ConsoleV2ReconciliationRun> title="对账运行" load={consoleV2.trading.reconciliationRuns} rowKey={(item) => item.runId} searchPlaceholder="搜索 run 或状态" columns={[
+  const [account] = useV2Filter("execution_account_id");
+  const [from] = useV2Filter("from");
+  const [to] = useV2Filter("to");
+  const params = useMemo(() => ({ execution_account_id: account || undefined, from: dateStart(from), to: dateEnd(to) }), [account, from, to]);
+  return <V2ListPage<ConsoleV2ReconciliationRun> title="对账运行" load={consoleV2.trading.reconciliationRuns} params={params} rowKey={(item) => item.runId} searchPlaceholder="搜索 run 或状态" columns={[
     { label: "Run ID", className: "primary mono", render: (item) => item.runId },
     { label: "状态 / 结果", render: (item) => <div className="v2-cell-copy"><span>{v2Status(item.status, item.status)}</span><small>{v2Unknown(item.result)}</small></div> },
     { label: "账户", render: (item) => v2Unknown(item.executionAccountId) },
@@ -167,7 +227,10 @@ function ReconciliationRuns() {
 
 function ReconciliationIssues() {
   const [status, setStatus] = useV2Filter("status");
-  const params = useMemo(() => ({ status: status || undefined }), [status]);
+  const [account] = useV2Filter("execution_account_id");
+  const [from] = useV2Filter("from");
+  const [to] = useV2Filter("to");
+  const params = useMemo(() => ({ status: status || undefined, execution_account_id: account || undefined, from: dateStart(from), to: dateEnd(to) }), [status, account, from, to]);
   return <V2ListPage<ConsoleV2ReconciliationIssue> title="对账问题" load={consoleV2.trading.reconciliationIssues} params={params} controls={<select className="select" aria-label="问题状态" value={status} onChange={(event) => setStatus(event.target.value)}><option value="">全部状态</option><option value="OPEN">OPEN</option><option value="RESOLVED">RESOLVED</option></select>} rowKey={(item) => item.issueId} searchPlaceholder="搜索 issue、run、entity 或原因码" columns={[
     { label: "Issue ID", className: "primary mono", render: (item) => item.issueId },
     { label: "状态 / 类型", render: (item) => <div className="v2-cell-copy"><span>{v2Status(item.status, item.status)}</span><small>{v2Unknown(item.issueType)}</small></div> },
@@ -179,7 +242,10 @@ function ReconciliationIssues() {
 
 function Redemptions() {
   const [status, setStatus] = useV2Filter("status");
-  const params = useMemo(() => ({ status: status || undefined }), [status]);
+  const [account] = useV2Filter("execution_account_id");
+  const [from] = useV2Filter("from");
+  const [to] = useV2Filter("to");
+  const params = useMemo(() => ({ status: status || undefined, execution_account_id: account || undefined, from: dateStart(from), to: dateEnd(to) }), [status, account, from, to]);
   return <V2ListPage<ConsoleV2Redemption> title="赎回" load={consoleV2.trading.redemptions} params={params} controls={<select className="select" aria-label="赎回状态" value={status} onChange={(event) => setStatus(event.target.value)}><option value="">全部状态</option><option value="READY">待处理</option><option value="APPROVAL_SUBMITTING">提交授权中</option><option value="APPROVAL_SUBMITTED">授权已提交</option><option value="REDEEM_SUBMITTING">提交赎回中</option><option value="REDEEM_SUBMITTED">赎回已提交</option><option value="CONFIRMED">已确认</option><option value="APPLIED">已入账</option><option value="MANUAL_REVIEW">人工复核</option></select>} rowKey={(item) => item.redemptionId} searchPlaceholder="搜索 redemption、condition、账户或交易哈希" columns={[
     { label: "Redemption ID", className: "primary mono", render: (item) => item.redemptionId },
     { label: "条件 / 市场", render: (item) => <div className="v2-cell-copy mono"><span>{v2Unknown(item.conditionId)}</span><small>{v2Unknown(item.marketId)}</small></div> },

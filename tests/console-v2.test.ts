@@ -161,6 +161,8 @@ test("Trading filters and V2 detail rows expose only backend status values and k
 test("业务工作区复用真实资料轮换与交易视图，不回退到 ready 成员猜版本", async () => {
   const assets = await readFile(new URL("../app/components/assets-v2-page.tsx", import.meta.url), "utf8");
   const trading = await readFile(new URL("../app/components/trading-v2-page.tsx", import.meta.url), "utf8");
+  const ledger = await readFile(new URL("../app/components/trade-records-page.tsx", import.meta.url), "utf8");
+  const resource = await readFile(new URL("../app/components/console-v2-resource.tsx", import.meta.url), "utf8");
   const markets = await readFile(new URL("../app/components/markets-v2-page.tsx", import.meta.url), "utf8");
   const predictions = await readFile(new URL("../app/components/predictions-v2-page.tsx", import.meta.url), "utf8");
   const overview = await readFile(new URL("../app/components/overview-v2-page.tsx", import.meta.url), "utf8");
@@ -176,6 +178,15 @@ test("业务工作区复用真实资料轮换与交易视图，不回退到 read
   assert.match(trading, /<TradeRecordsPage embedded/);
   assert.match(trading, /\/trading\/ledger/);
   assert.match(trading, /aliases: \["\/trading", "\/live"\]/);
+  assert.match(trading, /23:59:59\.999999Z/);
+  assert.match(trading, /sharedQueryKeys: \["execution_account_id", "model_id", "strategy_id", "from", "to"\]/);
+  assert.match(trading, /<TradingOverview previewObservedAt=\{previewObservedAt\} account=\{context\.account\}/);
+  assert.match(ledger, /params\.get\("from"\)/);
+  assert.match(ledger, /params\.get\("to"\)/);
+  assert.match(ledger, /date\.setUTCDate\(date\.getUTCDate\(\) \+ 1\)/);
+  assert.match(ledger, /WORKSPACE_FILTER_CHANGE_EVENT/);
+  assert.match(resource, /WORKSPACE_FILTER_CHANGE_EVENT/);
+  assert.match(trading, /notifyFilterChange/);
   assert.match(markets, /href: "\/markets\/running", label: "运行市场", aliases: \["\/markets"\]/);
   assert.doesNotMatch(markets, /href: "\/markets\/selection", label: "选盘批次与历史", aliases/);
   assert.match(markets, /本批次预测资格/);
