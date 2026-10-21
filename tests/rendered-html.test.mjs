@@ -227,3 +227,75 @@ test("数据集轮换 BFF 拒绝写请求", async () => {
   const response = await render("/api/console/dataset-rotation", { method: "POST" });
   assert.equal(response.status, 404);
 });
+
+test("侧栏只有八个业务入口，旧 PM Backtest 只在回测相关页面保留，首页仍不出现 /backtests", async () => {
+  const html = await (await render("/")).text();
+  const sidebar = html.match(/<aside id="console-sidebar"[\s\S]*?<\/aside>/)?.[0] ?? "";
+  assert.equal((sidebar.match(/<a[^>]*href="\/backtest-platform"/g) ?? []).length, 1);
+  assert.match(sidebar, /href="\/backtest-platform"[^>]*>.*回测平台/s);
+  assert.equal((sidebar.match(/<a[^>]*href="\/(?:dataset-rotation|live|trades)"/g) ?? []).length, 0);
+  assert.doesNotMatch(sidebar, /独立页面/);
+  assert.doesNotMatch(sidebar, /href="http:\/\/172\.21\.20\.221:8501\/"[^>]*>.*PM Backtest/s);
+  assert.doesNotMatch(sidebar, /href="\/backtests"/);
+  assert.doesNotMatch(sidebar, /回测数据产品/);
+});
+
+test("回测平台工作区：Tab ARIA、默认交易回测、只渲染当前面板", async () => {
+  const response = await render("/backtest-platform");
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /<nav[^>]*aria-label="回测平台视图"[^>]*role="tablist"/);
+  for (const tab of ["trading", "benchmark", "signal", "factors", "submissions", "runs"]) {
+    assert.match(html, new RegExp(`id="v2-tab-backtest-platform-${tab}"[^>]*role="tab"`));
+  }
+  assert.match(html, /id="v2-tab-backtest-platform-trading"[^>]*aria-selected="true"[^>]*aria-controls="v2-panel-backtest-platform-trading"/);
+  assert.match(html, /id="v2-panel-backtest-platform-trading"[^>]*role="tabpanel"[^>]*aria-labelledby="v2-tab-backtest-platform-trading"/);
+  assert.doesNotMatch(html, /id="v2-panel-backtest-platform-runs"/, "未访问的 Tab 不挂载面板、不预抓数据");
+  assert.match(html, /交易回测/);
+  assert.match(html, /href="\/backtest-platform"[^>]*aria-current="page"/, "侧栏高亮回测平台");
+  assert.match(html, /打开旧平台 PM Backtest/);
+});
+
+test("回测平台旧平台外链是运行时配置：改地址、设为 off 都在请求时生效（不是构建时写死）", async () => {
+  const name = "BACKTEST_LEGACY_PLATFORM_URL";
+  const previous = process.env[name];
+  try {
+    process.env[name] = "https://legacy.example.test/pm/";
+    const custom = await (await render("/backtest-platform/trading")).text();
+    assert.match(custom, /href="https:\/\/legacy\.example\.test\/pm\/"[^>]*>打开旧平台 PM Backtest/);
+    assert.doesNotMatch(custom, /href="http:\/\/172\.21\.20\.221:8501\/"[^>]*>打开旧平台/);
+    process.env[name] = "off";
+    const off = await (await render("/backtest-platform/runs")).text();
+    assert.doesNotMatch(off, /打开旧平台 PM Backtest/);
+  } finally {
+    if (previous === undefined) delete process.env[name];
+    else process.env[name] = previous;
+  }
+});
+
+test("回测平台直达各 Tab 选中对应视图", async () => {
+  for (const [path, tab] of [["/backtest-platform/runs", "runs"], ["/backtest-platform/submissions", "submissions"], ["/backtest-platform/benchmark", "benchmark"], ["/backtest-platform/factors", "factors"], ["/backtest-platform/signal", "signal"], ["/backtest-platform/trading", "trading"]]) {
+    const html = await (await render(path)).text();
+    assert.match(html, new RegExp(`id="v2-tab-backtest-platform-${tab}"[^>]*aria-selected="true"`), path);
+    assert.match(html, new RegExp(`id="v2-panel-backtest-platform-${tab}"[^>]*aria-hidden="false"`), path);
+  }
+});
+
+test("运行结果页有独立 URL，可直接打开", async () => {
+  const response = await render("/backtest-platform/runs/btr-20261019-k3m9q2xa");
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /运行详情/);
+  assert.match(html, /btr-20261019-k3m9q2xa/);
+  assert.match(html, /href="\/backtest-platform\/runs"/);
+});
+
+test("回测平台 BFF 未配置时安全失败，写方法不走只读 V2 BFF", async () => {
+  const unconfigured = await withoutBackendConfig(() => render("/api/console/backtest/catalog?kind=model"));
+  assert.equal(unconfigured.status, 503);
+  assert.equal((await unconfigured.json()).code, "BACKEND_NOT_CONFIGURED");
+  const v2Write = await render("/api/console/v2/infra/overview", { method: "POST" });
+  assert.equal(v2Write.status, 405, "只读的 V2 BFF 仍然拒绝写请求");
+  const patch = await render("/api/console/backtest/runs", { method: "PATCH" });
+  assert.equal(patch.status, 405);
+});

@@ -7,7 +7,7 @@
  * 数据全部来自目录接口返回的元数据。
  */
 
-import { record, text, textArray, type CatalogItem, type RawRecord } from "./backtest-platform.ts";
+import { decodeParamDef, record, text, textArray, type CatalogItem, type ParamDef, type RawRecord } from "./backtest-platform.ts";
 
 export const BEIJING_OFFSET = "+08:00";
 export const ALL_DOMAINS = "All domains";
@@ -147,6 +147,9 @@ export function modelInfo(item: CatalogItem): ModelInfo {
   };
 }
 
+/** 策略对模型预测的需求：none 不读、optional 可读可不读、required 必须选模型。 */
+export type PredictionPolicy = "none" | "optional" | "required";
+
 export interface StrategyInfo {
   /** 页面内唯一的选择标识：旧策略（版本 legacy）就是 key，提交的策略是 `<key>@<版本>`。 */
   id: string;
@@ -154,27 +157,62 @@ export interface StrategyInfo {
   version: string;
   label: string;
   kind: string;
+  /** 逐时点策略（平台提交的新接口策略）；其余是旧平台策略 */
+  stepwise: boolean;
   description?: string;
   validatedDomains: string[] | null;
   nativeSizing?: string;
   priceOnly: boolean;
+  /** 是否读取模型预测：旧策略除纯价格外都必须选模型；逐时点策略按 `inputs.predictions` 声明 */
+  predictions: PredictionPolicy;
+  /** 逐时点策略声明支持的仓位模式；旧策略不限（undefined） */
+  sizingModes?: string[];
+  /** 逐时点策略在清单里声明的参数；旧策略为空 */
+  params: ParamDef[];
+  /** 清单里的参数声明无法解析（解码失败），表单不显示这个策略的参数 */
+  paramsInvalid: boolean;
+  decisionInterval?: string;
   readsHourlyFactors: boolean;
   needsExecutionCache: boolean;
   definition: RawRecord;
 }
 
+const PREDICTION_POLICIES: readonly string[] = ["none", "optional", "required"];
+
 export function strategyInfo(item: CatalogItem): StrategyInfo {
   const meta = item.metadata;
   const definition = record(meta.definition);
-  const validated = definition.validated_domains ?? meta.validated_domains;
+  const kind = text(definition.kind ?? meta.kind) ?? "unknown";
+  const stepwise = kind === "stepwise";
+  // 逐时点策略的 Domain 限制叫 definition.domains（null = 全部）；旧策略叫 validated_domains
+  const validated = definition.validated_domains ?? meta.validated_domains ?? (stepwise ? definition.domains : undefined);
   const label = text(meta.label) ?? item.key;
+  const priceOnly = meta.price_only === true || kind === "price_probability";
+  const declared = text(record(definition.inputs).predictions ?? record(meta.inputs).predictions);
+  const predictions: PredictionPolicy = stepwise ? (PREDICTION_POLICIES.includes(declared ?? "") ? declared as PredictionPolicy : "required") : priceOnly ? "none" : "required";
+  const sizing = definition.position_sizing ?? meta.position_sizing;
+  let params: ParamDef[] = [];
+  let paramsInvalid = false;
+  if (stepwise) {
+    const rawParams = definition.params ?? meta.params;
+    try { params = Array.isArray(rawParams) ? rawParams.map(decodeParamDef) : []; } catch { paramsInvalid = true; }
+  }
   return {
     id: item.version === "legacy" || !item.version ? item.key : `${item.key}@${item.version}`,
-    key: item.key, version: item.version, label: item.version === "legacy" || !item.version ? label : `${label} @${item.version}`, kind: text(definition.kind ?? meta.kind) ?? "unknown",
+    key: item.key, version: item.version, label: item.version === "legacy" || !item.version ? label : `${label} @${item.version}`, kind, stepwise,
     description: text(meta.description), validatedDomains: Array.isArray(validated) ? validated.map(String) : null,
-    nativeSizing: text(meta.native_sizing), priceOnly: meta.price_only === true || (definition.kind ?? meta.kind) === "price_probability",
+    nativeSizing: text(meta.native_sizing), priceOnly, predictions, sizingModes: stepwise && Array.isArray(sizing) ? sizing.map(String) : undefined,
+    params, paramsInvalid, decisionInterval: text(definition.decision_interval ?? meta.decision_interval),
     readsHourlyFactors: meta.reads_hourly_factors === true, needsExecutionCache: meta.requires_execution_cache === true, definition: Object.keys(definition).length ? definition : { kind: meta.kind },
   };
+}
+
+/** 策略说明：与名字相同（旧策略的说明就是名字）时不重复显示。 */
+export function strategyDescription(strategy: Pick<StrategyInfo, "label" | "description">): string | undefined {
+  const description = strategy.description?.trim();
+  if (!description) return undefined;
+  const bare = (value: string) => value.replace(/\s+/g, "").toLowerCase();
+  return bare(description) === bare(strategy.label) || bare(strategy.label).startsWith(`${bare(description)}@`) ? undefined : description;
 }
 
 function numberOrUndefined(value: unknown): number | undefined { const n = Number(value); return value !== null && value !== undefined && value !== "" && Number.isFinite(n) ? n : undefined; }

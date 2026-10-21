@@ -4,16 +4,16 @@
       {
         "kind": "factor",
         "key": "rev_momentum_3h",
-        "version": "legacy/pool-v1",
+        "version": "legacy/legacy",
         "origin": "legacy",
         "status": "available",
         "pool_state": "pool",
-        "pool_changed_by": "migration",
         "pool_changed_at": "2026-10-12T08:30:00Z",
         "metadata": {
           "label": "REV 动量 3h",
+          "group": "momentum",
           "direction": -1,
-          "description": "REV 动量 3h：研究侧登记的因子。",
+          "description": "REV 动量 3h：旧平台登记的因子。",
           "available": true,
           "coverage": {
             "start": "2026-08-06T00:00:00+08:00",
@@ -25,16 +25,16 @@
       {
         "kind": "factor",
         "key": "near_logdiff",
-        "version": "legacy/pool-v1",
+        "version": "legacy/legacy",
         "origin": "legacy",
         "status": "available",
         "pool_state": "pool",
-        "pool_changed_by": "migration",
         "pool_changed_at": "2026-10-12T08:30:00Z",
         "metadata": {
           "label": "近端对数差",
+          "group": "orderbook",
           "direction": 1,
-          "description": "近端对数差：研究侧登记的因子。",
+          "description": "近端对数差：旧平台登记的因子。",
           "available": true,
           "coverage": {
             "start": "2026-08-06T00:00:00+08:00",
@@ -45,16 +45,16 @@
       {
         "kind": "factor",
         "key": "book_slope_hourly",
-        "version": "legacy/pool-v1",
+        "version": "legacy/legacy",
         "origin": "legacy",
         "status": "available",
         "pool_state": "pool",
-        "pool_changed_by": "migration",
         "pool_changed_at": "2026-10-12T08:30:00Z",
         "metadata": {
           "label": "盘口斜率（小时）",
+          "group": "orderbook",
           "direction": 1,
-          "description": "盘口斜率（小时）：研究侧登记的因子。",
+          "description": "盘口斜率（小时）：旧平台登记的因子。",
           "available": true,
           "coverage": {
             "start": "2026-08-06T00:00:00+08:00",
@@ -65,16 +65,16 @@
       {
         "kind": "factor",
         "key": "hourly_talib_rsi",
-        "version": "legacy/pool-v1",
+        "version": "legacy/legacy",
         "origin": "legacy",
         "status": "available",
         "pool_state": "pool",
-        "pool_changed_by": "migration",
         "pool_changed_at": "2026-10-12T08:30:00Z",
         "metadata": {
           "label": "TA-Lib RSI（小时）",
+          "group": "talib",
           "direction": -1,
-          "description": "TA-Lib RSI（小时）：研究侧登记的因子。",
+          "description": "TA-Lib RSI（小时）：旧平台登记的因子。",
           "available": true,
           "coverage": {
             "start": "2026-08-06T00:00:00+08:00",
@@ -85,16 +85,16 @@
       {
         "kind": "factor",
         "key": "spread_pct",
-        "version": "legacy/pool-v1",
+        "version": "legacy/legacy",
         "origin": "legacy",
         "status": "available",
         "pool_state": "pool",
-        "pool_changed_by": "migration",
         "pool_changed_at": "2026-10-12T08:30:00Z",
         "metadata": {
-          "label": "买卖价差占比",
+          "label": "spread_pct",
+          "group": "orderbook",
           "direction": -1,
-          "description": "买卖价差占比：研究侧登记的因子。",
+          "description": "spread_pct：旧平台登记的因子。",
           "available": true,
           "coverage": {
             "start": "2026-08-06T00:00:00+08:00",
@@ -105,16 +105,16 @@
       {
         "kind": "factor",
         "key": "depth_imbalance",
-        "version": "legacy/pool-v1",
+        "version": "legacy/legacy",
         "origin": "legacy",
         "status": "available",
         "pool_state": "pool",
-        "pool_changed_by": "migration",
         "pool_changed_at": "2026-10-12T08:30:00Z",
         "metadata": {
-          "label": "深度失衡",
+          "label": "depth_imbalance",
+          "group": "orderbook",
           "direction": 1,
-          "description": "深度失衡：研究侧登记的因子。",
+          "description": "depth_imbalance：旧平台登记的因子。",
           "available": true,
           "coverage": {
             "start": "2026-08-06T00:00:00+08:00",
@@ -129,12 +129,12 @@
         "origin": "platform",
         "status": "available",
         "pool_state": "experiment",
-        "pool_changed_by": "console",
-        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "pool_changed_by": "console:alice",
+        "pool_changed_at": "2026-10-14T03:00:00Z",
         "metadata": {
           "label": "成交突增",
           "direction": 1,
-          "description": "成交突增：研究侧登记的因子。",
+          "description": "成交突增：研究侧提交的因子。",
           "available": true,
           "coverage": {
             "start": "2026-08-06T00:00:00+08:00",
@@ -149,12 +149,12 @@
         "origin": "platform",
         "status": "available",
         "pool_state": "experiment",
-        "pool_changed_by": "console",
-        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "pool_changed_by": "console:alice",
+        "pool_changed_at": "2026-10-14T03:00:00Z",
         "metadata": {
           "label": "残差 edge",
           "direction": 1,
-          "description": "残差 edge：研究侧登记的因子。",
+          "description": "残差 edge：研究侧提交的因子。",
           "available": true,
           "coverage": {
             "start": "2026-08-06T00:00:00+08:00",
@@ -169,14 +169,2256 @@
         "origin": "platform",
         "status": "available",
         "pool_state": "experiment",
-        "pool_changed_by": "console",
-        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "pool_changed_by": "console:alice",
+        "pool_changed_at": "2026-10-14T03:00:00Z",
         "metadata": {
           "label": "尾盘成交占比",
           "direction": -1,
-          "description": "尾盘成交占比：研究侧登记的因子。",
+          "description": "尾盘成交占比：研究侧提交的因子。",
           "available": false,
           "unavailable_reason": "telonex 小时线因子目录缺少该因子",
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_001",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_001",
+          "group": "talib",
+          "direction": -1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_002",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_002",
+          "group": "momentum",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_003",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_003",
+          "group": "orderbook",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_004",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_004",
+          "group": "volume",
+          "direction": -1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_005",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_005",
+          "group": "talib",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_006",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_006",
+          "group": "momentum",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_007",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_007",
+          "group": "orderbook",
+          "direction": -1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_008",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_008",
+          "group": "volume",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_009",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_009",
+          "group": "talib",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_010",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_010",
+          "group": "momentum",
+          "direction": -1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_011",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_011",
+          "group": "orderbook",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_012",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_012",
+          "group": "volume",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_013",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_013",
+          "group": "talib",
+          "direction": -1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_014",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_014",
+          "group": "momentum",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_015",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_015",
+          "group": "orderbook",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_016",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_016",
+          "group": "volume",
+          "direction": -1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_017",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_017",
+          "group": "talib",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_018",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_018",
+          "group": "momentum",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_019",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_019",
+          "group": "orderbook",
+          "direction": -1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_020",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_020",
+          "group": "volume",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_021",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_021",
+          "group": "talib",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_022",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_022",
+          "group": "momentum",
+          "direction": -1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_023",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_023",
+          "group": "orderbook",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_024",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_024",
+          "group": "volume",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_025",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_025",
+          "group": "talib",
+          "direction": -1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_026",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_026",
+          "group": "momentum",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_027",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_027",
+          "group": "orderbook",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_028",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_028",
+          "group": "volume",
+          "direction": -1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_029",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_029",
+          "group": "talib",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_030",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_030",
+          "group": "momentum",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_031",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_031",
+          "group": "orderbook",
+          "direction": -1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_032",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_032",
+          "group": "volume",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_033",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_033",
+          "group": "talib",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_034",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_034",
+          "group": "momentum",
+          "direction": -1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_035",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_035",
+          "group": "orderbook",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_036",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_036",
+          "group": "volume",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_037",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_037",
+          "group": "talib",
+          "direction": -1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_038",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_038",
+          "group": "momentum",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_039",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_039",
+          "group": "orderbook",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_040",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_040",
+          "group": "volume",
+          "direction": -1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_041",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_041",
+          "group": "talib",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_042",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_042",
+          "group": "momentum",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_043",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_043",
+          "group": "orderbook",
+          "direction": -1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_044",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_044",
+          "group": "volume",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_045",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_045",
+          "group": "talib",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_046",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_046",
+          "group": "momentum",
+          "direction": -1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_047",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_047",
+          "group": "orderbook",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_048",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_048",
+          "group": "volume",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_049",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_049",
+          "group": "talib",
+          "direction": -1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_050",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_050",
+          "group": "momentum",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_051",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_051",
+          "group": "orderbook",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_052",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_052",
+          "group": "volume",
+          "direction": -1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_053",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_053",
+          "group": "talib",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_054",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_054",
+          "group": "momentum",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_055",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_055",
+          "group": "orderbook",
+          "direction": -1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_056",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_056",
+          "group": "volume",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_057",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_057",
+          "group": "talib",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_058",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_058",
+          "group": "momentum",
+          "direction": -1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_059",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_059",
+          "group": "orderbook",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_060",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_060",
+          "group": "volume",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_061",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_061",
+          "group": "talib",
+          "direction": -1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_062",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_062",
+          "group": "momentum",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_063",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_063",
+          "group": "orderbook",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_064",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_064",
+          "group": "volume",
+          "direction": -1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_065",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_065",
+          "group": "talib",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_066",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_066",
+          "group": "momentum",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_067",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_067",
+          "group": "orderbook",
+          "direction": -1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_068",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_068",
+          "group": "volume",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_069",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_069",
+          "group": "talib",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_070",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_070",
+          "group": "momentum",
+          "direction": -1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_071",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_071",
+          "group": "orderbook",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_072",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_072",
+          "group": "volume",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_073",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_073",
+          "group": "talib",
+          "direction": -1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_074",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_074",
+          "group": "momentum",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_075",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_075",
+          "group": "orderbook",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_076",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_076",
+          "group": "volume",
+          "direction": -1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_077",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_077",
+          "group": "talib",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_078",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_078",
+          "group": "momentum",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_079",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_079",
+          "group": "orderbook",
+          "direction": -1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_080",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_080",
+          "group": "volume",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_081",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_081",
+          "group": "talib",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_082",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_082",
+          "group": "momentum",
+          "direction": -1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_083",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_083",
+          "group": "orderbook",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_084",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_084",
+          "group": "volume",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_085",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_085",
+          "group": "talib",
+          "direction": -1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_086",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_086",
+          "group": "momentum",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_087",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_087",
+          "group": "orderbook",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_088",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_088",
+          "group": "volume",
+          "direction": -1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_089",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_089",
+          "group": "talib",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_090",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_090",
+          "group": "momentum",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_091",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_091",
+          "group": "orderbook",
+          "direction": -1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_092",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_092",
+          "group": "volume",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_093",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_093",
+          "group": "talib",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_094",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_094",
+          "group": "momentum",
+          "direction": -1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_095",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_095",
+          "group": "orderbook",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_096",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_096",
+          "group": "volume",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_097",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_097",
+          "group": "talib",
+          "direction": -1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_098",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_098",
+          "group": "momentum",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_099",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_099",
+          "group": "orderbook",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_100",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_100",
+          "group": "volume",
+          "direction": -1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_101",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_101",
+          "group": "talib",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_102",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_102",
+          "group": "momentum",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_103",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_103",
+          "group": "orderbook",
+          "direction": -1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_104",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_104",
+          "group": "volume",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_105",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_105",
+          "group": "talib",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_106",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_106",
+          "group": "momentum",
+          "direction": -1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_107",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_107",
+          "group": "orderbook",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_108",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_108",
+          "group": "volume",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_109",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_109",
+          "group": "talib",
+          "direction": -1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_110",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_110",
+          "group": "momentum",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_111",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_111",
+          "group": "orderbook",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_112",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_112",
+          "group": "volume",
+          "direction": -1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_113",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_113",
+          "group": "talib",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_114",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_114",
+          "group": "momentum",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_115",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_115",
+          "group": "orderbook",
+          "direction": -1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_116",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_116",
+          "group": "volume",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_117",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_117",
+          "group": "talib",
+          "direction": 1,
+          "available": true,
+          "coverage": {
+            "start": "2026-08-06T00:00:00+08:00",
+            "end": "2026-09-04T23:00:00+08:00"
+          }
+        }
+      },
+      {
+        "kind": "factor",
+        "key": "hourly_feature_118",
+        "version": "legacy/legacy",
+        "origin": "legacy",
+        "status": "available",
+        "pool_state": "experiment",
+        "pool_changed_at": "2026-10-12T08:30:00Z",
+        "metadata": {
+          "label": "hourly_feature_118",
+          "group": "momentum",
+          "direction": -1,
+          "available": true,
           "coverage": {
             "start": "2026-08-06T00:00:00+08:00",
             "end": "2026-09-04T23:00:00+08:00"

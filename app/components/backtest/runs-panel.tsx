@@ -2,50 +2,63 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { backtestApi, type BacktestPage, type BacktestRun } from "../../lib/backtest-platform";
-import { BOARD_LABELS, runTitle, STATUS_LABELS } from "../../lib/backtest-labels";
+import { backtestApi, type BacktestRun } from "../../lib/backtest-platform";
+import { BOARD_LABELS, requesterLabel, runSummary, runTitle, STATUS_LABELS } from "../../lib/backtest-labels";
 import { compareResults, diffRuns } from "../../lib/backtest-compare";
+import { collectRuns, type VisibleRunsPage } from "../../lib/backtest-runs";
 import { formatNumber } from "../../lib/backtest-table";
-import { V2Loading, V2Notice, V2Pagination, formatV2Time, v2ErrorText } from "../console-v2-resource";
+import { V2Loading, V2Notice, formatV2Time, v2ErrorText } from "../console-v2-resource";
 import { RunStatusBadge } from "./run-page";
 
+type View = "runs" | "intake";
 type Filters = { board: string; status: string; batchId: string; requestedBy: string };
+const PAGE_SIZE = 20;
+const VIEWS: Array<[View, string]> = [["runs", "运行"], ["intake", "提交校验"]];
 
-/** 运行记录：分页（has_more，不编造总数）、按板块 / 状态 / 批次筛选、失联高亮、勾选两次运行对比。 */
+/** 运行记录：「运行 / 提交校验」两个视图；分页（不编造总数）、按板块 / 状态 / 批次筛选、失联高亮、勾选两次运行对比。 */
 export function RunsPanel() {
   const search = useSearchParams();
   const initialBatch = search.get("batch_id") ?? "";
   const compareSeed = search.get("compare") ?? "";
+  const [view, setView] = useState<View>("runs");
   const [filters, setFilters] = useState<Filters>({ board: "", status: "", batchId: initialBatch, requestedBy: "" });
   const [draftBatch, setDraftBatch] = useState(initialBatch);
-  const [offset, setOffset] = useState(0);
-  const [page, setPage] = useState<BacktestPage<BacktestRun>>();
+  // 每一页在服务端列表里的起点：翻页只需要记住它们（「运行」视图要排除提交校验，页内条数靠连续取页凑满）
+  const [cursors, setCursors] = useState<number[]>([0]);
+  const [page, setPage] = useState<VisibleRunsPage>();
   const [error, setError] = useState<string>();
   const [loading, setLoading] = useState(true);
   const [tick, setTick] = useState(0);
   const [picked, setPicked] = useState<string[]>(compareSeed ? [compareSeed] : []);
 
-  const params = useMemo(() => ({ board: filters.board || undefined, status: filters.status || undefined, batch_id: filters.batchId || undefined, requested_by: filters.requestedBy || undefined, offset }), [filters, offset]);
+  const cursor = cursors[cursors.length - 1];
+  const query = useMemo(() => ({ board: view === "intake" ? "intake" : filters.board || undefined, status: filters.status || undefined, batch_id: filters.batchId || undefined, requested_by: filters.requestedBy || undefined }), [view, filters]);
 
   useEffect(() => {
     let cancelled = false;
     const timer = window.setTimeout(() => {
       setLoading(true); setError(undefined);
-      void backtestApi.runs(params).then((next) => { if (!cancelled) setPage(next); })
+      const excludeIntake = view === "runs" && !query.board;
+      void collectRuns((offset, limit) => backtestApi.runs({ ...query, limit, offset }), cursor, PAGE_SIZE, excludeIntake ? (run) => run.board === "intake" : undefined)
+        .then((next) => { if (!cancelled) setPage(next); })
         .catch((cause: unknown) => { if (!cancelled) { setPage(undefined); setError(v2ErrorText(cause)); } })
         .finally(() => { if (!cancelled) setLoading(false); });
     }, 0);
     return () => { cancelled = true; window.clearTimeout(timer); };
-  }, [params, tick]);
+  }, [query, cursor, view, tick]);
 
-  const update = (patch: Partial<Filters>) => { setOffset(0); setFilters((current) => ({ ...current, ...patch })); };
+  const resetPaging = () => setCursors([0]);
+  const update = (patch: Partial<Filters>) => { resetPaging(); setFilters((current) => ({ ...current, ...patch })); };
+  const switchView = (next: View) => { if (next === view) return; resetPaging(); setPage(undefined); setView(next); update({ board: "" }); };
   const toggle = (runId: string) => setPicked((current) => current.includes(runId) ? current.filter((id) => id !== runId) : current.length >= 2 ? [current[1], runId] : [...current, runId]);
+  const boards = Object.entries(BOARD_LABELS).filter(([key]) => key !== "intake");
 
   return <section className="section v2-list-section">
-    <p className="section-caption">所有板块的运行与提交校验。点运行 ID 查看结果；勾选两次运行可对比配置、输入指纹和同一对象的指标。</p>
+    <p className="section-caption">点运行 ID 查看结果；勾选两次运行可对比配置、输入指纹和同一对象的指标。提交的预测表、因子表和策略的校验运行放在「提交校验」。</p>
     <section className="panel v2-list-panel">
       <form className="filters v2-filterbar" onSubmit={(event) => { event.preventDefault(); update({ batchId: draftBatch.trim() }); }}>
-        <select className="select" aria-label="板块" value={filters.board} onChange={(event) => update({ board: event.target.value })}><option value="">全部板块</option>{Object.entries(BOARD_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select>
+        <div className="v2-local-tabs" role="radiogroup" aria-label="运行记录视图">{VIEWS.map(([key, label]) => <button type="button" role="radio" aria-checked={view === key} key={key} className={view === key ? "active" : ""} onClick={() => switchView(key)}>{label}</button>)}</div>
+        {view === "runs" && <select className="select" aria-label="板块" value={filters.board} onChange={(event) => update({ board: event.target.value })}><option value="">全部板块</option>{boards.map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select>}
         <select className="select" aria-label="状态" value={filters.status} onChange={(event) => update({ status: event.target.value })}><option value="">全部状态</option>{Object.entries(STATUS_LABELS).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select>
         <input className="input" aria-label="批次" placeholder="批次 ID（btb-…）" value={draftBatch} onChange={(event) => setDraftBatch(event.target.value)} />
         <button className="button primary" type="submit">筛选</button>
@@ -54,19 +67,23 @@ export function RunsPanel() {
       </form>
       {error && <V2Notice error title="运行记录不可用" description={error} />}
       {loading && !page && <V2Loading />}
-      {!error && page && page.items.length === 0 && <div className="empty"><strong>没有匹配的运行</strong><p>调整筛选，或到其它 Tab 发起一次运行。</p></div>}
+      {!error && page && page.items.length === 0 && <div className="empty"><strong>{view === "intake" ? "没有提交校验记录" : "没有匹配的运行"}</strong><p>{view === "intake" ? "到「提交」页上传预测表、因子表或策略后，校验运行会出现在这里。" : "调整筛选，或到其它 Tab 发起一次运行。"}</p></div>}
       {!error && page && page.items.length > 0 && <div className={loading ? "table-scroll is-loading" : "table-scroll"}><table className="v2-table">
         <thead><tr><th aria-label="选择对比" /><th>运行</th><th>状态 / 进度</th><th>发起人</th><th>创建</th><th>批次 / 关联</th></tr></thead>
-        <tbody>{page.items.map((run) => <tr key={run.runId} className={run.lost ? "bt-row-lost" : undefined}>
-          <td><input type="checkbox" aria-label={`选择 ${run.runId} 用于对比`} checked={picked.includes(run.runId)} onChange={() => toggle(run.runId)} /></td>
-          <td className="primary"><div className="v2-cell-copy"><a href={`/backtest-platform/runs/${encodeURIComponent(run.runId)}`}><strong>{runTitle(run.board, run.item)}</strong></a><small className="mono">{run.runId}{run.origin === "legacy" ? " · 旧平台导入" : ""}</small></div></td>
-          <td><div className="v2-cell-copy"><RunStatusBadge run={run} /><small>{run.status === "running" || run.status === "queued" ? run.stageLabel ?? run.stage ?? "" : run.error?.message ?? ""}{run.progress ? ` ${run.progress.done}/${run.progress.total}` : ""}</small></div></td>
-          <td>{run.requestedBy ?? "未知"}</td>
-          <td>{formatV2Time(run.createdAt)}</td>
-          <td><div className="v2-cell-copy"><span className="mono">{run.batchId ?? "—"}</span>{run.parentRunId && <small>重跑自 <a href={`/backtest-platform/runs/${encodeURIComponent(run.parentRunId)}`}>{run.parentRunId}</a></small>}</div></td>
-        </tr>)}</tbody>
+        <tbody>{page.items.map((run) => {
+          const active = run.status === "running" || run.status === "queued";
+          const summary = runSummary(run);
+          return <tr key={run.runId} className={run.lost ? "bt-row-lost" : undefined}>
+            <td><input type="checkbox" aria-label={`选择 ${run.runId} 用于对比`} checked={picked.includes(run.runId)} onChange={() => toggle(run.runId)} /></td>
+            <td className="primary"><div className="v2-cell-copy"><a href={`/backtest-platform/runs/${encodeURIComponent(run.runId)}`}><strong>{runTitle(run.board, run.item)}</strong></a>{summary && <small className="bt-run-summary">{summary}</small>}<small className="mono">{run.runId}{run.origin === "legacy" ? " · 旧平台导入" : ""}</small></div></td>
+            <td><div className="v2-cell-copy"><RunStatusBadge run={run} /><small>{active ? run.stageLabel ?? run.stage ?? "" : run.error?.message ?? ""}{active && run.progress ? ` ${run.progress.done}/${run.progress.total}` : ""}</small></div></td>
+            <td>{requesterLabel(run.requestedBy)}</td>
+            <td>{formatV2Time(run.createdAt)}</td>
+            <td><div className="v2-cell-copy"><span className="mono">{run.batchId ?? "—"}</span>{run.parentRunId && <small>重跑自 <a href={`/backtest-platform/runs/${encodeURIComponent(run.parentRunId)}`}>{run.parentRunId}</a></small>}</div></td>
+          </tr>;
+        })}</tbody>
       </table></div>}
-      {page && <V2Pagination page={{ items: page.items, limit: page.limit, offset: page.offset, hasMore: page.hasMore, observedAt: page.observedAt ?? "" }} onPage={setOffset} />}
+      {page && <div className="v2-pagination"><span>第 {cursors.length} 页 · 本页 {page.items.length} 条 · 按页展示，未统计总数</span><div><button type="button" className="button" disabled={cursors.length <= 1} onClick={() => setCursors((current) => current.slice(0, -1))}>上一页</button><button type="button" className="button" disabled={!page.hasMore} onClick={() => setCursors((current) => [...current, page.nextOffset])}>下一页</button></div></div>}
     </section>
     {picked.length > 0 && <section className="bt-section" aria-label="运行对比">
       <div className="section-head"><h3 className="bt-section-title">两次运行对比</h3><button type="button" className="button" onClick={() => setPicked([])}>清空选择</button></div>

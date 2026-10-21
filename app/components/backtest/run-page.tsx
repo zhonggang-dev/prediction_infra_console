@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { backtestApi, isActiveRun, type BacktestRun } from "../../lib/backtest-platform";
-import { runTitle, STATUS_CLASS, STATUS_LABELS } from "../../lib/backtest-labels";
+import { prettyHeadline, requesterLabel, runTitle, STATUS_CLASS, STATUS_LABELS } from "../../lib/backtest-labels";
 import { ConsoleV2ApiError } from "../../lib/console-v2";
 import { V2Frame, V2Loading, V2Notice, formatV2Time, v2ErrorText } from "../console-v2-resource";
 import { ResultView, ScopeCardView } from "./result-view";
@@ -107,7 +107,7 @@ export function RunPage({ runId }: { runId: string }) {
   };
 
   const title = run ? runTitle(run.board, run.item) : "运行详情";
-  return <V2Frame eyebrow="Backtest Platform / Run" title={title} description={run ? run.result?.headline || `运行 ${run.runId}` : `运行 ${runId}`} observedAt={undefined} onRefresh={reload} loading={loading}>
+  return <V2Frame eyebrow="Backtest Platform / Run" title={title} description={run ? (run.result?.headline ? prettyHeadline(run.result.headline) : `运行 ${run.runId}`) : `运行 ${runId}`} observedAt={undefined} onRefresh={reload} loading={loading}>
     <nav className="v2-context-links" aria-label="相关页面"><a href="/backtest-platform/runs">← 运行记录</a>{run?.parentRunId && <a href={`/backtest-platform/runs/${encodeURIComponent(run.parentRunId)}`}>重跑自 {run.parentRunId}</a>}{run && <a href={`/backtest-platform/runs?compare=${encodeURIComponent(run.runId)}`}>与另一次运行对比</a>}</nav>
     {error && <V2Notice error title={run ? "最近一次刷新失败，下面的内容可能已陈旧" : "运行不可用"} description={error} />}
     {action.error && <V2Notice error title="操作失败" description={action.error} />}
@@ -117,7 +117,7 @@ export function RunPage({ runId }: { runId: string }) {
         <div className="v2-facts">
           <div className="v2-fact"><span>运行 ID</span><strong className="mono">{run.runId}</strong></div>
           <div className="v2-fact"><span>状态</span><strong><RunStatusBadge run={run} /></strong></div>
-          <div className="v2-fact"><span>发起人 / 来源</span><strong>{run.requestedBy ?? "未知"}{run.origin === "legacy" ? " · 旧平台导入" : ""}</strong></div>
+          <div className="v2-fact"><span>发起人 / 来源</span><strong>{requesterLabel(run.requestedBy)}{run.origin === "legacy" && run.requestedBy !== "legacy-import" ? " · 旧平台导入" : ""}</strong></div>
           <div className="v2-fact"><span>批次</span><strong className="mono">{run.batchId ?? "—"}</strong></div>
           <div className="v2-fact"><span>创建</span><strong>{formatV2Time(run.createdAt)}</strong></div>
           <div className="v2-fact"><span>开始</span><strong>{formatV2Time(run.startedAt)}</strong></div>

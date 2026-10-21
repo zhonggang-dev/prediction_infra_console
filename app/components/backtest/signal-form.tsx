@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import type { CatalogItem, EngineInfo } from "../../lib/backtest-platform";
 import { text as asText, record } from "../../lib/backtest-platform";
 import { initialParamValues, paramsPayload, validateParams, type ParamValues } from "../../lib/backtest-params";
@@ -56,10 +57,13 @@ function useCoverageDates(key: string, coverage: { start: Instant; end: Instant 
 
 function SignalFormInner({ data }: { data: CatalogData }) {
   const engine = data.engine as EngineInfo;
-  const [kind, setKind] = useState<ObjectKind>("model");
+  // 因子库「去评估」带 ?factor=<key>@<版本> 跳来：直接选中这个因子（在池里就是因子池单因子，否则是实验空间单因子）
+  const wanted = useSearchParams().get("factor");
+  const factors = useMemo(() => data.factors.map(factorView), [data.factors]);
+  const wantedFactor = wanted ? factors.find((f) => f.uid === wanted) : undefined;
+  const [kind, setKind] = useState<ObjectKind>(() => wantedFactor ? (wantedFactor.item.poolState === "pool" ? "factor_pool" : "factor_experiment") : "model");
   const [force, setForce] = useState(false);
   const launcher = useLauncher();
-  const factors = useMemo(() => data.factors.map(factorView), [data.factors]);
   const signalWindow = useMemo(() => engine.signalWindow ? { start: parseInstant(engine.signalWindow.start), end: parseInstant(engine.signalWindow.endExclusive) } : undefined, [engine]);
 
   const item = kind === "model" ? "model" : kind === "batch" ? "factor_batch" : kind === "correlation" ? "correlation" : "factor";
@@ -72,7 +76,7 @@ function SignalFormInner({ data }: { data: CatalogData }) {
   // ── 单对象状态 ──
   const [modelKey, setModelKey] = useState(data.models[0]?.key ?? "");
   const poolFactors = factors.filter((f) => kind === "factor_pool" ? f.item.poolState === "pool" : f.item.poolState !== "pool");
-  const [factorKey, setFactorKey] = useState<string>();
+  const [factorKey, setFactorKey] = useState<string | undefined>(wantedFactor?.uid);
   const factor = poolFactors.find((f) => f.uid === factorKey && f.available) ?? poolFactors.find((f) => f.available);
   const tables = useMemo(() => Array.from(new Set(factors.map((f) => f.item.version).filter((v) => v.includes("/") && !v.startsWith("legacy/")))).sort(), [factors]);
   const [tableVersion, setTableVersion] = useState<string>();

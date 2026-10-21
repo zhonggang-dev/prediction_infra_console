@@ -1,0 +1,20 @@
+{
+  "data": {
+    "submission_id": "bts-20261021-baseline_",
+    "kind": "strategy",
+    "identity": {
+      "id": "baseline_v3_stepwise",
+      "version": "1.0.0"
+    },
+    "identity_key": "baseline_v3_stepwise/1.0.0",
+    "status": "accepted",
+    "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+    "bytes": 183422,
+    "content_type": "application/gzip",
+    "errors": [],
+    "intake_run_id": "btr-20261021-intake005",
+    "submitted_by": "console:alice",
+    "created_at": "2026-10-21T08:00:00Z",
+    "decided_at": "2026-10-21T08:01:10Z"
+  }
+}

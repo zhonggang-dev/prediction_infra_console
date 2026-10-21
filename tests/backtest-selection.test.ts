@@ -127,12 +127,13 @@ test("Domain 校验：All 与具体域互斥、空选、排除全部（Trading /
 
 test("策略 validated_domains 收窄；无交集的策略不能运行（R:1381）", () => {
   const mult = strategies.filter((s) => s.validatedDomains);
+  assert.equal(mult.length, 3);
   const plan = strategyDomainPlan(mult, { mode: "include", values: [ALL_DOMAINS] });
   assert.equal(plan.empty.length, 0);
   assert.deepEqual(plan.narrowed[0].domains, ["World", "Geopolitics"]);
   const crypto = strategyDomainPlan(mult, { mode: "include", values: ["Crypto"] });
-  assert.equal(crypto.empty.length, 2);
-  const mixed = strategyDomainPlan(mult, { mode: "include", values: ["World", "Crypto"] });
+  assert.equal(crypto.empty.length, 3, "两个 W/G 旧策略 + 只在 Politics / Sports 成交的逐时点策略（definition.domains）");
+  const mixed = strategyDomainPlan(mult.filter((s) => !s.stepwise), { mode: "include", values: ["World", "Crypto"] });
   assert.deepEqual(mixed.narrowed[0].domains, ["World"]);
   assert.equal(strategies.find((s) => s.key === "price_v4")?.priceOnly, true, "纯价格策略不读模型");
   assert.equal(strategyDomainPlan(strategies.filter((s) => !s.validatedDomains), { mode: "include", values: ["Crypto"] }).empty.length, 0);
@@ -142,14 +143,19 @@ test("策略 validated_domains 收窄；无交集的策略不能运行（R:1381�
 
 const engine = decodeEngine(items("catalog-engines.json")[0]);
 
-test("参数默认值来自引擎定义；点号展开为嵌套；infra 不支持条件显示，所有定义的参数都提交", () => {
+test("参数默认值来自引擎定义；点号展开为嵌套；引擎定义本身没有条件显示，未经展示规则处理时所有定义的参数都提交", () => {
   const defs = engine.paramDefinitions["trading/strategy_comparison"];
   const values = initialParamValues(defs);
   assert.equal(values["position_sizing.mode"], "native");
   assert.equal(isVisible(defs.find((d) => d.name === "position_sizing.shares")!, values), true, "infra 的参数定义没有 when，登记里不会出现条件显示");
-  assert.deepEqual(paramsPayload(defs, values), { scope: "strict", position_sizing: { mode: "native", shares: 1, stake: 10 }, bankroll: { mode: "unlimited", amount: 3000 }, price_dataset: "telonex" });
+  const all = paramsPayload(defs, values);
+  assert.deepEqual(all.position_sizing, { mode: "native", shares: 1, stake: 10 });
+  assert.deepEqual(all.bankroll, { mode: "unlimited", amount: 3000 });
+  assert.equal(all.scope, "strict");
+  assert.equal((all.stepwise as Record<string, unknown>).strategy_params, "{}");
   const finite = { ...values, "bankroll.mode": "finite", "bankroll.amount": "5000", "position_sizing.mode": "fixed_shares", "position_sizing.shares": "2.5" };
-  assert.deepEqual(paramsPayload(defs, finite), { scope: "strict", position_sizing: { mode: "fixed_shares", shares: 2.5, stake: 10 }, bankroll: { mode: "finite", amount: 5000 }, price_dataset: "telonex" });
+  assert.deepEqual(paramsPayload(defs, finite).bankroll, { mode: "finite", amount: 5000 });
+  assert.deepEqual(paramsPayload(defs, finite).position_sizing, { mode: "fixed_shares", shares: 2.5, stake: 10 });
 });
 
 test("预留的 when 扩展仍然生效（infra 目前不会下发，但解码器与表单保持兼容）", () => {
@@ -168,9 +174,10 @@ test("参数校验：整数范围、τ 开区间、桶边界（中文逗号 / �
   assert.match(validateParams(x, { x_days: "abc" }).x_days, /数字/);
   const tau = engine.paramDefinitions["benchmark/deviation"];
   assert.deepEqual(validateParams(tau, { tau: "0.1" }), {});
-  // infra 的 min / max 是闭区间，τ 的开区间由执行器校验后回显；前端只拦闭区间之外
-  assert.match(validateParams(tau, { tau: "-0.1" }).tau, /不小于 0/);
-  assert.match(validateParams(tau, { tau: "1.5" }).tau, /不大于 1/);
+  // 执行器把 τ 的开区间 (0, 1) 写成 min 1e-6、max 0.999999 的闭区间下发
+  assert.match(validateParams(tau, { tau: "-0.1" }).tau, /不小于 0\.000001/);
+  assert.match(validateParams(tau, { tau: "1.5" }).tau, /不大于 0\.999999/);
+  assert.deepEqual(validateParams(tau, { tau: "0.5" }), {});
   const buckets = engine.paramDefinitions["benchmark/calibration"];
   assert.deepEqual(parseNumberList("0，0.5、1"), [0, 0.5, 1]);
   assert.deepEqual(validateParams(buckets, { bucket_edges: "0，0.5，1" }), {});
@@ -179,10 +186,10 @@ test("参数校验：整数范围、τ 开区间、桶边界（中文逗号 / �
   assert.match(validateParams(buckets, { bucket_edges: "a, b" }).bucket_edges, /数字/);
   assert.deepEqual(paramsPayload(buckets, { bucket_edges: "0, 0.5, 1" }), { bucket_edges: [0, 0.5, 1] });
   const signal = engine.paramDefinitions["benchmark/model_signal"];
-  assert.deepEqual(paramsPayload(signal, initialParamValues(signal)), { sample_scope: "full", horizon_hours: 24 }, "带 choices 的整数参数提交数字，不是字符串");
-  assert.match(validateParams(signal, { sample_scope: "zzz", horizon_hours: "24" }).sample_scope, /不在可选范围/);
-  assert.match(validateParams(signal, { sample_scope: "full", horizon_hours: "25" }).horizon_hours, /不在可选范围/);
-  assert.deepEqual(validateParams(signal, { sample_scope: "full", horizon_hours: "168" }), {});
+  assert.deepEqual(paramsPayload(signal, initialParamValues(signal)), { sample_scope: "full", horizon_h: 24 }, "带 choices 的整数参数提交数字，不是字符串");
+  assert.match(validateParams(signal, { sample_scope: "zzz", horizon_h: "24" }).sample_scope, /不在可选范围/);
+  assert.match(validateParams(signal, { sample_scope: "full", horizon_h: "25" }).horizon_h, /不在可选范围/);
+  assert.deepEqual(validateParams(signal, { sample_scope: "full", horizon_h: "168" }), {});
 });
 
 test("提交标识快检：model_id 规则（不含 _pred、__、@）", () => {
