@@ -1,5 +1,5 @@
-import { TradeRecordsPage } from "../components/trade-records-page";
+import { TradingV2Page } from "../components/trading-v2-page";
 
 export default function TradesPage() {
-  return <TradeRecordsPage />;
+  return <TradingV2Page view="ledger" />;
 }

@@ -82,17 +82,24 @@ async function forward(request: Request, path: string[]): Promise<Response> {
   }
   const headers = copyHeaders(response.headers);
   if (target.legacyEnvelope === "outbox") {
+    if (!response.ok) return new Response(response.body, { status: response.status, headers });
     const payload = await response.json().catch(() => ({}));
     const root = asRecord(payload);
     const data = asRecord(root.data);
     const items = Array.isArray(data.items) ? data.items : [];
-    const limit = Number(data.limit) || 20;
-    const offset = Number(data.offset) || 0;
-    const total = Number(data.total);
-    const hasMore = Number.isFinite(total) ? offset + items.length < total : items.length >= limit;
+    const limit = exactPageInteger(data.limit, false);
+    const offset = exactPageInteger(data.offset, true);
+    const total = exactPageInteger(data.total, true);
+    if (limit === undefined || offset === undefined) {
+      return json({ code: "PAGINATION_UNAVAILABLE", message: "Outbox 列表返回了无效的分页范围。" }, 502);
+    }
+    if (total === undefined) {
+      return json({ code: "TOTAL_UNAVAILABLE", message: "Outbox 列表没有返回当前筛选下的准确总数。" }, 502);
+    }
+    const hasMore = offset + items.length < total;
     headers.delete("content-length");
     headers.set("content-type", "application/json");
-    return Response.json({ ...root, data: { items, limit, offset, has_more: hasMore, observed_at: new Date().toISOString(), summary: { basis: "legacy_outbox_projection" } } }, { status: response.status, headers });
+    return Response.json({ ...root, data: { items, total, limit, offset, has_more: hasMore, observed_at: new Date().toISOString(), summary: { basis: "legacy_outbox_projection" } } }, { status: response.status, headers });
   }
   return new Response(response.body, { status: response.status, headers });
 }
@@ -137,4 +144,11 @@ function json(body: Record<string, string>, status: number): Response {
 
 function asRecord(value: unknown): Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
+}
+
+/** Legacy outbox values must already be JSON numbers; coercing null/false/""
+ * to zero would turn a missing count into a successful empty page. */
+function exactPageInteger(value: unknown, allowZero: boolean): number | undefined {
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || (allowZero ? value < 0 : value <= 0)) return undefined;
+  return value;
 }

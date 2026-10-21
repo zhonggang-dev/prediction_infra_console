@@ -11,7 +11,8 @@ type RawRecord = Record<string, unknown>;
 type ListPayload = { items?: RawRecord[]; total?: number; limit?: number; offset?: number };
 
 export class ConsoleApiError extends Error {
-  constructor(message: string, readonly mode: ApiMode = "unavailable") { super(message); }
+  readonly mode: ApiMode;
+  constructor(message: string, mode: ApiMode = "unavailable") { super(message); this.mode = mode; }
 }
 
 /** 从同源 BFF 获取数据，令牌仅保留于服务端环境。 */
@@ -424,7 +425,7 @@ export const consoleApi = {
     if (params.endTo) query.set("end_to", nextDayStart(params.endTo));
     const result = await request<RawRecord>(`generated-markets?${query}`);
     const data: GeneratedMarketList = {
-      items: records(result.data.items).map(mapGeneratedMarket), total: number(result.data.total),
+      items: records(result.data.items).map(mapGeneratedMarket), total: exactListTotal(result.data.total, "generated-markets"),
       limit: number(result.data.limit) || 20, offset: number(result.data.offset), statusCounts: numericRecord(result.data.status_counts),
       domainOptions: Array.isArray(result.data.domain_options) ? result.data.domain_options.map(String) : [],
     };
@@ -441,8 +442,9 @@ export const consoleApi = {
     if (params.endTo) query.set("end_to", nextDayStart(params.endTo));
     const result = await request<RawRecord>(`generated-qas?${query}`);
     const data: GeneratedQAList = {
-      items: records(result.data.items).map(mapGeneratedQA), total: number(result.data.total),
+      items: records(result.data.items).map(mapGeneratedQA), total: exactListTotal(result.data.total, "generated-qas"),
       limit: number(result.data.limit) || 20, offset: number(result.data.offset),
+      observedAt: optionalTime(result.data.observed_at),
       statusCounts: numericRecord(result.data.status_counts),
       marketCompatibleCounts: numericRecord(result.data.market_compatible_counts),
       domainOptions: Array.isArray(result.data.domain_options) ? result.data.domain_options.map(String) : [],
@@ -463,7 +465,7 @@ export const consoleApi = {
     const items = Array.isArray(result.data.items) ? result.data.items as RawRecord[] : [];
     const data: TradeHistoryPage = {
       items: items.map(mapTrade), summary: mapTradeSummary(result.data.summary as RawRecord | undefined),
-      total: number(result.data.total), limit: number(result.data.limit) || 20, offset: number(result.data.offset),
+      total: exactListTotal(result.data.total, "trades"), limit: number(result.data.limit) || 20, offset: number(result.data.offset),
     };
     return { data, mode: result.mode };
   },
@@ -480,7 +482,7 @@ export const consoleApi = {
     const result = await request<RawRecord>(`ledger-activities?${query}`);
     const data: LedgerActivityPage = {
       items: records(result.data.items).map(mapLedgerActivity), summary: mapLedgerSummary(result.data.summary as RawRecord | undefined),
-      total: number(result.data.total), limit: number(result.data.limit) || 20, offset: number(result.data.offset),
+      total: exactListTotal(result.data.total, "ledger-activities"), limit: number(result.data.limit) || 20, offset: number(result.data.offset),
     };
     return { data, mode: result.mode };
   },
@@ -577,4 +579,9 @@ function optionalJSON(value: unknown): unknown {
 
 function numericRecord(value: unknown): Record<string, number> {
   return Object.fromEntries(Object.entries(record(value)).map(([key, item]) => [key, number(item)]));
+}
+
+function exactListTotal(value: unknown, resource: string): number {
+  if (typeof value !== "number" || !Number.isSafeInteger(value) || value < 0) throw new ConsoleApiError(`${resource} 接口没有返回当前筛选下的准确总数`, "live");
+  return value;
 }

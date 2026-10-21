@@ -25,7 +25,7 @@ test("V2 decoder preserves bounded envelope, identities, nullable fields and ser
   const calls: string[] = [];
   globalThis.fetch = (async (input) => {
     calls.push(String(input));
-    return new Response(JSON.stringify({ data: { items: [{ generation_id: 8, running_market_id: 17, source_selection_run_id: 4, source_selected_market_id: 99, market_id: "pm-1", condition_id: "condition-1", question: "Question", matched_domains: ["macro"], volume_24h: null, domain_rank: null, prediction_enabled: false, market_observed_at: "2026-10-16T00:00:00Z", end_at: null }], limit: 20, offset: 0, has_more: true, observed_at: "2026-10-16T00:01:00Z", summary: { basis: "published_generation" } } }));
+    return new Response(JSON.stringify({ data: { items: [{ generation_id: 8, running_market_id: 17, source_selection_run_id: 4, source_selected_market_id: 99, market_id: "pm-1", condition_id: "condition-1", question: "Question", matched_domains: ["macro"], volume_24h: null, domain_rank: null, prediction_enabled: false, market_observed_at: "2026-10-16T00:00:00Z", end_at: null }], total: 21, limit: 20, offset: 0, has_more: true, observed_at: "2026-10-16T00:01:00Z", summary: { basis: "published_generation" } } }));
   }) as typeof fetch;
   try {
     const result = await consoleV2.infra.runningMarkets({ q: "Question", generation_id: 8 });
@@ -33,6 +33,7 @@ test("V2 decoder preserves bounded envelope, identities, nullable fields and ser
     assert.equal(result.data.items[0].predictionEnabled, false);
     assert.equal(result.data.items[0].volume24h, null);
     assert.equal(result.data.hasMore, true);
+    assert.equal(result.data.total, 21);
     assert.equal(result.data.summary?.basis, "published_generation");
     assert.match(calls[0], /\/api\/console\/v2\/infra\/running-markets\?/);
     assert.match(calls[0], /q=Question/);
@@ -52,6 +53,46 @@ test("V2 decoder rejects a list without an observation timestamp", async () => {
   }
 });
 
+test("V2 decoder rejects a list without an exact total", async () => {
+  const previousFetch = globalThis.fetch;
+  globalThis.fetch = (async () => new Response(JSON.stringify({ data: { items: [], limit: 20, offset: 0, has_more: false, observed_at: "2026-10-16T00:00:00Z" } }))) as typeof fetch;
+  try {
+    await assert.rejects(() => consoleV2.infra.runningMarkets(), (error: unknown) => error instanceof ConsoleV2ContractError && /total/.test(error.message));
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
+test("V2 decoder rejects coerced total values instead of treating them as zero", async () => {
+  const previousFetch = globalThis.fetch;
+  try {
+    for (const total of [null, false, "", "0"]) {
+      globalThis.fetch = (async () => new Response(JSON.stringify({ data: { items: [], total, limit: 20, offset: 0, has_more: false, observed_at: "2026-10-16T00:00:00Z" } }))) as typeof fetch;
+      await assert.rejects(() => consoleV2.infra.runningMarkets(), (error: unknown) => error instanceof ConsoleV2ContractError && /total/.test(error.message), `total=${String(total)}`);
+    }
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
+test("Prediction source kind requires sandbox_id proof or a complete Direct identity", async () => {
+  const previousFetch = globalThis.fetch;
+  const base = { prediction_id: "p-1", source_job_id: "job-1", selected_market_id: "sm-1", market_id: "m-1", condition_id: "c-1", question: "Q", model_name: "model-1", market_source: "POLYMARKET", execution_mode: "LIVE", prediction_as_of: "2026-10-16T00:00:00Z" };
+  try {
+    const cases = [
+      [{ ...base, sandbox_id: "sandbox-1", origin: "DIRECT" }, "SANDBOX"],
+      [{ ...base, sandbox_id: null, origin: "SANDBOX" }, "DIRECT"],
+      [{ ...base, sandbox_id: null, selected_market_id: null, origin: "DIRECT" }, "UNKNOWN"],
+      [{ ...base, origin: "SANDBOX" }, "UNKNOWN"],
+    ] as const;
+    for (const [item, expected] of cases) {
+      globalThis.fetch = (async () => new Response(JSON.stringify({ data: { items: [item], total: 1, limit: 20, offset: 0, has_more: false, observed_at: "2026-10-16T00:01:00Z" } }))) as typeof fetch;
+      const result = await consoleV2.infra.predictions();
+      assert.equal(result.data.items[0].sourceKind, expected);
+    }
+  } finally { globalThis.fetch = previousFetch; }
+});
+
 test("V2 client preserves nested Trading error code and message", async () => {
   const previousFetch = globalThis.fetch;
   globalThis.fetch = (async () => new Response(JSON.stringify({ error: { code: "CYCLE_UNAVAILABLE", message: "cycle read unavailable" } }), { status: 503, headers: { "content-type": "application/json" } })) as typeof fetch;
@@ -66,6 +107,33 @@ test("V2 service metrics normalizes the Trading service identity", async () => {
   try {
     const result = await consoleV2.trading.serviceMetrics();
     assert.equal(result.data.service, "trading-execution");
+  } finally { globalThis.fetch = previousFetch; }
+});
+
+test("Trading runtime preserves the three independent disable arrays", async () => {
+  const previousFetch = globalThis.fetch;
+  globalThis.fetch = (async () => new Response(JSON.stringify({ data: {
+    observed_at: "2026-10-16T00:00:00Z",
+    runner: { enabled: true, running: true, state: "running" },
+    bindings: [],
+    submission: {
+      order_submission_enabled: false,
+      entry_submission_disabled: true,
+      submission_disabled_accounts: ["wallet-1"],
+      entry_disabled_accounts: ["wallet-6"],
+      strategy_disabled_accounts: ["wallet-7"],
+      kalshi_strategy_input_enabled: null,
+    },
+    account_data_state: "unavailable",
+    accounts: [],
+  } }))) as typeof fetch;
+  try {
+    const result = await consoleV2.trading.runtime();
+    assert.equal(result.data.submission.orderSubmissionEnabled, false);
+    assert.equal(result.data.submission.entrySubmissionDisabled, true);
+    assert.deepEqual(result.data.submission.submissionDisabledAccounts, ["wallet-1"]);
+    assert.deepEqual(result.data.submission.entryDisabledAccounts, ["wallet-6"]);
+    assert.deepEqual(result.data.submission.strategyDisabledAccounts, ["wallet-7"]);
   } finally { globalThis.fetch = previousFetch; }
 });
 
@@ -89,6 +157,37 @@ test("Trading filters and V2 detail rows expose only backend status values and k
   assert.match(live, /SnapshotStatusBadge/);
   assert.doesNotMatch(live, /activeSnapshot\.engine\.health/);
 });
+
+test("业务工作区复用真实资料轮换与交易视图，不回退到 ready 成员猜版本", async () => {
+  const assets = await readFile(new URL("../app/components/assets-v2-page.tsx", import.meta.url), "utf8");
+  const trading = await readFile(new URL("../app/components/trading-v2-page.tsx", import.meta.url), "utf8");
+  const markets = await readFile(new URL("../app/components/markets-v2-page.tsx", import.meta.url), "utf8");
+  const predictions = await readFile(new URL("../app/components/predictions-v2-page.tsx", import.meta.url), "utf8");
+  const overview = await readFile(new URL("../app/components/overview-v2-page.tsx", import.meta.url), "utf8");
+  const api = await readFile(new URL("../app/lib/console-api.ts", import.meta.url), "utf8");
+  assert.match(assets, /consoleApi\.datasetRotation\(\)/);
+  assert.match(assets, /currentVersions/);
+  assert.match(assets, /trainingSets/);
+  assert.match(assets, /<DatasetRotationPage embedded/);
+  assert.doesNotMatch(assets, /datasetMembers\(\{ limit: 1, status: "ready" \}\)/);
+  assert.match(overview, /consoleApi\.datasetRotation/);
+  assert.doesNotMatch(overview, /datasetMembers\(\{ limit: 1 \}\)/);
+  assert.match(trading, /<LiveTradingPage[^>]*embedded/);
+  assert.match(trading, /<TradeRecordsPage embedded/);
+  assert.match(trading, /\/trading\/ledger/);
+  assert.match(trading, /aliases: \["\/trading", "\/live"\]/);
+  assert.match(markets, /href: "\/markets\/running", label: "运行市场", aliases: \["\/markets"\]/);
+  assert.doesNotMatch(markets, /href: "\/markets\/selection", label: "选盘批次与历史", aliases/);
+  assert.match(markets, /本批次预测资格/);
+  assert.match(markets, /本批次启用/);
+  assert.match(markets, /来源快照截止/);
+  assert.match(markets, /实时有效性另查/);
+  assert.match(predictions, /activePredictionAsOf/);
+  assert.match(predictions, /item\.sourceKind/);
+  assert.doesNotMatch(predictions, /sandboxId \? "SANDBOX" : "DIRECT"/);
+  assert.match(api, /ledger-activities[^\n]*[\s\S]*?total: exactListTotal\(result\.data\.total, "ledger-activities"\)/);
+});
+
 
 test("V2 BFF is GET-only, allowlisted, authenticated server-side and bounded to the V2 upstream path", async () => {
   await withEnv({ PREDICTION_INFRA_BASE_URL: "http://infra.test", CONSOLE_API_TOKEN: "infra-secret", TRADING_EXECUTION_BASE_URL: "http://trading.test", TRADING_EXECUTION_LIVE_READ_ONLY_TOKEN: "trading-secret" }, async () => {
@@ -139,8 +238,39 @@ test("Outbox V2 projection keeps the legacy read model bounded and preserves sta
       assert.equal(payload.data.items[0].attempt_count, 3);
       assert.equal(payload.data.items[0].delivery_status, "FAILED");
       assert.equal(payload.data.has_more, false);
+      assert.equal(payload.data.total, 1);
       assert.equal(payload.data.summary.basis, "legacy_outbox_projection");
       assert.match(payload.data.observed_at, /^20/);
+    } finally {
+      globalThis.fetch = previousFetch;
+    }
+  });
+});
+
+test("Outbox V2 projection rejects a legacy response without exact total", async () => {
+  await withEnv({ PREDICTION_INFRA_BASE_URL: "http://infra.test", CONSOLE_API_TOKEN: "infra-secret" }, async () => {
+    const previousFetch = globalThis.fetch;
+    globalThis.fetch = (async () => new Response(JSON.stringify({ data: { items: [], limit: 20, offset: 0 } }), { status: 200, headers: { "content-type": "application/json" } })) as typeof fetch;
+    try {
+      const response = await GET(new Request("http://console.test/api/console/v2/infra/outbox-events"), { params: Promise.resolve({ path: ["infra", "outbox-events"] }) });
+      assert.equal(response.status, 502);
+      assert.equal((await response.json()).code, "TOTAL_UNAVAILABLE");
+    } finally {
+      globalThis.fetch = previousFetch;
+    }
+  });
+});
+
+test("Outbox V2 projection rejects null, boolean and empty-string totals", async () => {
+  await withEnv({ PREDICTION_INFRA_BASE_URL: "http://infra.test", CONSOLE_API_TOKEN: "infra-secret" }, async () => {
+    const previousFetch = globalThis.fetch;
+    try {
+      for (const total of [null, false, "", "1"]) {
+        globalThis.fetch = (async () => new Response(JSON.stringify({ data: { items: [], total, limit: 20, offset: 0 } }), { status: 200, headers: { "content-type": "application/json" } })) as typeof fetch;
+        const response = await GET(new Request("http://console.test/api/console/v2/infra/outbox-events"), { params: Promise.resolve({ path: ["infra", "outbox-events"] }) });
+        assert.equal(response.status, 502, `total=${String(total)}`);
+        assert.equal((await response.json()).code, "TOTAL_UNAVAILABLE");
+      }
     } finally {
       globalThis.fetch = previousFetch;
     }

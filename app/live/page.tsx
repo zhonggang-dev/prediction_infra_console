@@ -1,5 +1,5 @@
-import { LiveTradingPage } from "../components/live-trading-page";
+import { TradingV2Page } from "../components/trading-v2-page";
 
 export default function LivePage() {
-  return <LiveTradingPage previewObservedAt={new Date().toISOString()} />;
+  return <TradingV2Page view="overview" />;
 }
