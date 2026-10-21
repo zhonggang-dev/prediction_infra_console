@@ -187,6 +187,13 @@ test("业务工作区复用真实资料轮换与交易视图，不回退到 read
   assert.match(ledger, /WORKSPACE_FILTER_CHANGE_EVENT/);
   assert.match(resource, /WORKSPACE_FILTER_CHANGE_EVENT/);
   assert.match(trading, /notifyFilterChange/);
+  assert.match(trading, /reconciliation_view: "issues"/);
+  assert.match(trading, /delete next\.reconciliation_view/);
+  assert.match(trading, /next\.status === "ALL"/);
+  assert.match(trading, /reconciliationApiParams\(params\)/);
+  assert.match(trading, /loadReconciliationIssues/);
+  assert.match(trading, /loadReconciliationRuns/);
+  assert.doesNotMatch(trading, /load=\{\(requestParams\) => consoleV2\.trading\.reconciliation/);
   assert.match(markets, /href: "\/markets\/running", label: "运行市场", aliases: \["\/markets"\]/);
   assert.doesNotMatch(markets, /href: "\/markets\/selection", label: "选盘批次与历史", aliases/);
   assert.match(markets, /本批次预测资格/);

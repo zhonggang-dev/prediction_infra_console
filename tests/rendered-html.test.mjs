@@ -113,6 +113,25 @@ test("服务端直达订单页应用 URL 查询并暴露 tab 语义", async () =
   assert.match(html, /data-v2-search-applied="v2-order"[^>]*value="v2-order"/);
 });
 
+test("交易对账默认打开开放问题并保留局部视图范围", async () => {
+  const response = await render("/trading/reconciliation");
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /id="v2-tab-issues"[^>]*aria-selected="true"/);
+  assert.match(html, /aria-label="问题状态"[\s\S]*?<option value="OPEN" selected/);
+
+  const runsResponse = await render("/trading/reconciliation?reconciliation_view=runs");
+  assert.equal(runsResponse.status, 200);
+  const runsHtml = await runsResponse.text();
+  assert.match(runsHtml, /id="v2-tab-runs"[^>]*aria-selected="true"/);
+});
+
+test("对账全部状态使用可恢复的 UI sentinel", async () => {
+  const response = await render("/trading/reconciliation?status=ALL");
+  const html = await response.text();
+  assert.match(html, /aria-label="问题状态"[\s\S]*?<option value="ALL" selected/);
+});
+
 test("服务端可渲染独立的市场页面", async () => {
   const response = await render("/markets");
   assert.equal(response.status, 200);
