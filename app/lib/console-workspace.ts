@@ -23,3 +23,21 @@ export function workspaceHrefWithAppliedQuery(href: string, currentHref: string,
   }
   return `${target.pathname}${target.search}${target.hash}`;
 }
+
+export function mergeSharedQuery(targetQuery: string, currentQuery: URLSearchParams, sharedKeys: readonly string[]) {
+  if (!sharedKeys.length) return targetQuery;
+  const merged = new URLSearchParams(targetQuery);
+  for (const key of sharedKeys) {
+    const value = currentQuery.get(key)?.trim();
+    if (value) merged.set(key, value);
+    else merged.delete(key);
+  }
+  return merged.toString();
+}
+
+export function appliedFilterFromUrl(params: URLSearchParams, key: string, fallback: string, preserveMissing: boolean) {
+  const raw = params.get(key);
+  if (raw === null && preserveMissing) return undefined;
+  const value = raw?.trim() ?? fallback;
+  return key === "from" || key === "to" ? value.slice(0, 10) : value;
+}

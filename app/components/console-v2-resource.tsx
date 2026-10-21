@@ -1,15 +1,16 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ConsoleShell } from "./console-shell";
 import { Icon } from "./icons";
 import { ConsoleV2ApiError, ConsoleV2ContractError, type ConsoleV2Page, type ConsoleV2Result } from "../lib/console-v2";
-import { workspaceHrefWithAppliedQuery } from "../lib/console-workspace";
+import { appliedFilterFromUrl, mergeSharedQuery, workspaceHrefWithAppliedQuery } from "../lib/console-workspace";
 
 export type V2Params = Record<string, string | number | undefined>;
 /** Keep client URL/page arithmetic aligned with the read-model offset bound. */
 export const V2_MAX_OFFSET = Number.MAX_SAFE_INTEGER - 100;
+export const WORKSPACE_FILTER_CHANGE_EVENT = "v2-workspace-filter-change";
 
 export interface V2Column<T> {
   label: string;
@@ -72,14 +73,23 @@ export function useVisitedTabs<T extends string>(initial: T) {
 /** Applied resource filters live in the URL so refresh/back-forward can replay them. */
 export function useV2Filter(key: string, fallback = "") {
   const searchParams = useSearchParams();
+  const panel = useContext(V2PanelContext);
+  const panelActive = panel?.active ?? true;
   const read = useCallback((params: URLSearchParams) => normalizeFilterValue(key, params.get(key)?.trim() ?? fallback), [fallback, key]);
-  const [value, setValue] = useState(() => read(searchParams));
+  const [value, setValue] = useState(() => panelActive ? read(searchParams) : fallback);
   useEffect(() => {
-    const sync = () => setValue(read(new URL(window.location.href).searchParams));
-    window.addEventListener("popstate", sync);
-    window.addEventListener("v2-workspace-url-change", sync);
-    return () => { window.removeEventListener("popstate", sync); window.removeEventListener("v2-workspace-url-change", sync); };
-  }, [fallback, key, read]);
+    const sync = (preserveMissing: boolean) => {
+      if (!panelActive) return;
+      const next = appliedFilterFromUrl(new URL(window.location.href).searchParams, key, fallback, preserveMissing);
+      if (next !== undefined) setValue(next);
+    };
+    const onPopState = () => sync(false);
+    const onWorkspaceUrlChange = () => sync(true);
+    window.addEventListener("popstate", onPopState);
+    window.addEventListener("v2-workspace-url-change", onWorkspaceUrlChange);
+    window.addEventListener(WORKSPACE_FILTER_CHANGE_EVENT, onPopState);
+    return () => { window.removeEventListener("popstate", onPopState); window.removeEventListener("v2-workspace-url-change", onWorkspaceUrlChange); window.removeEventListener(WORKSPACE_FILTER_CHANGE_EVENT, onPopState); };
+  }, [fallback, key, panelActive, read]);
   const update = useCallback((next: string) => {
     setValue(next);
     syncFilterUrl(key, next);
@@ -96,11 +106,19 @@ export function V2ContextLinks({ links }: { links: Array<{ href: string; label: 
 }
 
 type WorkspaceTab = { href: string; label: string; aliases?: readonly string[] };
+type WorkspaceTabOptions = { sharedQueryKeys?: readonly string[] };
+type V2PanelContextValue = { href: string; active: boolean };
+const V2PanelContext = createContext<V2PanelContextValue | null>(null);
 
-export function useWorkspaceTabs<T extends string>(tabs: ReadonlyArray<WorkspaceTab & { href: T }>, fallback: T) {
+export function useWorkspaceTabs<T extends string>(tabs: ReadonlyArray<WorkspaceTab & { href: T }>, fallback: T, options: WorkspaceTabOptions = {}) {
   const [active, setActive] = useState<T>(fallback);
   const [visited, setVisited] = useState<Set<T>>(() => new Set([fallback]));
-  const stableTabs = useMemo(() => tabs, [tabs]);
+  // Callers build their tab descriptors inline. Keep the navigation effect tied
+  // to the tab semantics instead of a fresh array identity on every filter
+  // keystroke; otherwise it can re-read an old URL and erase an unapplied draft.
+  const tabSignature = tabs.map((tab) => `${tab.href}\u0000${tab.label}\u0000${tab.aliases?.join("\u0001") ?? ""}`).join("\u0002");
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- array identity is intentionally ignored; tabSignature captures its semantics.
+  const stableTabs = useMemo(() => tabs, [tabSignature]);
   const markVisited = useCallback((next: T) => setVisited((current) => current.has(next) ? current : new Set([...current, next])), []);
   useEffect(() => {
     const resolvePath = (pathname: string): T => stableTabs.find((tab) => tab.href === pathname || tab.aliases?.includes(pathname))?.href ?? fallback;
@@ -118,7 +136,7 @@ export function useWorkspaceTabs<T extends string>(tabs: ReadonlyArray<Workspace
     const tabAnchorTop = document.getElementById(tabId(href))?.getBoundingClientRect().top;
     if (window.location.pathname !== href) {
       const targetPanel = document.getElementById(panelId(href));
-      const targetSearch = readPanelAppliedQuery(targetPanel);
+      const targetSearch = mergeSharedQuery(readPanelAppliedQuery(targetPanel), new URL(window.location.href).searchParams, options.sharedQueryKeys ?? []);
       window.history.pushState({}, "", workspaceHrefWithAppliedQuery(href, window.location.href, targetSearch));
     }
     setActive(href);
@@ -144,13 +162,14 @@ export function useWorkspaceTabs<T extends string>(tabs: ReadonlyArray<Workspace
   return { active, visited, select };
 }
 
+
 export function V2WorkspacePanel({ active, href, visited, children }: { active: string; href: string; visited: boolean; children: React.ReactNode }) {
   useEffect(() => {
     window.dispatchEvent(new CustomEvent("v2-workspace-change", { detail: { active } }));
   }, [active]);
   if (!visited) return null;
   const selected = active === href;
-  return <section id={panelId(href)} className="v2-tab-panel" role="tabpanel" aria-hidden={!selected} hidden={!selected} aria-labelledby={tabId(href)}>{children}</section>;
+  return <V2PanelContext.Provider value={{ href, active: selected }}><section id={panelId(href)} className="v2-tab-panel" role="tabpanel" aria-hidden={!selected} hidden={!selected} aria-labelledby={tabId(href)}>{children}</section></V2PanelContext.Provider>;
 }
 
 function tabId(value: string) { return `v2-tab-${value.replace(/[^A-Za-z0-9_-]+/g, "-").replace(/^-|-$/g, "")}`; }
