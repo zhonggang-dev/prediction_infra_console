@@ -167,12 +167,13 @@ export function useWorkspaceTabs<T extends string>(tabs: ReadonlyArray<Workspace
 
 
 export function V2WorkspacePanel({ active, href, visited, children }: { active: string; href: string; visited: boolean; children: React.ReactNode }) {
+  const parentPanel = useContext(V2PanelContext);
   useEffect(() => {
     window.dispatchEvent(new CustomEvent("v2-workspace-change", { detail: { active } }));
   }, [active]);
   if (!visited) return null;
   const selected = active === href;
-  return <V2PanelContext.Provider value={{ href, active: selected }}><section id={panelId(href)} className="v2-tab-panel" role="tabpanel" aria-hidden={!selected} hidden={!selected} aria-labelledby={tabId(href)}>{children}</section></V2PanelContext.Provider>;
+  return <V2PanelContext.Provider value={{ href, active: (parentPanel?.active ?? true) && selected }}><section id={panelId(href)} className="v2-tab-panel" role="tabpanel" aria-hidden={!selected} hidden={!selected} aria-labelledby={tabId(href)}>{children}</section></V2PanelContext.Provider>;
 }
 
 function tabId(value: string) { return `v2-tab-${value.replace(/[^A-Za-z0-9_-]+/g, "-").replace(/^-|-$/g, "")}`; }
@@ -268,8 +269,11 @@ export function V2ListPage<T>({ title, description, load, columns, rowKey, rende
 
   useEffect(() => {
     const syncFromUrl = () => {
-      const ownerPanel = listStateRef.current?.closest<HTMLElement>("[role=\"tabpanel\"]");
-      if (ownerPanel?.hidden) return;
+      let ancestor: HTMLElement | null = listStateRef.current;
+      while (ancestor) {
+        if (ancestor.hidden) return;
+        ancestor = ancestor.parentElement;
+      }
       const url = new URL(window.location.href);
       const nextQuery = url.searchParams.get("q")?.trim() ?? "";
       const nextLimit = normalizePageSize(url.searchParams.get("limit"));
