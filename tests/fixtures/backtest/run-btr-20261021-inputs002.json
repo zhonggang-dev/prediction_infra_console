@@ -1,0 +1,1370 @@
+{
+  "data": {
+    "run_id": "btr-20261021-inputs002",
+    "batch_id": "btb-20261019-7h2kd9wq",
+    "parent_run_id": null,
+    "origin": "platform",
+    "board": "benchmark",
+    "item": "resolved_event_brier",
+    "status": "succeeded",
+    "lost": false,
+    "stage": null,
+    "stage_label": null,
+    "progress": null,
+    "log_tail": null,
+    "heartbeat_at": "2026-10-19T14:41:20Z",
+    "attempt": 1,
+    "cancel_requested": false,
+    "config_sha256": "nputs002a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4",
+    "config": {
+      "schema_version": "backtest.run_config.v1",
+      "run_id": "btr-20261021-inputs002",
+      "batch_id": "btb-20261019-7h2kd9wq",
+      "parent_run_id": null,
+      "board": "benchmark",
+      "item": "resolved_event_brier",
+      "engine": "pm-engine-20261019-3b7dbbede090",
+      "dataset": "telonex",
+      "data_generation": "",
+      "window": {
+        "start": "2026-08-07T21:16:28+08:00",
+        "end_exclusive": "2026-08-31T21:00:35+08:00",
+        "align": "strict_common"
+      },
+      "domains": {
+        "mode": "include",
+        "values": [
+          "all"
+        ]
+      },
+      "objects": {
+        "models": [
+          {
+            "key": "pswarm_v2",
+            "version": "legacy/legacy",
+            "model_name": "pswarm_v2",
+            "sha256": "9f2c0000000000000000000000000000000000000000000000000000000000e1",
+            "domain_slice": "3d90b2000000000000000000000000000000000000000000000000000000c8"
+          }
+        ],
+        "strategies": [],
+        "factors": []
+      },
+      "params": {
+        "scope": "strict"
+      },
+      "requested_by": "console:console",
+      "created_at": "2026-10-19T14:30:00+08:00",
+      "inputs": {
+        "settlement": "ffff000000000000000000000000000000000000000000000000000000000001",
+        "anchors": "5d7a3c00000000000000000000000000000000000000000000000000000041",
+        "orderbook": "release:20260913-v0uepugf:8f3a1c00000000000000000000000000000000000000000000000000000012",
+        "factors": "files:214:6b9e2d00000000000000000000000000000000000000000000000000000077",
+        "hourly_bars": "c40d8800000000000000000000000000000000000000000000000000000019",
+        "tag_slice": "e19b5400000000000000000000000000000000000000000000000000000026"
+      }
+    },
+    "rerunnable": true,
+    "requested_by": "console:alice",
+    "created_at": "2026-10-21T11:00:00Z",
+    "started_at": "2026-10-19T14:30:05Z",
+    "finished_at": "2026-10-19T14:41:22Z",
+    "result": {
+      "schema_version": "backtest.result.v1",
+      "board": "benchmark",
+      "item": "resolved_event_brier",
+      "headline": "已结算市场 · Brier · 5 个模型",
+      "scope_card": {
+        "window": {
+          "start": "2026-08-07T21:16:28+08:00",
+          "end_exclusive": "2026-08-31T21:00:35+08:00",
+          "align": "strict_common"
+        },
+        "domains": [
+          "All domains"
+        ],
+        "dataset": "telonex",
+        "engine": "pm-engine-20261019-3b7dbbede090",
+        "protocol": "pearson-dmid-v8",
+        "sample_scope": "strict",
+        "sample_counts": {
+          "共同面板市场": 842,
+          "打分时点": 3920
+        },
+        "batch_members": []
+      },
+      "warnings": [],
+      "sections": [
+        {
+          "id": "brier_bars",
+          "type": "bars",
+          "digits": 4,
+          "bars": [
+            {
+              "label": "Market",
+              "value": 0.19,
+              "lower": 0.1864,
+              "upper": 0.1936,
+              "highlight": "market",
+              "filters": {
+                "odds_scope": "all",
+                "ci_level": "90"
+              }
+            },
+            {
+              "label": "pswarm_v2",
+              "value": 0.1847,
+              "lower": 0.1811,
+              "upper": 0.1883,
+              "filters": {
+                "odds_scope": "all",
+                "ci_level": "90"
+              }
+            },
+            {
+              "label": "echo",
+              "value": 0.1889,
+              "lower": 0.1853,
+              "upper": 0.1925,
+              "filters": {
+                "odds_scope": "all",
+                "ci_level": "90"
+              }
+            },
+            {
+              "label": "team_01__v2__p1",
+              "value": 0.1931,
+              "lower": 0.1895,
+              "upper": 0.1967,
+              "filters": {
+                "odds_scope": "all",
+                "ci_level": "90"
+              }
+            },
+            {
+              "label": "team_02__v3__p2",
+              "value": 0.1973,
+              "lower": 0.1937,
+              "upper": 0.2009,
+              "filters": {
+                "odds_scope": "all",
+                "ci_level": "90"
+              }
+            },
+            {
+              "label": "Market",
+              "value": 0.19,
+              "lower": 0.1855,
+              "upper": 0.1945,
+              "highlight": "market",
+              "filters": {
+                "odds_scope": "all",
+                "ci_level": "95"
+              }
+            },
+            {
+              "label": "pswarm_v2",
+              "value": 0.1847,
+              "lower": 0.1802,
+              "upper": 0.1892,
+              "filters": {
+                "odds_scope": "all",
+                "ci_level": "95"
+              }
+            },
+            {
+              "label": "echo",
+              "value": 0.1889,
+              "lower": 0.1844,
+              "upper": 0.1934,
+              "filters": {
+                "odds_scope": "all",
+                "ci_level": "95"
+              }
+            },
+            {
+              "label": "team_01__v2__p1",
+              "value": 0.1931,
+              "lower": 0.1886,
+              "upper": 0.1976,
+              "filters": {
+                "odds_scope": "all",
+                "ci_level": "95"
+              }
+            },
+            {
+              "label": "team_02__v3__p2",
+              "value": 0.1973,
+              "lower": 0.1928,
+              "upper": 0.2018,
+              "filters": {
+                "odds_scope": "all",
+                "ci_level": "95"
+              }
+            },
+            {
+              "label": "Market",
+              "value": 0.19,
+              "lower": 0.1832,
+              "upper": 0.1968,
+              "highlight": "market",
+              "filters": {
+                "odds_scope": "all",
+                "ci_level": "99"
+              }
+            },
+            {
+              "label": "pswarm_v2",
+              "value": 0.1847,
+              "lower": 0.1779,
+              "upper": 0.1915,
+              "filters": {
+                "odds_scope": "all",
+                "ci_level": "99"
+              }
+            },
+            {
+              "label": "echo",
+              "value": 0.1889,
+              "lower": 0.1822,
+              "upper": 0.1957,
+              "filters": {
+                "odds_scope": "all",
+                "ci_level": "99"
+              }
+            },
+            {
+              "label": "team_01__v2__p1",
+              "value": 0.1931,
+              "lower": 0.1863,
+              "upper": 0.1998,
+              "filters": {
+                "odds_scope": "all",
+                "ci_level": "99"
+              }
+            },
+            {
+              "label": "team_02__v3__p2",
+              "value": 0.1973,
+              "lower": 0.1905,
+              "upper": 0.2041,
+              "filters": {
+                "odds_scope": "all",
+                "ci_level": "99"
+              }
+            },
+            {
+              "label": "Market",
+              "value": 0.23,
+              "lower": 0.2264,
+              "upper": 0.2336,
+              "highlight": "market",
+              "filters": {
+                "odds_scope": "odds_20_80",
+                "ci_level": "90"
+              }
+            },
+            {
+              "label": "pswarm_v2",
+              "value": 0.2247,
+              "lower": 0.2211,
+              "upper": 0.2283,
+              "filters": {
+                "odds_scope": "odds_20_80",
+                "ci_level": "90"
+              }
+            },
+            {
+              "label": "echo",
+              "value": 0.2289,
+              "lower": 0.2253,
+              "upper": 0.2325,
+              "filters": {
+                "odds_scope": "odds_20_80",
+                "ci_level": "90"
+              }
+            },
+            {
+              "label": "team_01__v2__p1",
+              "value": 0.2331,
+              "lower": 0.2295,
+              "upper": 0.2367,
+              "filters": {
+                "odds_scope": "odds_20_80",
+                "ci_level": "90"
+              }
+            },
+            {
+              "label": "team_02__v3__p2",
+              "value": 0.2373,
+              "lower": 0.2337,
+              "upper": 0.2409,
+              "filters": {
+                "odds_scope": "odds_20_80",
+                "ci_level": "90"
+              }
+            },
+            {
+              "label": "Market",
+              "value": 0.23,
+              "lower": 0.2255,
+              "upper": 0.2345,
+              "highlight": "market",
+              "filters": {
+                "odds_scope": "odds_20_80",
+                "ci_level": "95"
+              }
+            },
+            {
+              "label": "pswarm_v2",
+              "value": 0.2247,
+              "lower": 0.2202,
+              "upper": 0.2292,
+              "filters": {
+                "odds_scope": "odds_20_80",
+                "ci_level": "95"
+              }
+            },
+            {
+              "label": "echo",
+              "value": 0.2289,
+              "lower": 0.2244,
+              "upper": 0.2334,
+              "filters": {
+                "odds_scope": "odds_20_80",
+                "ci_level": "95"
+              }
+            },
+            {
+              "label": "team_01__v2__p1",
+              "value": 0.2331,
+              "lower": 0.2286,
+              "upper": 0.2376,
+              "filters": {
+                "odds_scope": "odds_20_80",
+                "ci_level": "95"
+              }
+            },
+            {
+              "label": "team_02__v3__p2",
+              "value": 0.2373,
+              "lower": 0.2328,
+              "upper": 0.2418,
+              "filters": {
+                "odds_scope": "odds_20_80",
+                "ci_level": "95"
+              }
+            },
+            {
+              "label": "Market",
+              "value": 0.23,
+              "lower": 0.2233,
+              "upper": 0.2368,
+              "highlight": "market",
+              "filters": {
+                "odds_scope": "odds_20_80",
+                "ci_level": "99"
+              }
+            },
+            {
+              "label": "pswarm_v2",
+              "value": 0.2247,
+              "lower": 0.218,
+              "upper": 0.2315,
+              "filters": {
+                "odds_scope": "odds_20_80",
+                "ci_level": "99"
+              }
+            },
+            {
+              "label": "echo",
+              "value": 0.2289,
+              "lower": 0.2221,
+              "upper": 0.2356,
+              "filters": {
+                "odds_scope": "odds_20_80",
+                "ci_level": "99"
+              }
+            },
+            {
+              "label": "team_01__v2__p1",
+              "value": 0.2331,
+              "lower": 0.2263,
+              "upper": 0.2399,
+              "filters": {
+                "odds_scope": "odds_20_80",
+                "ci_level": "99"
+              }
+            },
+            {
+              "label": "team_02__v3__p2",
+              "value": 0.2373,
+              "lower": 0.2306,
+              "upper": 0.2441,
+              "filters": {
+                "odds_scope": "odds_20_80",
+                "ci_level": "99"
+              }
+            }
+          ],
+          "reference_lines": [],
+          "caption": "Market 橙色，其余蓝色；误差棒为所选置信水平的区间。"
+        },
+        {
+          "id": "verdicts",
+          "type": "text",
+          "format": "markdown",
+          "text": "**整体低于 Market（更准）**：pswarm_v2\n\n**整体高于 Market（更差）**：team_02__v3__p2\n\n**区间跨 0（分不出）**：echo、team_01__v2__p1\n\n- 99% 档且 ci_events < 200 时尾部不可信。"
+        },
+        {
+          "id": "metrics",
+          "type": "table",
+          "columns": [
+            {
+              "key": "model",
+              "label": "模型",
+              "kind": "text"
+            },
+            {
+              "key": "n_markets",
+              "label": "已结算市场数",
+              "kind": "number",
+              "digits": 0
+            },
+            {
+              "key": "brier",
+              "label": "市场等权Brier",
+              "kind": "number",
+              "digits": 4,
+              "best": "low"
+            },
+            {
+              "key": "interval",
+              "label": "区间",
+              "kind": "interval",
+              "digits": 4
+            },
+            {
+              "key": "delta",
+              "label": "对Market差",
+              "kind": "number",
+              "digits": 4,
+              "signed": true
+            },
+            {
+              "key": "verdict",
+              "label": "与Market比",
+              "kind": "badge"
+            },
+            {
+              "key": "hint",
+              "label": "提示",
+              "kind": "text"
+            }
+          ],
+          "rows": [
+            {
+              "filters": {
+                "odds_scope": "all",
+                "ci_level": "90"
+              },
+              "model": "Market",
+              "n_markets": 842,
+              "brier": {
+                "text": "0.1900",
+                "sort": 0.19
+              },
+              "interval": [
+                0.1864,
+                0.1936
+              ],
+              "delta": null,
+              "verdict": {
+                "text": "基准",
+                "tone": "muted"
+              },
+              "hint": ""
+            },
+            {
+              "filters": {
+                "odds_scope": "all",
+                "ci_level": "90"
+              },
+              "model": "pswarm_v2",
+              "n_markets": 840,
+              "brier": {
+                "text": "0.1847",
+                "sort": 0.1847
+              },
+              "interval": [
+                0.1811,
+                0.1883
+              ],
+              "delta": -0.0053,
+              "verdict": {
+                "text": "更准",
+                "tone": "good"
+              },
+              "hint": ""
+            },
+            {
+              "filters": {
+                "odds_scope": "all",
+                "ci_level": "90"
+              },
+              "model": "echo",
+              "n_markets": 838,
+              "brier": {
+                "text": "0.1889",
+                "sort": 0.1889
+              },
+              "interval": [
+                0.1853,
+                0.1925
+              ],
+              "delta": -0.0011,
+              "verdict": {
+                "text": "分不出",
+                "tone": "warn"
+              },
+              "hint": ""
+            },
+            {
+              "filters": {
+                "odds_scope": "all",
+                "ci_level": "90"
+              },
+              "model": "team_01__v2__p1",
+              "n_markets": 836,
+              "brier": {
+                "text": "0.1931",
+                "sort": 0.1931
+              },
+              "interval": [
+                0.1895,
+                0.1967
+              ],
+              "delta": 0.0031,
+              "verdict": {
+                "text": "分不出",
+                "tone": "warn"
+              },
+              "hint": ""
+            },
+            {
+              "filters": {
+                "odds_scope": "all",
+                "ci_level": "90"
+              },
+              "model": "team_02__v3__p2",
+              "n_markets": 834,
+              "brier": {
+                "text": "0.1973",
+                "sort": 0.1973
+              },
+              "interval": [
+                0.1937,
+                0.2009
+              ],
+              "delta": 0.0073,
+              "verdict": {
+                "text": "更差",
+                "tone": "bad"
+              },
+              "hint": ""
+            },
+            {
+              "filters": {
+                "odds_scope": "all",
+                "ci_level": "95"
+              },
+              "model": "Market",
+              "n_markets": 842,
+              "brier": {
+                "text": "0.1900",
+                "sort": 0.19
+              },
+              "interval": [
+                0.1855,
+                0.1945
+              ],
+              "delta": null,
+              "verdict": {
+                "text": "基准",
+                "tone": "muted"
+              },
+              "hint": ""
+            },
+            {
+              "filters": {
+                "odds_scope": "all",
+                "ci_level": "95"
+              },
+              "model": "pswarm_v2",
+              "n_markets": 840,
+              "brier": {
+                "text": "0.1847",
+                "sort": 0.1847
+              },
+              "interval": [
+                0.1802,
+                0.1892
+              ],
+              "delta": -0.0053,
+              "verdict": {
+                "text": "更准",
+                "tone": "good"
+              },
+              "hint": ""
+            },
+            {
+              "filters": {
+                "odds_scope": "all",
+                "ci_level": "95"
+              },
+              "model": "echo",
+              "n_markets": 838,
+              "brier": {
+                "text": "0.1889",
+                "sort": 0.1889
+              },
+              "interval": [
+                0.1844,
+                0.1934
+              ],
+              "delta": -0.0011,
+              "verdict": {
+                "text": "分不出",
+                "tone": "warn"
+              },
+              "hint": ""
+            },
+            {
+              "filters": {
+                "odds_scope": "all",
+                "ci_level": "95"
+              },
+              "model": "team_01__v2__p1",
+              "n_markets": 836,
+              "brier": {
+                "text": "0.1931",
+                "sort": 0.1931
+              },
+              "interval": [
+                0.1886,
+                0.1976
+              ],
+              "delta": 0.0031,
+              "verdict": {
+                "text": "分不出",
+                "tone": "warn"
+              },
+              "hint": ""
+            },
+            {
+              "filters": {
+                "odds_scope": "all",
+                "ci_level": "95"
+              },
+              "model": "team_02__v3__p2",
+              "n_markets": 834,
+              "brier": {
+                "text": "0.1973",
+                "sort": 0.1973
+              },
+              "interval": [
+                0.1928,
+                0.2018
+              ],
+              "delta": 0.0073,
+              "verdict": {
+                "text": "更差",
+                "tone": "bad"
+              },
+              "hint": ""
+            },
+            {
+              "filters": {
+                "odds_scope": "all",
+                "ci_level": "99"
+              },
+              "model": "Market",
+              "n_markets": 842,
+              "brier": {
+                "text": "0.1900",
+                "sort": 0.19
+              },
+              "interval": [
+                0.1832,
+                0.1968
+              ],
+              "delta": null,
+              "verdict": {
+                "text": "基准",
+                "tone": "muted"
+              },
+              "hint": ""
+            },
+            {
+              "filters": {
+                "odds_scope": "all",
+                "ci_level": "99"
+              },
+              "model": "pswarm_v2",
+              "n_markets": 840,
+              "brier": {
+                "text": "0.1847",
+                "sort": 0.1847
+              },
+              "interval": [
+                0.1779,
+                0.1915
+              ],
+              "delta": -0.0053,
+              "verdict": {
+                "text": "分不出",
+                "tone": "warn"
+              },
+              "hint": ""
+            },
+            {
+              "filters": {
+                "odds_scope": "all",
+                "ci_level": "99"
+              },
+              "model": "echo",
+              "n_markets": 838,
+              "brier": {
+                "text": "0.1889",
+                "sort": 0.1889
+              },
+              "interval": [
+                0.1822,
+                0.1957
+              ],
+              "delta": -0.0011,
+              "verdict": {
+                "text": "分不出",
+                "tone": "warn"
+              },
+              "hint": ""
+            },
+            {
+              "filters": {
+                "odds_scope": "all",
+                "ci_level": "99"
+              },
+              "model": "team_01__v2__p1",
+              "n_markets": 836,
+              "brier": {
+                "text": "0.1931",
+                "sort": 0.1931
+              },
+              "interval": [
+                0.1863,
+                0.1998
+              ],
+              "delta": 0.0031,
+              "verdict": {
+                "text": "分不出",
+                "tone": "warn"
+              },
+              "hint": "⚠ 样本不足"
+            },
+            {
+              "filters": {
+                "odds_scope": "all",
+                "ci_level": "99"
+              },
+              "model": "team_02__v3__p2",
+              "n_markets": 834,
+              "brier": {
+                "text": "0.1973",
+                "sort": 0.1973
+              },
+              "interval": [
+                0.1905,
+                0.2041
+              ],
+              "delta": 0.0073,
+              "verdict": {
+                "text": "更差",
+                "tone": "bad"
+              },
+              "hint": ""
+            },
+            {
+              "filters": {
+                "odds_scope": "odds_20_80",
+                "ci_level": "90"
+              },
+              "model": "Market",
+              "n_markets": 842,
+              "brier": {
+                "text": "0.2300",
+                "sort": 0.23
+              },
+              "interval": [
+                0.2264,
+                0.2336
+              ],
+              "delta": null,
+              "verdict": {
+                "text": "基准",
+                "tone": "muted"
+              },
+              "hint": ""
+            },
+            {
+              "filters": {
+                "odds_scope": "odds_20_80",
+                "ci_level": "90"
+              },
+              "model": "pswarm_v2",
+              "n_markets": 840,
+              "brier": {
+                "text": "0.2247",
+                "sort": 0.2247
+              },
+              "interval": [
+                0.2211,
+                0.2283
+              ],
+              "delta": -0.0053,
+              "verdict": {
+                "text": "更准",
+                "tone": "good"
+              },
+              "hint": ""
+            },
+            {
+              "filters": {
+                "odds_scope": "odds_20_80",
+                "ci_level": "90"
+              },
+              "model": "echo",
+              "n_markets": 838,
+              "brier": {
+                "text": "0.2289",
+                "sort": 0.2289
+              },
+              "interval": [
+                0.2253,
+                0.2325
+              ],
+              "delta": -0.0011,
+              "verdict": {
+                "text": "分不出",
+                "tone": "warn"
+              },
+              "hint": ""
+            },
+            {
+              "filters": {
+                "odds_scope": "odds_20_80",
+                "ci_level": "90"
+              },
+              "model": "team_01__v2__p1",
+              "n_markets": 836,
+              "brier": {
+                "text": "0.2331",
+                "sort": 0.2331
+              },
+              "interval": [
+                0.2295,
+                0.2367
+              ],
+              "delta": 0.0031,
+              "verdict": {
+                "text": "分不出",
+                "tone": "warn"
+              },
+              "hint": ""
+            },
+            {
+              "filters": {
+                "odds_scope": "odds_20_80",
+                "ci_level": "90"
+              },
+              "model": "team_02__v3__p2",
+              "n_markets": 834,
+              "brier": {
+                "text": "0.2373",
+                "sort": 0.2373
+              },
+              "interval": [
+                0.2337,
+                0.2409
+              ],
+              "delta": 0.0073,
+              "verdict": {
+                "text": "更差",
+                "tone": "bad"
+              },
+              "hint": ""
+            },
+            {
+              "filters": {
+                "odds_scope": "odds_20_80",
+                "ci_level": "95"
+              },
+              "model": "Market",
+              "n_markets": 842,
+              "brier": {
+                "text": "0.2300",
+                "sort": 0.23
+              },
+              "interval": [
+                0.2255,
+                0.2345
+              ],
+              "delta": null,
+              "verdict": {
+                "text": "基准",
+                "tone": "muted"
+              },
+              "hint": ""
+            },
+            {
+              "filters": {
+                "odds_scope": "odds_20_80",
+                "ci_level": "95"
+              },
+              "model": "pswarm_v2",
+              "n_markets": 840,
+              "brier": {
+                "text": "0.2247",
+                "sort": 0.2247
+              },
+              "interval": [
+                0.2202,
+                0.2292
+              ],
+              "delta": -0.0053,
+              "verdict": {
+                "text": "更准",
+                "tone": "good"
+              },
+              "hint": ""
+            },
+            {
+              "filters": {
+                "odds_scope": "odds_20_80",
+                "ci_level": "95"
+              },
+              "model": "echo",
+              "n_markets": 838,
+              "brier": {
+                "text": "0.2289",
+                "sort": 0.2289
+              },
+              "interval": [
+                0.2244,
+                0.2334
+              ],
+              "delta": -0.0011,
+              "verdict": {
+                "text": "分不出",
+                "tone": "warn"
+              },
+              "hint": ""
+            },
+            {
+              "filters": {
+                "odds_scope": "odds_20_80",
+                "ci_level": "95"
+              },
+              "model": "team_01__v2__p1",
+              "n_markets": 836,
+              "brier": {
+                "text": "0.2331",
+                "sort": 0.2331
+              },
+              "interval": [
+                0.2286,
+                0.2376
+              ],
+              "delta": 0.0031,
+              "verdict": {
+                "text": "分不出",
+                "tone": "warn"
+              },
+              "hint": ""
+            },
+            {
+              "filters": {
+                "odds_scope": "odds_20_80",
+                "ci_level": "95"
+              },
+              "model": "team_02__v3__p2",
+              "n_markets": 834,
+              "brier": {
+                "text": "0.2373",
+                "sort": 0.2373
+              },
+              "interval": [
+                0.2328,
+                0.2418
+              ],
+              "delta": 0.0073,
+              "verdict": {
+                "text": "更差",
+                "tone": "bad"
+              },
+              "hint": ""
+            },
+            {
+              "filters": {
+                "odds_scope": "odds_20_80",
+                "ci_level": "99"
+              },
+              "model": "Market",
+              "n_markets": 842,
+              "brier": {
+                "text": "0.2300",
+                "sort": 0.23
+              },
+              "interval": [
+                0.2233,
+                0.2368
+              ],
+              "delta": null,
+              "verdict": {
+                "text": "基准",
+                "tone": "muted"
+              },
+              "hint": ""
+            },
+            {
+              "filters": {
+                "odds_scope": "odds_20_80",
+                "ci_level": "99"
+              },
+              "model": "pswarm_v2",
+              "n_markets": 840,
+              "brier": {
+                "text": "0.2247",
+                "sort": 0.2247
+              },
+              "interval": [
+                0.218,
+                0.2315
+              ],
+              "delta": -0.0053,
+              "verdict": {
+                "text": "分不出",
+                "tone": "warn"
+              },
+              "hint": ""
+            },
+            {
+              "filters": {
+                "odds_scope": "odds_20_80",
+                "ci_level": "99"
+              },
+              "model": "echo",
+              "n_markets": 838,
+              "brier": {
+                "text": "0.2289",
+                "sort": 0.2289
+              },
+              "interval": [
+                0.2221,
+                0.2356
+              ],
+              "delta": -0.0011,
+              "verdict": {
+                "text": "分不出",
+                "tone": "warn"
+              },
+              "hint": ""
+            },
+            {
+              "filters": {
+                "odds_scope": "odds_20_80",
+                "ci_level": "99"
+              },
+              "model": "team_01__v2__p1",
+              "n_markets": 836,
+              "brier": {
+                "text": "0.2331",
+                "sort": 0.2331
+              },
+              "interval": [
+                0.2263,
+                0.2399
+              ],
+              "delta": 0.0031,
+              "verdict": {
+                "text": "分不出",
+                "tone": "warn"
+              },
+              "hint": "⚠ 样本不足"
+            },
+            {
+              "filters": {
+                "odds_scope": "odds_20_80",
+                "ci_level": "99"
+              },
+              "model": "team_02__v3__p2",
+              "n_markets": 834,
+              "brier": {
+                "text": "0.2373",
+                "sort": 0.2373
+              },
+              "interval": [
+                0.2306,
+                0.2441
+              ],
+              "delta": 0.0073,
+              "verdict": {
+                "text": "更差",
+                "tone": "bad"
+              },
+              "hint": ""
+            }
+          ],
+          "default_sort": {
+            "key": "brier",
+            "direction": "asc"
+          },
+          "notes": [
+            "共同面板：842 个已结算市场 · 3920 个打分时点（平均 4.7 次/市场）。"
+          ],
+          "searchable": false
+        },
+        {
+          "id": "scope_ranks",
+          "type": "table",
+          "columns": [
+            {
+              "key": "model",
+              "label": "模型",
+              "kind": "text"
+            },
+            {
+              "key": "brier_all",
+              "label": "全样本Brier",
+              "kind": "number",
+              "digits": 4
+            },
+            {
+              "key": "rank_all",
+              "label": "全样本排名",
+              "kind": "number",
+              "digits": 0
+            },
+            {
+              "key": "brier_band",
+              "label": "带内Brier",
+              "kind": "number",
+              "digits": 4
+            },
+            {
+              "key": "rank_band",
+              "label": "带内排名",
+              "kind": "number",
+              "digits": 0
+            },
+            {
+              "key": "shift",
+              "label": "排名变化",
+              "kind": "badge"
+            },
+            {
+              "key": "markets_band",
+              "label": "带内市场数",
+              "kind": "number",
+              "digits": 0
+            },
+            {
+              "key": "rows_band",
+              "label": "带内时点数",
+              "kind": "number",
+              "digits": 0
+            }
+          ],
+          "rows": [
+            {
+              "model": "Market",
+              "brier_all": 0.19,
+              "rank_all": 1,
+              "brier_band": 0.23,
+              "rank_band": 1,
+              "shift": "持平",
+              "markets_band": 610,
+              "rows_band": 3880
+            },
+            {
+              "model": "pswarm_v2",
+              "brier_all": 0.194,
+              "rank_all": 2,
+              "brier_band": 0.234,
+              "rank_band": 2,
+              "shift": "持平",
+              "markets_band": 609,
+              "rows_band": 3875
+            },
+            {
+              "model": "echo",
+              "brier_all": 0.198,
+              "rank_all": 3,
+              "brier_band": 0.248,
+              "rank_band": 4,
+              "shift": "↓2 位",
+              "markets_band": 608,
+              "rows_band": 3870
+            },
+            {
+              "model": "team_01__v2__p1",
+              "brier_all": 0.202,
+              "rank_all": 4,
+              "brier_band": 0.242,
+              "rank_band": 3,
+              "shift": "↑1 位",
+              "markets_band": 607,
+              "rows_band": 3865
+            },
+            {
+              "model": "team_02__v3__p2",
+              "brier_all": 0.206,
+              "rank_all": 5,
+              "brier_band": 0.246,
+              "rank_band": 5,
+              "shift": "持平",
+              "markets_band": 606,
+              "rows_band": 3860
+            }
+          ],
+          "default_sort": {
+            "key": "rank_all",
+            "direction": "asc"
+          },
+          "notes": [
+            "样本漏斗：842 市场 / 3920 时点 → 610 / 3880（留下 72%）。Spearman ρ = 0.80（读自 manifest）。"
+          ]
+        },
+        {
+          "id": "metrics_raw",
+          "type": "table",
+          "columns": [
+            {
+              "key": "model",
+              "label": "model",
+              "kind": "text"
+            },
+            {
+              "key": "ci_events",
+              "label": "ci_events",
+              "kind": "number",
+              "digits": 0
+            },
+            {
+              "key": "ci_usable",
+              "label": "ci_usable",
+              "kind": "number",
+              "digits": 0
+            }
+          ],
+          "rows": [
+            {
+              "model": "Market",
+              "ci_events": 842,
+              "ci_usable": 1
+            },
+            {
+              "model": "pswarm_v2",
+              "ci_events": 841,
+              "ci_usable": 1
+            },
+            {
+              "model": "echo",
+              "ci_events": 840,
+              "ci_usable": 1
+            },
+            {
+              "model": "team_01__v2__p1",
+              "ci_events": 839,
+              "ci_usable": 0
+            },
+            {
+              "model": "team_02__v3__p2",
+              "ci_events": 838,
+              "ci_usable": 1
+            }
+          ]
+        },
+        {
+          "id": "manifest",
+          "type": "text",
+          "format": "json",
+          "text": "{\"benchmark\":\"resolved_event_brier\",\"seed\":20260806,\"bootstrap\":2000}"
+        }
+      ],
+      "artifacts": [],
+      "filters": [
+        {
+          "key": "odds_scope",
+          "label": "赔率口径",
+          "options": [
+            {
+              "value": "all",
+              "label": "全部市场"
+            },
+            {
+              "value": "odds_20_80",
+              "label": "赔率 20%–80%"
+            }
+          ],
+          "default": "all"
+        },
+        {
+          "key": "ci_level",
+          "label": "置信水平",
+          "options": [
+            {
+              "value": "90",
+              "label": "90%"
+            },
+            {
+              "value": "95",
+              "label": "95%"
+            },
+            {
+              "value": "99",
+              "label": "99%"
+            }
+          ],
+          "default": "95"
+        }
+      ]
+    },
+    "reproduce": {
+      "text": "实验 ID：btr-20261021-inputs002 · Benchmark / 已结算市场 Brier（输入版本）\n服务器：8.211.188.216 · 结果 /var/lib/pm-backtest/runs/btr-20261021-inputs002\n配置：/var/lib/pm-backtest/runs/btr-20261021-inputs002/run-config.json\n窗口：[2026-08-07T21:16:28+08:00, 2026-08-31T21:00:35+08:00) · Domain 全部 · 数据集 telonex/20260913-v0uepugf\n输入：pswarm_v2_subset sha256=9f2c…e1 · price50_subset sha256=77ab…03 · 预测表全集 100 个 sha256=4c0d…aa · 结算 sha256=b1e2…9c · 域映射 sha256=0d3f…52\n引擎：pm-engine@pm-engine-20261019-3b7dbbede090 · pearson-dmid-v8 · 执行器 5a6d16b · Python 3.13 · 依赖锁 sha256=ab12…77\n命令：cd /opt/pm-backtest-engine/releases/pm-engine-20261019-3b7dbbede090/pm_backtest_v2 && python -m scripts.run_brier_score_model_comparison --window-start 2026-08-07T21:16:28+08:00 \n重跑：/opt/pm-backtest-runner/releases/5a6d16b/bin/pmbt rerun btr-20261021-inputs002",
+      "fields": {
+        "run_id": "btr-20261021-inputs002",
+        "engine": "pm-engine-20261019-3b7dbbede090"
+      }
+    },
+    "input_fingerprints": {
+      "inputs": {
+        "settlement": "ffff000000000000000000000000000000000000000000000000000000000001",
+        "anchors": "5d7a3c00000000000000000000000000000000000000000000000000000041",
+        "orderbook": "release:20260913-v0uepugf:8f3a1c00000000000000000000000000000000000000000000000000000012",
+        "factors": "files:214:6b9e2d00000000000000000000000000000000000000000000000000000077",
+        "hourly_bars": "c40d8800000000000000000000000000000000000000000000000000000019",
+        "tag_slice": "e19b5400000000000000000000000000000000000000000000000000000026",
+        "domain_slice": "3d90b2000000000000000000000000000000000000000000000000000000c8"
+      },
+      "files": {
+        "backtest/market_data/settlement.parquet": "sha256:ffff000000000000000000000000000000000000000000000000000000000001",
+        "anchors（沙盒锚点）": "sha256:5d7a3c00000000000000000000000000000000000000000000000000000041",
+        "backtest/market_data/orderbook（盘口）": "release:20260913-v0uepugf:8f3a1c00000000000000000000000000000000000000000000000000000012",
+        "backtest/model_pred/pswarm_v2_pred.parquet": "sha256:9f2c0000000000000000000000000000000000000000000000000000000000e1"
+      }
+    },
+    "restored_inputs": [],
+    "artifacts_url": "/api/v1/backtest/runs/btr-20261021-inputs002/artifacts",
+    "artifacts_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

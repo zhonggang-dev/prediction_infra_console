@@ -762,6 +762,9 @@ tbody tr:hover { background: #f7faf6; }
 .bt-details > :not(summary) { margin-top: 10px; }
 .bt-details-inline { margin-top: 12px; }
 .bt-details-inline > summary { cursor: pointer; color: var(--muted); font-size: 11px; }
+.bt-details-inline .section-head { margin: 10px 0 6px; }
+.bt-details-inline h4 { margin: 0; font-size: 12px; }
+.bt-details-inline > .bt-caption { margin: 8px 0; }
 .bt-scope { margin-top: 14px; display: grid; gap: 8px; }
 .bt-scope-facts { grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px; border: 0; background: transparent; overflow: visible; }
 .bt-scope-facts .v2-fact { border: 1px solid var(--line); border-radius: 5px; }

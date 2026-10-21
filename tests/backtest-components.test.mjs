@@ -12,6 +12,7 @@ let charts;
 let sections;
 let resultView;
 let runPage;
+let runsPanel;
 let pickers;
 let selection;
 let trading;
@@ -20,10 +21,11 @@ const count = (html, pattern) => (html.match(pattern) ?? []).length;
 
 before(async () => {
   loader = await createComponentLoader();
-  [platform, charts, sections, resultView, runPage, pickers, selection, trading] = await Promise.all([
+  [platform, charts, sections, resultView, runPage, pickers, selection, trading, runsPanel] = await Promise.all([
     loader.load("/app/lib/backtest-platform.ts"), loader.load("/app/components/backtest/charts.tsx"), loader.load("/app/components/backtest/result-sections.tsx"),
     loader.load("/app/components/backtest/result-view.tsx"), loader.load("/app/components/backtest/run-page.tsx"),
     loader.load("/app/components/backtest/pickers.tsx"), loader.load("/app/lib/backtest-selection.ts"), loader.load("/app/components/backtest/trading-form.tsx"),
+    loader.load("/app/components/backtest/runs-panel.tsx"),
   ]);
 });
 after(async () => { await loader?.close(); });
@@ -253,6 +255,46 @@ test("复现信息：整段文本可见、一键复制按钮、输入指纹明�
   assert.match(html, /backtest\/market_data\/settlement\.parquet/);
   const legacy = loader.render(runPage.ReproduceBlock, { run: run("btr-legacy-factor-v7-01") });
   assert.match(legacy, /没有复现信息/);
+});
+
+test("复现信息 · 新形态：输入版本表（中文名、短版本、完整值在悬浮提示里），不显示数据目录版本", () => {
+  const r = run("btr-20261021-inputs001");
+  const html = loader.render(runPage.ReproduceBlock, { run: r });
+  assert.match(html, /输入指纹（7 项输入版本 · 4 个文件）/);
+  assert.ok(!/dg-[0-9a-f]{16}/.test(html), "新形态没有 dg");
+  for (const label of ["结算表", "锚点", "盘口", "物化因子", "小时线", "标签切片", "域映射切片"]) assert.ok(html.includes(label), label);
+  assert.match(html, /显示完整值/);
+  assert.ok(html.includes(`title="${r.inputFingerprints.inputs.settlement}"`), "完整版本在悬浮提示里");
+  assert.ok(html.includes("b1e200000000…"), "版本只显示前 12 位");
+  assert.ok(html.includes("anchors（沙盒锚点）"), "files 里带中文后缀的键原样显示");
+  // 降级：没有 files、没有 inputs 也不抛错、不渲染指纹块
+  const bare = { ...r, inputFingerprints: { files: {} } };
+  assert.ok(!loader.render(runPage.ReproduceBlock, { run: bare }).includes("输入指纹（"));
+  const partial = { ...r, inputFingerprints: { inputs: { settlement: "abc" }, files: {} } };
+  assert.match(loader.render(runPage.ReproduceBlock, { run: partial }), /输入指纹（1 项输入版本 · 0 个文件）/);
+});
+
+test("复现信息 · 旧形态保持原样：摘要里是 dg，没有输入版本表", () => {
+  const html = loader.render(runPage.ReproduceBlock, { run: run("btr-20261019-brier001") });
+  assert.ok(!html.includes("输入版本"), "旧形态不出现输入版本表");
+  assert.match(html, /数据目录版本：.*dg-1f3a9c20b7d44e10/);
+});
+
+test("运行对比页：同形态逐项对比；新旧混比时提示只能比对文件哈希；文案是相同输入版本", () => {
+  const a = run("btr-20261021-inputs001");
+  const b = run("btr-20261021-inputs002");
+  const same = loader.render(runsPanel.CompareView, { a, b });
+  assert.match(same, /输入版本 · 结算表/);
+  assert.match(same, /输入版本 · 域映射切片/);
+  assert.ok(!same.includes("输入记录形态不同"));
+  assert.ok(!same.includes("（空）"), "两边 data_generation 都是空串，没有差异行");
+  const mixed = loader.render(runsPanel.CompareView, { a: run("btr-20261019-brier001"), b: a });
+  assert.match(mixed, /两个运行的输入记录形态不同，只能比对文件哈希/);
+  assert.ok(!mixed.includes("输入版本 · "));
+  assert.match(mixed, /anchors（沙盒锚点）/);
+  const identical = loader.render(runsPanel.CompareView, { a, b: { ...a, runId: "btr-x" } });
+  assert.match(identical, /相同配置与相同输入版本/);
+  assert.ok(!identical.includes("相同数据版本"));
 });
 
 test("运行状态徽章：失联单独标红，不改终态文案", () => {
