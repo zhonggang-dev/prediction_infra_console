@@ -30,12 +30,12 @@ const HEADS: Record<BacktestView, { eyebrow: string; title: string; description:
 };
 
 /** 回测平台工作区：受控 Tab，首次访问才挂载，已访问保留表单与列表状态。 */
-export function BacktestWorkspace({ view = "/backtest-platform/trading" }: { view?: BacktestView }) {
+export function BacktestWorkspace({ view = "/backtest-platform/trading", legacyUrl }: { view?: BacktestView; /** 旧 PM Backtest 外链；未配置（undefined）时不显示 */ legacyUrl?: string }) {
   const workspace = useWorkspaceTabs(tabs, view);
   const head = HEADS[workspace.active as BacktestView];
   return <V2Frame eyebrow={head.eyebrow} title={head.title} description={head.description}>
     <V2Tabs tabs={tabs} active={workspace.active} onSelect={(href) => workspace.select(href as typeof workspace.active)} ariaLabel="回测平台视图" />
-    <V2ContextLinks links={[{ href: "http://172.21.20.221:8501/", label: "打开旧平台 PM Backtest（过渡期保留）", external: true }]} />
+    {legacyUrl && <V2ContextLinks links={[{ href: legacyUrl, label: "打开旧平台 PM Backtest（过渡期保留）", external: true }]} />}
     <CatalogProvider>
       <V2WorkspacePanel active={workspace.active} href="/backtest-platform/trading" visited={workspace.visited.has("/backtest-platform/trading")}><TradingForm /></V2WorkspacePanel>
       <V2WorkspacePanel active={workspace.active} href="/backtest-platform/benchmark" visited={workspace.visited.has("/backtest-platform/benchmark")}><BenchmarkForm /></V2WorkspacePanel>

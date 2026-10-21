@@ -79,6 +79,11 @@ export interface ParamDef {
   step?: number;
   presets?: Array<{ label: string; value: unknown }>;
   when?: Record<string, unknown>;
+  /**
+   * 前端本地的显示条件（`backtest-param-ui.ts` 按名字写入，不来自 infra）：
+   * stepwise = 只在选中了逐时点策略时显示；models = 只在需要模型的表单里显示。
+   */
+  requires?: "stepwise" | "models";
 }
 
 export interface EngineInfo {

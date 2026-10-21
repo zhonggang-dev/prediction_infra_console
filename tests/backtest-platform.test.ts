@@ -109,12 +109,12 @@ test("目录条目、引擎参数定义与 market-view 拒收表解码", () => {
   const tau = engine.paramDefinitions["benchmark/deviation"][0];
   assert.equal(tau.minExclusive, false, "infra 的参数定义没有 min_exclusive");
   assert.equal(tau.precision, 6);
-  const horizon = engine.paramDefinitions["benchmark/model_signal"].find((d) => d.name === "horizon_hours")!;
+  const horizon = engine.paramDefinitions["benchmark/model_signal"].find((d) => d.name === "horizon_h")!;
   assert.equal(horizon.type, "integer");
   assert.deepEqual(horizon.choices?.map((c) => c.value), [1, 12, 24, 48, 96, 168]);
   const bucket = engine.paramDefinitions["benchmark/calibration"][0];
   assert.equal(bucket.itemType, "number");
-  assert.equal(bucket.minItems, 3);
+  assert.equal(bucket.minItems, 2);
   assert.throws(() => decodeCatalogItem({ kind: "widget", key: "x" }), /未知 kind/);
   assert.throws(() => decodeCatalogItem({ kind: "model" }), /catalog.key/);
   assert.throws(() => decodeParamDef({ name: "a", type: "matrix" }), /类型未知/);

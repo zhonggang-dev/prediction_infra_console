@@ -177,7 +177,10 @@ export function BarsChart({ section, title, heading }: { section: BarsSection; t
   const fmt = (v: number) => formatNumber(v, section.digits);
 
   if (!vertical) {
-    const rowH = 30; const labelW = 190; const padR = 90; const padT = 14; const padB = 30;
+    // 标签宽度随最长名字放宽（中文按 1.7 个单位），超出上限才截断；截断的标签有悬浮全名
+    const units = (label: string) => Array.from(label).reduce((sum, char) => sum + (char.charCodeAt(0) > 255 ? 1.7 : 1), 0);
+    const rowH = 30; const labelW = Math.min(360, Math.max(190, Math.max(...bars.map((bar) => units(bar.label))) * 6.4 + 24)); const padR = 90; const padT = 14; const padB = 30;
+    const clip = (label: string) => { const room = (labelW - 24) / 6.4; if (units(label) <= room) return label; let out = ""; for (const char of Array.from(label)) { if (units(`${out}${char}…`) > room) break; out += char; } return `${out}…`; };
     const height = padT + bars.length * rowH + padB;
     const plotW = W - labelW - padR;
     const x = (v: number) => labelW + (v - vMin) / (vMax - vMin) * plotW;
@@ -191,7 +194,7 @@ export function BarsChart({ section, title, heading }: { section: BarsSection; t
           const end = bar.value ?? 0;
           const tail = Math.max(end, bar.upper ?? end);
           return <g key={`${bar.label}-${i}`}>
-            <text className="bt-bar-label" x={labelW - 10} y={cy + 4} textAnchor="end">{bar.label.length > 26 ? `${bar.label.slice(0, 25)}…` : bar.label}<title>{bar.label}</title></text>
+            <text className="bt-bar-label" x={labelW - 10} y={cy + 4} textAnchor="end">{clip(bar.label)}<title>{bar.label}</title></text>
             {bar.value !== null && <rect x={Math.min(x(0), x(end))} y={cy - 9} width={Math.max(1, Math.abs(x(end) - x(0)))} height={18} rx={2} fill={color} fillOpacity={0.88} />}
             {bar.lower !== undefined && bar.lower !== null && bar.upper !== undefined && bar.upper !== null && <g className="bt-errbar"><line x1={x(bar.lower)} x2={x(bar.upper)} y1={cy} y2={cy} /><line x1={x(bar.lower)} x2={x(bar.lower)} y1={cy - 5} y2={cy + 5} /><line x1={x(bar.upper)} x2={x(bar.upper)} y1={cy - 5} y2={cy + 5} /></g>}
             <text className="bt-bar-value" x={Math.min(x(Math.max(tail, 0)) + 8, W - padR + 4)} y={cy + 4}>{bar.value === null ? "—" : fmt(bar.value)}</text>

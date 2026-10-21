@@ -14,15 +14,16 @@ let resultView;
 let runPage;
 let pickers;
 let selection;
+let trading;
 const run = (id) => platform.decodeRun(fixture(`run-${id}.json`).data);
 const count = (html, pattern) => (html.match(pattern) ?? []).length;
 
 before(async () => {
   loader = await createComponentLoader();
-  [platform, charts, sections, resultView, runPage, pickers, selection] = await Promise.all([
+  [platform, charts, sections, resultView, runPage, pickers, selection, trading] = await Promise.all([
     loader.load("/app/lib/backtest-platform.ts"), loader.load("/app/components/backtest/charts.tsx"), loader.load("/app/components/backtest/result-sections.tsx"),
     loader.load("/app/components/backtest/result-view.tsx"), loader.load("/app/components/backtest/run-page.tsx"),
-    loader.load("/app/components/backtest/pickers.tsx"), loader.load("/app/lib/backtest-selection.ts"),
+    loader.load("/app/components/backtest/pickers.tsx"), loader.load("/app/lib/backtest-selection.ts"), loader.load("/app/components/backtest/trading-form.tsx"),
   ]);
 });
 after(async () => { await loader?.close(); });
@@ -279,4 +280,114 @@ test("模型选择器：同一 model_id 的多个版本各是一个选项，没�
   assert.ok(html.includes("team_01__v2__p1 (") && html.includes("team_01__v2__p21 ("));
   assert.equal(count(html, /aria-label="移除 team_01__v2__p(1|21)"/g), 2, "两个版本的 chip 都可见、可删");
   assert.match(formHtml, /<select[^>]*>.*<option value="168">168<\/option>/);
+});
+
+// ───────────────────────── 交易回测表单（用 fixture 目录直接渲染首屏） ─────────────────────────
+
+function catalogData(firstStrategy) {
+  const items = (name) => fixture(name).data.items.map(platform.decodeCatalogItem);
+  const engines = items("catalog-engines.json").map(platform.decodeEngine);
+  const strategies = items("catalog-strategies.json").map(selection.strategyInfo);
+  const ordered = firstStrategy ? [strategies.find((s) => s.key === firstStrategy), ...strategies.filter((s) => s.key !== firstStrategy)] : strategies;
+  return {
+    models: items("catalog-models.json").map(selection.modelInfo), strategies: ordered, datasets: items("catalog-datasets.json").map(selection.datasetInfo),
+    engines, engine: engines[0], factors: items("catalog-factors.json"), domains: ["Crypto", "Economy", "Geopolitics", "Politics", "Sports", "Tech", "World"],
+  };
+}
+const tradingHtml = (firstStrategy) => loader.render(trading.TradingFormInner, { data: catalogData(firstStrategy) });
+
+test("交易回测表单 · 只选旧策略：看不到逐时点参数；仓位 / 资金联动；选项是中文；策略分组且名字不重复", () => {
+  const html = tradingHtml();
+  assert.doesNotMatch(html, /逐时点策略账户规则|盘口深度（档）|逐时点策略参数|整股成交/, "旧策略不显示逐时点参数");
+  assert.match(html, /口径、仓位与资金/);
+  assert.match(html, /仓位模式/);
+  for (const text of ["严格交集", "各模型自有全集", "策略自带", "固定股数", "固定金额", "有限资金", "无限资金"]) assert.ok(html.includes(`>${text}</button>`), `选项按钮显示 ${text}`);
+  for (const code of ["strict", "fixed_shares", "unlimited", "sells_first"]) assert.ok(!html.includes(`>${code}</button>`), `选项按钮不再显示原始码 ${code}`);
+  assert.doesNotMatch(html, /bt-param-label[^>]*>(每笔股数|每笔金额（\$）|初始资金（\$）)</, "策略自带仓位 + 无限资金时，这三项隐藏");
+  assert.match(html, /旧平台策略/);
+  assert.match(html, /逐时点策略（平台提交）/);
+  assert.equal(count(html, /Baseline V1\.1/g), 1, "名字与描述相同时只显示一次");
+  assert.match(html, /带上 Market 基准行/);
+  assert.ok(html.indexOf("带上 Market 基准行") > html.indexOf("<legend>模型"), "带上 Market 基准行在模型区");
+  assert.doesNotMatch(html, /Position sizing|Bankroll|Shares/);
+  assert.doesNotMatch(html, /本页面只显示进度与结果|运行在服务器的执行器上进行/, "提交栏不再重复页头里的说明");
+});
+
+test("交易回测表单 · 逐时点策略：出现账户规则分组（说明一次待确认）、策略参数表单；仓位模式按策略声明置灰", () => {
+  const html = tradingHtml("edge_filter_stepwise");
+  assert.match(html, /逐时点策略账户规则/);
+  assert.equal(count(html, /待研究侧确认/g), 1, "组标题处说明一次");
+  assert.match(html, /盘口深度（档）/);
+  assert.match(html, />先卖后买<\/button>/);
+  assert.match(html, />按中价估值<\/button>/);
+  assert.match(html, /逐时点策略参数/);
+  assert.match(html, /入场边际阈值/);
+  assert.match(html, /最长持有（小时）/);
+  assert.doesNotMatch(html, /JSON）/, "不再手填 JSON");
+  assert.match(html, /<button[^>]*disabled=""[^>]*>固定股数<\/button>/, "清单只声明 native / fixed_stake，固定股数置灰");
+  assert.doesNotMatch(html, /<button[^>]*disabled=""[^>]*>固定金额<\/button>/);
+  assert.match(html, /逐时点策略不做严格交集裁剪/);
+  assert.match(html, /仓位只支持：策略自带 \/ 固定金额/);
+});
+
+test("交易回测表单 · 逐时点策略没有参数时不显示参数表单；不读模型时改选盘口数据集、不强制选模型", () => {
+  const v3 = tradingHtml("baseline_v3_stepwise");
+  assert.match(v3, /逐时点策略账户规则/);
+  assert.doesNotMatch(v3, /逐时点策略参数/);
+  assert.match(v3, /请至少选择一个模型/, "predictions=required 仍要选模型");
+  const none = tradingHtml("mid_reversion_stepwise");
+  assert.match(none, /数据集（盘口）/);
+  assert.match(none, /所选策略不读模型预测/);
+  assert.doesNotMatch(none, /请至少选择一个模型/, "predictions=none 不强制选模型");
+  assert.doesNotMatch(none, /带上 Market 基准行/, "没有模型区时不显示");
+  assert.match(none, /逐时点策略参数/);
+  const optional = tradingHtml("edge_filter_stepwise");
+  assert.doesNotMatch(optional, /请至少选择一个模型/, "predictions=optional 可以不选模型");
+  assert.match(optional, /没有选模型时，读哪一套盘口/);
+});
+
+// ───────────────────────── 结果页兜底与渲染 ─────────────────────────
+
+test("结果页 · 新版逐时点结果：只有一条曲线不显示 PnL Gap；说明里的加粗正常渲染；未成交原因是中文，原因代码在最后", () => {
+  const r = run("btr-20261021-stepw001");
+  const html = loader.render(resultView.ResultView, { run: r });
+  assert.doesNotMatch(html, /PnL Gap 对比/);
+  assert.match(html, /<strong>成交<\/strong>/, "caption 里的 **加粗** 渲染成 strong");
+  assert.doesNotMatch(html, /\*\*/);
+  assert.match(html, /按整股成交，目标不足一股/);
+  assert.ok(html.indexOf("未成交原因</") < html.indexOf("原因代码</"), "原因代码列在最后");
+  assert.match(html, /运行清单（原始 JSON）/);
+});
+
+test("结果页 · 旧运行兜底：说明列等于原因码时翻译；manifest 标题改名；加粗正常渲染；多条曲线仍有 Gap", () => {
+  const r = run("btr-20261019-trade001");
+  const html = loader.render(resultView.ResultView, { run: r });
+  assert.match(html, /PnL Gap 对比/);
+  assert.match(html, /对手盘一档有效报价都没有/, "no_liquidity 的说明用前端码表翻译");
+  assert.match(html, /盘口过薄无法成交/, "旧引擎原因保持执行器写的中文");
+  assert.match(html, /<th[^>]*scope="col"[^>]*>(<button[^>]*>)?原因代码/);
+  assert.doesNotMatch(html, /manifest · 载体配置/);
+  assert.match(html, /运行清单（原始 JSON）/);
+  assert.match(html, /<strong>MTM<\/strong>/);
+});
+
+test("结果页 · 账户规则说明只出现一次：口径卡片已有时，结果里重复的「说明」提示被丢掉", () => {
+  const r = run("btr-20261021-stepw001");
+  const rule = r.result.scopeCard.sampleCounts.find((entry) => entry.label === "账户规则").value;
+  const duplicated = { ...r, result: { ...r.result, warnings: [{ level: "info", text: rule }, { level: "warning", text: "另一条不重复的提示" }] } };
+  const body = loader.render(resultView.ResultView, { run: duplicated });
+  assert.ok(!body.includes(rule), "重复的说明不再渲染");
+  assert.match(body, /另一条不重复的提示/);
+  const card = loader.render(resultView.ScopeCardView, { result: r.result, run: r });
+  assert.equal(count(card, /逐时点账户规则：盘口深度/g), 1);
+  assert.match(card, /<p class="bt-note"><strong>账户规则<\/strong>：/, "长条目单独成段，不挤进事实卡片");
+});
+
+test("口径卡片 · 样本口径显示中文（严格交集 / 各模型自有全集 / 混合）", () => {
+  const r = run("btr-20261019-trade001");
+  const show = (scope) => loader.render(resultView.ScopeCardView, { result: { ...r.result, scopeCard: { ...r.result.scopeCard, sampleScope: scope } }, run: r });
+  assert.match(show("strict"), /样本口径<\/span><strong>严格交集</);
+  assert.match(show("own"), /<strong>各模型自有全集</);
+  assert.match(show("mixed"), /<strong>混合/);
+  assert.match(show("common"), /<strong>共同样本</);
 });

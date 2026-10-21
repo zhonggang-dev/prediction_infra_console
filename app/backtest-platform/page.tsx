@@ -1,3 +1,3 @@
-import { BacktestWorkspace } from "../components/backtest/workspace";
+import { BacktestPage } from "../components/backtest/workspace-page";
 
-export default function BacktestPlatformPage() { return <BacktestWorkspace view="/backtest-platform/trading" />; }
+export default function BacktestPlatformPage() { return <BacktestPage view="/backtest-platform/trading" />; }
