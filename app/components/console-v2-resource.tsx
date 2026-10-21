@@ -281,9 +281,11 @@ export function V2ListPage<T>({ title, description, load, columns, rowKey, rende
     };
     window.addEventListener("popstate", syncFromUrl);
     window.addEventListener("v2-workspace-url-change", syncFromUrl);
+    window.addEventListener(WORKSPACE_FILTER_CHANGE_EVENT, syncFromUrl);
     return () => {
       window.removeEventListener("popstate", syncFromUrl);
       window.removeEventListener("v2-workspace-url-change", syncFromUrl);
+      window.removeEventListener(WORKSPACE_FILTER_CHANGE_EVENT, syncFromUrl);
     };
   }, []);
 

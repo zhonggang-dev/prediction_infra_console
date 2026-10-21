@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { consoleV2, type ConsoleV2DecisionCycle, type ConsoleV2Order, type ConsoleV2PositionLot, type ConsoleV2ReconciliationIssue, type ConsoleV2ReconciliationRun, type ConsoleV2Redemption, type ConsoleV2Runtime, type ConsoleV2RuntimeAccount } from "../lib/console-v2";
-import { formatV2Number, formatV2Time, V2Facts, V2Frame, V2ListPage, V2Tabs, V2WorkspacePanel, WORKSPACE_FILTER_CHANGE_EVENT, useV2Filter, useVisitedTabs, useWorkspaceTabs, v2Status, v2Unknown } from "./console-v2-resource";
+import { formatV2Number, formatV2Time, V2Facts, V2Frame, V2ListPage, V2Tabs, V2WorkspacePanel, WORKSPACE_FILTER_CHANGE_EVENT, useV2Filter, useWorkspaceTabs, v2Status, v2Unknown } from "./console-v2-resource";
 import { LiveTradingPage } from "./live-trading-page";
 import { TradeRecordsPage } from "./trade-records-page";
 
@@ -206,17 +206,68 @@ function Positions() {
 }
 
 function Reconciliation() {
-  const workspace = useVisitedTabs<"runs" | "issues">("runs");
-  const tabs = [{ href: "runs", label: "Runs" }, { href: "issues", label: "Issues" }];
-  return <><V2Tabs tabs={tabs} active={workspace.active} onSelect={(href) => workspace.select(href as typeof workspace.active)} variant="local" ariaLabel="对账视图" /><V2WorkspacePanel active={workspace.active} href="runs" visited={workspace.visited.has("runs")}><ReconciliationRuns /></V2WorkspacePanel><V2WorkspacePanel active={workspace.active} href="issues" visited={workspace.visited.has("issues")}><ReconciliationIssues /></V2WorkspacePanel></>;
+  const [active, setActive] = useV2Filter("reconciliation_view", "issues");
+  const [visited, setVisited] = useState<Set<string>>(() => new Set([active]));
+  const tabs = [{ href: "issues", label: "开放问题" }, { href: "runs", label: "对账运行" }];
+  const select = useCallback((next: string) => {
+    const target = document.getElementById(`v2-panel-${next}`);
+    const state = target?.querySelector<HTMLElement>("[data-v2-list-state]");
+    const url = new URL(window.location.href);
+    const currentStatus = url.searchParams.get("status");
+    for (const key of ["q", "limit", "offset"]) url.searchParams.delete(key);
+    // ALL is a UI sentinel. Keep it across the local Runs view so returning
+    // to Issues does not silently fall back to the default OPEN filter.
+    if (currentStatus !== "ALL") url.searchParams.delete("status");
+    if (state) {
+      const query = state.getAttribute("data-v2-list-query")?.trim();
+      const limit = state.getAttribute("data-v2-list-limit");
+      const offset = state.getAttribute("data-v2-list-offset");
+      if (query) url.searchParams.set("q", query);
+      if (limit && limit !== "20") url.searchParams.set("limit", limit);
+      if (offset && offset !== "0") url.searchParams.set("offset", offset);
+      try {
+        const params = JSON.parse(state.getAttribute("data-v2-list-params") ?? "{}") as Record<string, unknown>;
+        if (typeof params.status === "string" && params.status) url.searchParams.set("status", params.status);
+      } catch {
+        // Keep the target panel at its safe default when metadata is stale.
+      }
+    } else if (next === "issues") {
+      url.searchParams.set("status", "OPEN");
+    }
+    window.history.pushState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+    setActive(next);
+    setVisited((current) => current.has(next) ? current : new Set([...current, next]));
+    window.requestAnimationFrame(() => window.dispatchEvent(new Event(WORKSPACE_FILTER_CHANGE_EVENT)));
+  }, [setActive]);
+  useEffect(() => {
+    const rememberActiveView = () => {
+      const next = new URL(window.location.href).searchParams.get("reconciliation_view");
+      if (next !== "issues" && next !== "runs") return;
+      setVisited((current) => current.has(next) ? current : new Set([...current, next]));
+    };
+    window.addEventListener("popstate", rememberActiveView);
+    window.addEventListener("v2-workspace-url-change", rememberActiveView);
+    return () => { window.removeEventListener("popstate", rememberActiveView); window.removeEventListener("v2-workspace-url-change", rememberActiveView); };
+  }, []);
+  return <><V2Tabs tabs={tabs} active={active} onSelect={select} variant="local" ariaLabel="对账视图" /><V2WorkspacePanel active={active} href="issues" visited={visited.has("issues") || active === "issues"}><ReconciliationIssues /></V2WorkspacePanel><V2WorkspacePanel active={active} href="runs" visited={visited.has("runs") || active === "runs"}><ReconciliationRuns /></V2WorkspacePanel></>;
 }
+
+function reconciliationApiParams(params: Record<string, string | number | undefined>) {
+  const next = { ...params };
+  delete next.reconciliation_view;
+  if (next.status === "ALL") delete next.status;
+  return next;
+}
+
+const loadReconciliationRuns = (params: Record<string, string | number | undefined>) => consoleV2.trading.reconciliationRuns(reconciliationApiParams(params));
+const loadReconciliationIssues = (params: Record<string, string | number | undefined>) => consoleV2.trading.reconciliationIssues(reconciliationApiParams(params));
 
 function ReconciliationRuns() {
   const [account] = useV2Filter("execution_account_id");
   const [from] = useV2Filter("from");
   const [to] = useV2Filter("to");
-  const params = useMemo(() => ({ execution_account_id: account || undefined, from: dateStart(from), to: dateEnd(to) }), [account, from, to]);
-  return <V2ListPage<ConsoleV2ReconciliationRun> title="对账运行" load={consoleV2.trading.reconciliationRuns} params={params} rowKey={(item) => item.runId} searchPlaceholder="搜索 run 或状态" columns={[
+  const params = useMemo(() => ({ reconciliation_view: "runs", execution_account_id: account || undefined, from: dateStart(from), to: dateEnd(to) }), [account, from, to]);
+  return <V2ListPage<ConsoleV2ReconciliationRun> title="对账运行" load={loadReconciliationRuns} params={params} rowKey={(item) => item.runId} searchPlaceholder="搜索 run 或状态" columns={[
     { label: "Run ID", className: "primary mono", render: (item) => item.runId },
     { label: "状态 / 结果", render: (item) => <div className="v2-cell-copy"><span>{v2Status(item.status, item.status)}</span><small>{v2Unknown(item.result)}</small></div> },
     { label: "账户", render: (item) => v2Unknown(item.executionAccountId) },
@@ -226,12 +277,13 @@ function ReconciliationRuns() {
 }
 
 function ReconciliationIssues() {
-  const [status, setStatus] = useV2Filter("status");
+  const [statusParam, setStatus] = useV2Filter("status", "OPEN");
+  const status = statusParam === "OPEN" || statusParam === "RESOLVED" || statusParam === "ALL" ? statusParam : "OPEN";
   const [account] = useV2Filter("execution_account_id");
   const [from] = useV2Filter("from");
   const [to] = useV2Filter("to");
-  const params = useMemo(() => ({ status: status || undefined, execution_account_id: account || undefined, from: dateStart(from), to: dateEnd(to) }), [status, account, from, to]);
-  return <V2ListPage<ConsoleV2ReconciliationIssue> title="对账问题" load={consoleV2.trading.reconciliationIssues} params={params} controls={<select className="select" aria-label="问题状态" value={status} onChange={(event) => setStatus(event.target.value)}><option value="">全部状态</option><option value="OPEN">OPEN</option><option value="RESOLVED">RESOLVED</option></select>} rowKey={(item) => item.issueId} searchPlaceholder="搜索 issue、run、entity 或原因码" columns={[
+  const params = useMemo(() => ({ reconciliation_view: "issues", status, execution_account_id: account || undefined, from: dateStart(from), to: dateEnd(to) }), [status, account, from, to]);
+  return <V2ListPage<ConsoleV2ReconciliationIssue> title="对账问题" load={loadReconciliationIssues} params={params} controls={<select className="select" aria-label="问题状态" value={status} onChange={(event) => setStatus(event.target.value)}><option value="ALL">全部状态</option><option value="OPEN">OPEN</option><option value="RESOLVED">RESOLVED</option></select>} rowKey={(item) => item.issueId} searchPlaceholder="搜索 issue、run、entity 或原因码" columns={[
     { label: "Issue ID", className: "primary mono", render: (item) => item.issueId },
     { label: "状态 / 类型", render: (item) => <div className="v2-cell-copy"><span>{v2Status(item.status, item.status)}</span><small>{v2Unknown(item.issueType)}</small></div> },
     { label: "Reason / Resolution", className: "mono", render: (item) => <div className="v2-cell-copy"><span>{v2Unknown(item.reasonCode)}</span><small>{v2Unknown(item.resolution)}</small></div> },
