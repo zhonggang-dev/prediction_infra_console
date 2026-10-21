@@ -7,6 +7,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { backtestApi, isActiveRun, type BacktestRun } from "../../lib/backtest-platform";
 import { prettyHeadline, requesterLabel, runTitle, STATUS_CLASS, STATUS_LABELS } from "../../lib/backtest-labels";
+import { fingerprintForm, orderedInputs, shortVersion } from "../../lib/backtest-inputs";
 import { ConsoleV2ApiError } from "../../lib/console-v2";
 import { V2Frame, V2Loading, V2Notice, formatV2Time, v2ErrorText } from "../console-v2-resource";
 import { ResultView, ScopeCardView } from "./result-view";
@@ -54,6 +55,26 @@ export async function copyText(value: string): Promise<boolean> {
   try { return document.execCommand("copy"); } catch { return false; } finally { document.body.removeChild(area); }
 }
 
+/** 输入指纹：新形态先列「输入版本」表（输入名 → 版本），旧形态在摘要里给 dg-…；两种形态都带文件哈希明细。 */
+function InputFingerprintsView({ run, files }: { run: BacktestRun; files: Array<[string, string]> }) {
+  const [expanded, setExpanded] = useState(false);
+  const fingerprints = run.inputFingerprints;
+  const form = fingerprintForm(fingerprints);
+  const inputs = orderedInputs(fingerprints?.inputs);
+  if (files.length === 0 && form === "unknown") return null;
+  const summary = form === "inputs"
+    ? `输入指纹（${inputs.length} 项输入版本 · ${files.length} 个文件）`
+    : `输入指纹（${files.length} 个文件${fingerprints?.dataGeneration ? ` · ${fingerprints.dataGeneration}` : ""}）`;
+  return <details className="bt-details-inline"><summary>{summary}</summary>
+    {form === "inputs" && <>
+      <div className="section-head"><h4>输入版本</h4><button type="button" className="button" onClick={() => setExpanded(!expanded)} aria-pressed={expanded}>{expanded ? "收起完整值" : "显示完整值"}</button></div>
+      <div className="table-scroll"><table className="v2-table bt-input-versions"><thead><tr><th>输入</th><th>版本</th></tr></thead><tbody>{inputs.map((input) => <tr key={input.name}><td>{input.label}{input.label !== input.name && <span className="bt-muted mono"> {input.name}</span>}</td><td className="mono wrap" title={input.version}>{expanded ? input.version : shortVersion(input.version)}</td></tr>)}</tbody></table></div>
+    </>}
+    {form === "generation" && <p className="bt-caption">数据目录版本：<span className="mono">{fingerprints?.dataGeneration}</span>（旧形态：整个数据目录的总摘要）</p>}
+    {files.length > 0 && <div className="table-scroll"><table className="v2-table"><thead><tr><th>路径</th><th>SHA-256</th></tr></thead><tbody>{files.map(([path, sha]) => <tr key={path}><td className="mono wrap">{path}</td><td className="mono wrap">{sha}</td></tr>)}</tbody></table></div>}
+  </details>;
+}
+
 export function ReproduceBlock({ run }: { run: BacktestRun }) {
   const [copied, setCopied] = useState<"ok" | "fail">();
   if (!run.reproduce) return <section className="bt-section bt-reproduce"><h3 className="bt-section-title">复现信息</h3><p className="bt-muted">这次运行没有复现信息（运行未完成，或旧平台导入的历史结果）。</p></section>;
@@ -63,9 +84,7 @@ export function ReproduceBlock({ run }: { run: BacktestRun }) {
     <div className="section-head"><h3 className="bt-section-title" id="bt-reproduce-title">复现信息</h3><button type="button" className="button primary" onClick={copy}>{copied === "ok" ? "已复制" : copied === "fail" ? "复制失败，请手动选中" : "一键复制"}</button></div>
     <p className="bt-caption">把整段文本交给 agent 即可定位服务器、配置、输入、代码版本和重跑入口。</p>
     <pre className="bt-pre bt-reproduce-text">{run.reproduce.text}</pre>
-    {(files.length > 0 || run.inputFingerprints?.dataGeneration) && <details className="bt-details-inline"><summary>输入指纹（{files.length} 个文件{run.inputFingerprints?.dataGeneration ? ` · ${run.inputFingerprints.dataGeneration}` : ""}）</summary>
-      <div className="table-scroll"><table className="v2-table"><thead><tr><th>路径</th><th>SHA-256</th></tr></thead><tbody>{files.map(([path, sha]) => <tr key={path}><td className="mono wrap">{path}</td><td className="mono wrap">{sha}</td></tr>)}</tbody></table></div>
-    </details>}
+    <InputFingerprintsView run={run} files={files} />
     {run.restoredInputs.length > 0 && <V2Notice title="历史重跑：这些输入从存档还原" description={run.restoredInputs.join("；")} />}
   </section>;
 }
@@ -130,7 +149,7 @@ export function RunPage({ runId }: { runId: string }) {
           {!run.rerunnable && !isActiveRun(run) && <span className="bt-muted">{run.origin === "legacy" ? "旧平台历史结果不可重跑" : "该运行不可重跑"}</span>}
         </div>
       </section>
-      {reused && <V2Notice title="命中已有结果" description="相同配置与相同数据版本已有成功运行，直接返回了它，没有重新计算。需要重新计算请在发起页勾选「强制重跑」。" />}
+      {reused && <V2Notice title="命中已有结果" description="相同配置与相同输入版本已有成功运行，直接返回了它，没有重新计算。需要重新计算请在发起页勾选「强制重跑」。" />}
       {isActiveRun(run) && <ProgressPanel run={run} onCancel={cancel} cancelling={action.busy === "cancel"} />}
       {run.status === "failed" && <section className="bt-section"><V2Notice error title={`运行失败${run.error?.code ? `（${run.error.code}）` : ""}`} description={run.error?.message ?? "执行器没有给出错误信息。"} />{(run.error?.logTail || run.logTail) && <pre className="bt-pre bt-log">{run.error?.logTail ?? run.logTail}</pre>}</section>}
       {run.status === "cancelled" && <V2Notice title="运行已停止" description="这次运行被用户停止，不是策略执行错误。" />}

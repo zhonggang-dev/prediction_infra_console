@@ -39,6 +39,6 @@ export function SubmitBar({ blockers, busy, error, label, onSubmit, force, onFor
       <button type="button" className="button primary" disabled={busy || blockers.length > 0} onClick={onSubmit}>{busy ? "正在提交…" : label}</button>
       <label className="bt-check"><input type="checkbox" checked={force} onChange={(event) => onForce(event.target.checked)} /><span>强制重跑（跳过相同配置的已有结果）</span></label>
     </div>
-    <p className="bt-note">相同配置与相同数据版本已有成功运行时，会直接返回它；需要重新计算请勾选「强制重跑」。</p>
+    <p className="bt-note">相同配置与相同输入版本已有成功运行时，会直接返回它；需要重新计算请勾选「强制重跑」。</p>
   </div>;
 }

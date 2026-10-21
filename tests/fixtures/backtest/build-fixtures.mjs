@@ -372,6 +372,29 @@ runs["btr-20261021-stepw001"] = done("btr-20261021-stepw001", "trading", "strate
   requested_by: "console:alice", created_at: "2026-10-21T09:30:00Z",
   config: configOf("btr-20261021-stepw001", "trading", "strategy_comparison", { requested_by: "console:alice", objects: { models: [{ key: "pswarm_v2", version: "legacy/legacy", model_name: "pswarm_v2" }], strategies: [{ key: "baseline_v3_stepwise", version: "1.0.0", definition: stepwiseStrategies[0].metadata.definition }], factors: [] }, params: { scope: "strict", stepwise: { strategy_params: "{}" } } }),
 });
+// 新形态运行（引擎支持显式输入）：配置里 data_generation 为空串，写 inputs 与每个模型的 domain_slice；输入指纹是 inputs + files，没有 data_generation。
+// 两条新形态运行只在结算表版本与 pswarm_v2 的域映射切片上不同，用来演示同形态对比；与 brier001（旧形态）对比则演示形态不一致。
+const inputVersions = (extra = {}) => ({
+  settlement: "b1e2000000000000000000000000000000000000000000000000000000009c", anchors: "5d7a3c00000000000000000000000000000000000000000000000000000041",
+  orderbook: "release:20260913-v0uepugf:8f3a1c00000000000000000000000000000000000000000000000000000012", factors: "files:214:6b9e2d00000000000000000000000000000000000000000000000000000077",
+  hourly_bars: "c40d8800000000000000000000000000000000000000000000000000000019", tag_slice: "e19b5400000000000000000000000000000000000000000000000000000026", ...extra,
+});
+const newFormConfig = (id, extra = {}, slice = "a7c3e1000000000000000000000000000000000000000000000000000000f5", versions = inputVersions()) => configOf(id, "benchmark", "resolved_event_brier", {
+  data_generation: "", inputs: versions,
+  objects: { models: [{ key: "pswarm_v2", version: "legacy/legacy", model_name: "pswarm_v2", sha256: "9f2c0000000000000000000000000000000000000000000000000000000000e1", domain_slice: slice }], strategies: [], factors: [] }, ...extra,
+});
+const newFormFingerprints = (versions, extra = {}) => ({
+  inputs: { ...versions, domain_slice: "a7c3e1000000000000000000000000000000000000000000000000000000f5" },
+  files: { "backtest/market_data/settlement.parquet": `sha256:${versions.settlement}`, "anchors（沙盒锚点）": `sha256:${versions.anchors}`, "backtest/market_data/orderbook（盘口）": versions.orderbook, "backtest/model_pred/pswarm_v2_pred.parquet": "sha256:9f2c0000000000000000000000000000000000000000000000000000000000e1", ...extra },
+});
+const newFormRun = (id, versions, slice, over = {}) => done(id, "benchmark", "resolved_event_brier", results.brier, "Benchmark / 已结算市场 Brier（输入版本）", {
+  requested_by: "console:alice", created_at: "2026-10-21T10:00:00Z", config: newFormConfig(id, {}, slice, versions),
+  input_fingerprints: { ...newFormFingerprints(versions), inputs: { ...newFormFingerprints(versions).inputs, domain_slice: slice } }, ...over,
+});
+const versionsA = inputVersions();
+const versionsB = inputVersions({ settlement: "ffff000000000000000000000000000000000000000000000000000000000001" });
+runs["btr-20261021-inputs001"] = newFormRun("btr-20261021-inputs001", versionsA, "a7c3e1000000000000000000000000000000000000000000000000000000f5");
+runs["btr-20261021-inputs002"] = newFormRun("btr-20261021-inputs002", versionsB, "3d90b2000000000000000000000000000000000000000000000000000000c8", { created_at: "2026-10-21T11:00:00Z", config: newFormConfig("btr-20261021-inputs002", {}, "3d90b2000000000000000000000000000000000000000000000000000000c8", versionsB) });
 runs["btr-20261019-batch001"].requested_by = "research";
 runs["btr-20261019-ovrvw001"].requested_by = "console:accept";
 runs["btr-legacy-factor-v7-01"].requested_by = "legacy-import";

@@ -10,6 +10,7 @@ import { initialParamValues, isVisible, paramsPayload, parseNumberList, validate
 import { validateIdentity } from "../app/lib/backtest-submit.ts";
 import { alignPnlSeries, badgeTone, defaultSelection, formatCell, matchesFilters, matchesWhen, nextSort, pinColumns, pushClicked, rankNumbers, searchRows, sortRows, sortValue, toCsv } from "../app/lib/backtest-table.ts";
 import { compareResults, diffFlat, diffRuns, flatten } from "../app/lib/backtest-compare.ts";
+import { fingerprintForm, fingerprintRowLabel, orderedInputs, shortVersion } from "../app/lib/backtest-inputs.ts";
 
 const dir = new URL("./fixtures/backtest/", import.meta.url);
 const fixture = (name: string) => JSON.parse(readFileSync(new URL(name, dir), "utf8"));
@@ -337,6 +338,48 @@ test("两次运行对比：配置差异忽略 run_id 等易变字段，输入指
   assert.equal(diff.sameConfigSha, false);
   assert.deepEqual(diffFlat(flatten({ a: [1, 2] }), flatten({ a: [1] })), [{ path: "a[1]", a: "2", b: "（无）" }]);
   assert.equal(diffRuns(a, a).config.length, 0);
+});
+
+test("两次运行对比 · 同为新形态：逐项对比输入版本与域映射切片，配置里的空 data_generation 显示为（空）", () => {
+  const a = decodeRun(fixture("run-btr-20261021-inputs001.json").data);
+  const b = decodeRun(fixture("run-btr-20261021-inputs002.json").data);
+  const diff = diffRuns(a, b);
+  assert.equal(diff.fingerprintFormMismatch, false);
+  assert.deepEqual(diff.fingerprints.map((d) => d.path), ["backtest/market_data/settlement.parquet", "inputs.domain_slice", "inputs.settlement"]);
+  assert.deepEqual(diff.config.map((d) => d.path), ["inputs.settlement", "objects.models[0].domain_slice"]);
+  assert.equal(diff.sameConfigSha, false);
+  assert.equal(flatten({ data_generation: "" }).get("data_generation"), "（空）");
+  assert.equal(diffRuns(a, a).fingerprints.length, 0);
+});
+
+test("两次运行对比 · 新旧形态混比：提示形态不同，只比对 files", () => {
+  const old = decodeRun(fixture("run-btr-20261019-brier001.json").data);
+  const fresh = decodeRun(fixture("run-btr-20261021-inputs001.json").data);
+  const diff = diffRuns(old, fresh);
+  assert.equal(diff.fingerprintFormMismatch, true);
+  assert.ok(diff.fingerprints.length > 0);
+  assert.ok(diff.fingerprints.every((d) => !d.path.startsWith("inputs.") && d.path !== "data_generation"), "形态不同时不列 inputs / data_generation 行");
+  assert.ok(diff.fingerprints.some((d) => d.path === "anchors（沙盒锚点）"), "files 仍逐项比对");
+  // 一边没有输入记录（旧平台导入）不算形态不一致
+  const legacy = decodeRun(fixture("run-btr-legacy-factor-v7-01.json").data);
+  assert.equal(diffRuns(legacy, fresh).fingerprintFormMismatch, false);
+});
+
+test("输入版本展示辅助：固定顺序、中文名、短版本、对比行名", () => {
+  const rows = orderedInputs({ zzz_new: "1", domain_slice: "d", settlement: "s", orderbook: "o", anchors: "a" });
+  assert.deepEqual(rows.map((r) => r.name), ["settlement", "anchors", "orderbook", "domain_slice", "zzz_new"]);
+  assert.deepEqual(rows.map((r) => r.label), ["结算表", "锚点", "盘口", "域映射切片", "zzz_new"]);
+  assert.equal(shortVersion("sha256:b1e2000000000000000000000000000000000000000000000000000000009c"), "b1e200000000…");
+  assert.equal(shortVersion("abc"), "abc");
+  assert.equal(shortVersion("release:20260913-v0uepugf:8f3a"), "release:2026…");
+  assert.equal(fingerprintRowLabel("inputs.tag_slice"), "输入版本 · 标签切片");
+  assert.equal(fingerprintRowLabel("inputs.future_thing"), "输入版本 · future_thing");
+  assert.match(fingerprintRowLabel("data_generation"), /数据目录版本/);
+  assert.equal(fingerprintRowLabel("backtest/market_data/settlement.parquet"), "backtest/market_data/settlement.parquet");
+  assert.equal(fingerprintForm(undefined), "unknown");
+  assert.equal(fingerprintForm({ files: {} }), "unknown");
+  assert.equal(fingerprintForm({ dataGeneration: "dg-1", files: {} }), "generation");
+  assert.equal(fingerprintForm({ inputs: { settlement: "x" }, files: {} }), "inputs");
 });
 
 test("两次运行指标并排：同一对象同一数值列，给出差值", () => {

@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { backtestApi, type BacktestRun } from "../../lib/backtest-platform";
 import { BOARD_LABELS, requesterLabel, runSummary, runTitle, STATUS_LABELS } from "../../lib/backtest-labels";
 import { compareResults, diffRuns } from "../../lib/backtest-compare";
+import { fingerprintRowLabel } from "../../lib/backtest-inputs";
 import { collectRuns, type VisibleRunsPage } from "../../lib/backtest-runs";
 import { formatNumber } from "../../lib/backtest-table";
 import { V2Loading, V2Notice, formatV2Time, v2ErrorText } from "../console-v2-resource";
@@ -116,11 +117,12 @@ export function CompareView({ a, b }: { a: BacktestRun; b: BacktestRun }) {
   const shown = showAll ? pairs : pairs.slice(0, 120);
   return <div className="bt-compare">
     <div className="v2-facts"><div className="v2-fact"><span>A</span><strong className="mono"><a href={`/backtest-platform/runs/${encodeURIComponent(a.runId)}`}>{a.runId}</a></strong></div><div className="v2-fact"><span>B</span><strong className="mono"><a href={`/backtest-platform/runs/${encodeURIComponent(b.runId)}`}>{b.runId}</a></strong></div><div className="v2-fact"><span>A 项目</span><strong>{runTitle(a.board, a.item)}</strong></div><div className="v2-fact"><span>B 项目</span><strong>{runTitle(b.board, b.item)}</strong></div></div>
-    {diff.sameConfigSha === true && <p className="bt-note">两次运行的配置摘要相同（相同配置与相同数据版本）。</p>}
+    {diff.sameConfigSha === true && <p className="bt-note">两次运行的配置摘要相同（相同配置与相同输入版本）。</p>}
     <h4>配置差异（{diff.config.length} 项）</h4>
     {diff.config.length === 0 ? <p className="bt-muted">配置没有差异（已忽略 run_id、批次、发起人、创建时间）。</p> : <div className="table-scroll"><table className="v2-table"><thead><tr><th>字段</th><th>A</th><th>B</th></tr></thead><tbody>{diff.config.map((row) => <tr key={row.path}><td className="mono wrap">{row.path}</td><td className="wrap">{row.a}</td><td className="wrap">{row.b}</td></tr>)}</tbody></table></div>}
     <h4>输入指纹差异（{diff.fingerprints.length} 项）</h4>
-    {diff.fingerprints.length === 0 ? <p className="bt-muted">输入指纹没有差异。</p> : <div className="table-scroll"><table className="v2-table"><thead><tr><th>输入</th><th>A</th><th>B</th></tr></thead><tbody>{diff.fingerprints.map((row) => <tr key={row.path}><td className="mono wrap">{row.path}</td><td className="mono wrap">{row.a}</td><td className="mono wrap">{row.b}</td></tr>)}</tbody></table></div>}
+    {diff.fingerprintFormMismatch && <p className="bt-note" role="status">两个运行的输入记录形态不同，只能比对文件哈希。</p>}
+    {diff.fingerprints.length === 0 ? <p className="bt-muted">输入指纹没有差异。</p> : <div className="table-scroll"><table className="v2-table"><thead><tr><th>输入</th><th>A</th><th>B</th></tr></thead><tbody>{diff.fingerprints.map((row) => <tr key={row.path}><td className="mono wrap">{fingerprintRowLabel(row.path)}</td><td className="mono wrap">{row.a}</td><td className="mono wrap">{row.b}</td></tr>)}</tbody></table></div>}
     <h4>同一对象同一指标并排</h4>
     {missingResult ? <p className="bt-muted">至少一次运行没有结果（未完成或失败），无法并排数值。</p> : pairs.length === 0 ? <p className="bt-muted">两份结果没有可并排的同名表格行（只比较表格里同一对象的数值列）。</p> : <div className="table-scroll"><table className="v2-table"><thead><tr><th>区块</th><th>对象</th><th>指标</th><th className="bt-num">A</th><th className="bt-num">B</th><th className="bt-num">B − A</th></tr></thead><tbody>{shown.map((pair, index) => <tr key={index}><td>{pair.sectionTitle}</td><td className="wrap">{pair.object}</td><td>{pair.metric}</td><td className="bt-num">{pair.displayA}</td><td className="bt-num">{pair.displayB}</td><td className="bt-num">{pair.delta === null ? "—" : `${pair.delta > 0 ? "+" : ""}${formatNumber(pair.delta, 4)}`}</td></tr>)}</tbody></table>{pairs.length > shown.length && <div className="v2-pagination"><span>显示前 {shown.length} 行，共 {pairs.length} 行</span><button type="button" className="button" onClick={() => setShowAll(true)}>全部显示</button></div>}</div>}
   </div>;

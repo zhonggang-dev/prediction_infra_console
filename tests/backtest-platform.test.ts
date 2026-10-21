@@ -92,6 +92,24 @@ test("复现信息、输入指纹和重跑关联被保留", () => {
   assert.equal(decodeRun({ ...fixture("run-btr-20261019-queue001.json").data, artifacts_url: "/api/v1/backtest/runs/x/artifacts" }).hasArtifacts, true);
 });
 
+test("输入指纹两种形态都能解码；新形态没有 data_generation，缺字段时降级", () => {
+  const old = decodeRun(fixture("run-btr-20261019-brier001.json").data);
+  assert.equal(old.inputFingerprints?.dataGeneration, "dg-1f3a9c20b7d44e10");
+  assert.equal(old.inputFingerprints?.inputs, undefined);
+  const fresh = decodeRun(fixture("run-btr-20261021-inputs001.json").data);
+  assert.equal(fresh.inputFingerprints?.dataGeneration, undefined);
+  assert.deepEqual(Object.keys(fresh.inputFingerprints?.inputs ?? {}).sort(), ["anchors", "domain_slice", "factors", "hourly_bars", "orderbook", "settlement", "tag_slice"]);
+  assert.ok("anchors（沙盒锚点）" in (fresh.inputFingerprints?.files ?? {}), "带中文后缀的键原样保留");
+  assert.equal(fresh.config?.data_generation, "");
+  assert.equal(typeof (fresh.config?.inputs as Record<string, unknown>).settlement, "string");
+  // 缺字段：没有 files / inputs 为空对象 / inputs 不是对象，都不抛错
+  const base = fixture("run-btr-20261021-inputs001.json").data;
+  assert.deepEqual(decodeRun({ ...base, input_fingerprints: { inputs: { settlement: "x" } } }).inputFingerprints, { dataGeneration: undefined, inputs: { settlement: "x" }, files: {} });
+  assert.equal(decodeRun({ ...base, input_fingerprints: { inputs: {}, files: {} } }).inputFingerprints?.inputs, undefined);
+  assert.equal(decodeRun({ ...base, input_fingerprints: { inputs: "oops", data_generation: "" } }).inputFingerprints?.inputs, undefined);
+  assert.equal(decodeRun({ ...base, input_fingerprints: null }).inputFingerprints, undefined);
+});
+
 test("创建运行响应解码：复用标记与批次", () => {
   const created = decodeCreateRuns({ data: { batch_id: "btb-1", runs: [{ ...fixture("run-btr-20261019-brier001.json").data, reused: true }] } });
   assert.equal(created.batchId, "btb-1");
