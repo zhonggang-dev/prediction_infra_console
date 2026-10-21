@@ -186,6 +186,9 @@ test("业务工作区复用真实资料轮换与交易视图，不回退到 read
   assert.match(ledger, /date\.setUTCDate\(date\.getUTCDate\(\) \+ 1\)/);
   assert.match(ledger, /WORKSPACE_FILTER_CHANGE_EVENT/);
   assert.match(resource, /WORKSPACE_FILTER_CHANGE_EVENT/);
+  assert.match(resource, /parentPanel\?\.active/);
+  assert.match(resource, /while \(ancestor\)/);
+  assert.doesNotMatch(resource, /closest<HTMLElement>\("\[role=\\"tabpanel\\"\]"\)/);
   assert.match(trading, /notifyFilterChange/);
   assert.match(trading, /reconciliation_view: "issues"/);
   assert.match(trading, /delete next\.reconciliation_view/);
