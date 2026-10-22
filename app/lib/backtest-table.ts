@@ -3,7 +3,8 @@
  * 前端只做排序 / 筛选 / 格式化；Gap 对齐是前端唯一的数值计算（技术方案 3.12，同旧 pnl_gap.align_pnl_series）。
  */
 
-import type { RawRecord, ResultFilter, SeriesPoint, SortSpec, TableColumn } from "./backtest-platform.ts";
+import { DROP_REASON_LABELS } from "./backtest-labels.ts";
+import type { RawRecord, ResultFilter, SeriesPoint, SortSpec, TableColumn, TableSection } from "./backtest-platform.ts";
 
 export const EMPTY = "—";
 
@@ -221,4 +222,29 @@ export function alignPnlSeries(a: SeriesPoint[], b: SeriesPoint[]): GapResult | 
     aValues.push(lastA); bValues.push(lastB); gap.push(lastA - lastB);
   }
   return { times, a: aValues, b: bValues, gap, final: gap[gap.length - 1], max: Math.max(...gap), min: Math.min(...gap) };
+}
+
+/**
+ * 交易结果「未成交原因」表的展示整理（旧运行已存结果的兜底，新运行的结果本身已是中文且「原因代码」在最后）：
+ * 说明列等于原因码时用码表翻译；仍然相同（新出现的码）就隐藏重复的说明列；旧版把原因码放在最前面时挪到最后并改名「原因代码」。
+ */
+export function normalizeDropReasons(section: TableSection): TableSection {
+  if (section.id !== "drop_reasons") return section;
+  const reasonIndex = section.columns.findIndex((column) => column.key === "reason");
+  const descriptionIndex = section.columns.findIndex((column) => column.key === "description");
+  if (reasonIndex < 0 || descriptionIndex < 0) return section;
+  const rows = section.rows.map((row) => {
+    const reason = String(row.reason ?? "");
+    const description = row.description;
+    const label = DROP_REASON_LABELS[reason];
+    return label && (description === undefined || description === null || String(description) === reason) ? { ...row, description: label } : row;
+  });
+  const redundant = rows.every((row) => String(row.description ?? "") === String(row.reason ?? ""));
+  let columns = section.columns.map((column) => column.key === "reason" && column.label === "原因" ? { ...column, label: "原因代码" } : column.key === "description" && column.label === "说明" ? { ...column, label: "未成交原因" } : column);
+  if (redundant) columns = columns.filter((column) => column.key !== "description");
+  else if (reasonIndex < descriptionIndex) {
+    const reason = columns.find((column) => column.key === "reason");
+    columns = [...columns.filter((column) => column.key !== "reason"), ...(reason ? [reason] : [])];
+  }
+  return { ...section, rows, columns };
 }

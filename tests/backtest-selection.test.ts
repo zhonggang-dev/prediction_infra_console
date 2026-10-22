@@ -10,6 +10,7 @@ import { initialParamValues, isVisible, paramsPayload, parseNumberList, validate
 import { validateIdentity } from "../app/lib/backtest-submit.ts";
 import { alignPnlSeries, badgeTone, defaultSelection, formatCell, matchesFilters, matchesWhen, nextSort, pinColumns, pushClicked, rankNumbers, searchRows, sortRows, sortValue, toCsv } from "../app/lib/backtest-table.ts";
 import { compareResults, diffFlat, diffRuns, flatten } from "../app/lib/backtest-compare.ts";
+import { fingerprintForm, fingerprintRowLabel, orderedInputs, shortVersion } from "../app/lib/backtest-inputs.ts";
 
 const dir = new URL("./fixtures/backtest/", import.meta.url);
 const fixture = (name: string) => JSON.parse(readFileSync(new URL(name, dir), "utf8"));
@@ -127,12 +128,13 @@ test("Domain 校验：All 与具体域互斥、空选、排除全部（Trading /
 
 test("策略 validated_domains 收窄；无交集的策略不能运行（R:1381）", () => {
   const mult = strategies.filter((s) => s.validatedDomains);
+  assert.equal(mult.length, 3);
   const plan = strategyDomainPlan(mult, { mode: "include", values: [ALL_DOMAINS] });
   assert.equal(plan.empty.length, 0);
   assert.deepEqual(plan.narrowed[0].domains, ["World", "Geopolitics"]);
   const crypto = strategyDomainPlan(mult, { mode: "include", values: ["Crypto"] });
-  assert.equal(crypto.empty.length, 2);
-  const mixed = strategyDomainPlan(mult, { mode: "include", values: ["World", "Crypto"] });
+  assert.equal(crypto.empty.length, 3, "两个 W/G 旧策略 + 只在 Politics / Sports 成交的逐时点策略（definition.domains）");
+  const mixed = strategyDomainPlan(mult.filter((s) => !s.stepwise), { mode: "include", values: ["World", "Crypto"] });
   assert.deepEqual(mixed.narrowed[0].domains, ["World"]);
   assert.equal(strategies.find((s) => s.key === "price_v4")?.priceOnly, true, "纯价格策略不读模型");
   assert.equal(strategyDomainPlan(strategies.filter((s) => !s.validatedDomains), { mode: "include", values: ["Crypto"] }).empty.length, 0);
@@ -142,14 +144,19 @@ test("策略 validated_domains 收窄；无交集的策略不能运行（R:1381�
 
 const engine = decodeEngine(items("catalog-engines.json")[0]);
 
-test("参数默认值来自引擎定义；点号展开为嵌套；infra 不支持条件显示，所有定义的参数都提交", () => {
+test("参数默认值来自引擎定义；点号展开为嵌套；引擎定义本身没有条件显示，未经展示规则处理时所有定义的参数都提交", () => {
   const defs = engine.paramDefinitions["trading/strategy_comparison"];
   const values = initialParamValues(defs);
   assert.equal(values["position_sizing.mode"], "native");
   assert.equal(isVisible(defs.find((d) => d.name === "position_sizing.shares")!, values), true, "infra 的参数定义没有 when，登记里不会出现条件显示");
-  assert.deepEqual(paramsPayload(defs, values), { scope: "strict", position_sizing: { mode: "native", shares: 1, stake: 10 }, bankroll: { mode: "unlimited", amount: 3000 }, price_dataset: "telonex" });
+  const all = paramsPayload(defs, values);
+  assert.deepEqual(all.position_sizing, { mode: "native", shares: 1, stake: 10 });
+  assert.deepEqual(all.bankroll, { mode: "unlimited", amount: 3000 });
+  assert.equal(all.scope, "strict");
+  assert.equal((all.stepwise as Record<string, unknown>).strategy_params, "{}");
   const finite = { ...values, "bankroll.mode": "finite", "bankroll.amount": "5000", "position_sizing.mode": "fixed_shares", "position_sizing.shares": "2.5" };
-  assert.deepEqual(paramsPayload(defs, finite), { scope: "strict", position_sizing: { mode: "fixed_shares", shares: 2.5, stake: 10 }, bankroll: { mode: "finite", amount: 5000 }, price_dataset: "telonex" });
+  assert.deepEqual(paramsPayload(defs, finite).bankroll, { mode: "finite", amount: 5000 });
+  assert.deepEqual(paramsPayload(defs, finite).position_sizing, { mode: "fixed_shares", shares: 2.5, stake: 10 });
 });
 
 test("预留的 when 扩展仍然生效（infra 目前不会下发，但解码器与表单保持兼容）", () => {
@@ -168,9 +175,10 @@ test("参数校验：整数范围、τ 开区间、桶边界（中文逗号 / �
   assert.match(validateParams(x, { x_days: "abc" }).x_days, /数字/);
   const tau = engine.paramDefinitions["benchmark/deviation"];
   assert.deepEqual(validateParams(tau, { tau: "0.1" }), {});
-  // infra 的 min / max 是闭区间，τ 的开区间由执行器校验后回显；前端只拦闭区间之外
-  assert.match(validateParams(tau, { tau: "-0.1" }).tau, /不小于 0/);
-  assert.match(validateParams(tau, { tau: "1.5" }).tau, /不大于 1/);
+  // 执行器把 τ 的开区间 (0, 1) 写成 min 1e-6、max 0.999999 的闭区间下发
+  assert.match(validateParams(tau, { tau: "-0.1" }).tau, /不小于 0\.000001/);
+  assert.match(validateParams(tau, { tau: "1.5" }).tau, /不大于 0\.999999/);
+  assert.deepEqual(validateParams(tau, { tau: "0.5" }), {});
   const buckets = engine.paramDefinitions["benchmark/calibration"];
   assert.deepEqual(parseNumberList("0，0.5、1"), [0, 0.5, 1]);
   assert.deepEqual(validateParams(buckets, { bucket_edges: "0，0.5，1" }), {});
@@ -179,10 +187,10 @@ test("参数校验：整数范围、τ 开区间、桶边界（中文逗号 / �
   assert.match(validateParams(buckets, { bucket_edges: "a, b" }).bucket_edges, /数字/);
   assert.deepEqual(paramsPayload(buckets, { bucket_edges: "0, 0.5, 1" }), { bucket_edges: [0, 0.5, 1] });
   const signal = engine.paramDefinitions["benchmark/model_signal"];
-  assert.deepEqual(paramsPayload(signal, initialParamValues(signal)), { sample_scope: "full", horizon_hours: 24 }, "带 choices 的整数参数提交数字，不是字符串");
-  assert.match(validateParams(signal, { sample_scope: "zzz", horizon_hours: "24" }).sample_scope, /不在可选范围/);
-  assert.match(validateParams(signal, { sample_scope: "full", horizon_hours: "25" }).horizon_hours, /不在可选范围/);
-  assert.deepEqual(validateParams(signal, { sample_scope: "full", horizon_hours: "168" }), {});
+  assert.deepEqual(paramsPayload(signal, initialParamValues(signal)), { sample_scope: "full", horizon_h: 24 }, "带 choices 的整数参数提交数字，不是字符串");
+  assert.match(validateParams(signal, { sample_scope: "zzz", horizon_h: "24" }).sample_scope, /不在可选范围/);
+  assert.match(validateParams(signal, { sample_scope: "full", horizon_h: "25" }).horizon_h, /不在可选范围/);
+  assert.deepEqual(validateParams(signal, { sample_scope: "full", horizon_h: "168" }), {});
 });
 
 test("提交标识快检：model_id 规则（不含 _pred、__、@）", () => {
@@ -330,6 +338,48 @@ test("两次运行对比：配置差异忽略 run_id 等易变字段，输入指
   assert.equal(diff.sameConfigSha, false);
   assert.deepEqual(diffFlat(flatten({ a: [1, 2] }), flatten({ a: [1] })), [{ path: "a[1]", a: "2", b: "（无）" }]);
   assert.equal(diffRuns(a, a).config.length, 0);
+});
+
+test("两次运行对比 · 同为新形态：逐项对比输入版本与域映射切片，配置里的空 data_generation 显示为（空）", () => {
+  const a = decodeRun(fixture("run-btr-20261021-inputs001.json").data);
+  const b = decodeRun(fixture("run-btr-20261021-inputs002.json").data);
+  const diff = diffRuns(a, b);
+  assert.equal(diff.fingerprintFormMismatch, false);
+  assert.deepEqual(diff.fingerprints.map((d) => d.path), ["backtest/market_data/settlement.parquet", "inputs.domain_slice", "inputs.settlement"]);
+  assert.deepEqual(diff.config.map((d) => d.path), ["inputs.settlement", "objects.models[0].domain_slice"]);
+  assert.equal(diff.sameConfigSha, false);
+  assert.equal(flatten({ data_generation: "" }).get("data_generation"), "（空）");
+  assert.equal(diffRuns(a, a).fingerprints.length, 0);
+});
+
+test("两次运行对比 · 新旧形态混比：提示形态不同，只比对 files", () => {
+  const old = decodeRun(fixture("run-btr-20261019-brier001.json").data);
+  const fresh = decodeRun(fixture("run-btr-20261021-inputs001.json").data);
+  const diff = diffRuns(old, fresh);
+  assert.equal(diff.fingerprintFormMismatch, true);
+  assert.ok(diff.fingerprints.length > 0);
+  assert.ok(diff.fingerprints.every((d) => !d.path.startsWith("inputs.") && d.path !== "data_generation"), "形态不同时不列 inputs / data_generation 行");
+  assert.ok(diff.fingerprints.some((d) => d.path === "anchors（沙盒锚点）"), "files 仍逐项比对");
+  // 一边没有输入记录（旧平台导入）不算形态不一致
+  const legacy = decodeRun(fixture("run-btr-legacy-factor-v7-01.json").data);
+  assert.equal(diffRuns(legacy, fresh).fingerprintFormMismatch, false);
+});
+
+test("输入版本展示辅助：固定顺序、中文名、短版本、对比行名", () => {
+  const rows = orderedInputs({ zzz_new: "1", domain_slice: "d", settlement: "s", orderbook: "o", anchors: "a" });
+  assert.deepEqual(rows.map((r) => r.name), ["settlement", "anchors", "orderbook", "domain_slice", "zzz_new"]);
+  assert.deepEqual(rows.map((r) => r.label), ["结算表", "锚点", "盘口", "域映射切片", "zzz_new"]);
+  assert.equal(shortVersion("sha256:b1e2000000000000000000000000000000000000000000000000000000009c"), "b1e200000000…");
+  assert.equal(shortVersion("abc"), "abc");
+  assert.equal(shortVersion("release:20260913-v0uepugf:8f3a"), "release:2026…");
+  assert.equal(fingerprintRowLabel("inputs.tag_slice"), "输入版本 · 标签切片");
+  assert.equal(fingerprintRowLabel("inputs.future_thing"), "输入版本 · future_thing");
+  assert.match(fingerprintRowLabel("data_generation"), /数据目录版本/);
+  assert.equal(fingerprintRowLabel("backtest/market_data/settlement.parquet"), "backtest/market_data/settlement.parquet");
+  assert.equal(fingerprintForm(undefined), "unknown");
+  assert.equal(fingerprintForm({ files: {} }), "unknown");
+  assert.equal(fingerprintForm({ dataGeneration: "dg-1", files: {} }), "generation");
+  assert.equal(fingerprintForm({ inputs: { settlement: "x" }, files: {} }), "inputs");
 });
 
 test("两次运行指标并排：同一对象同一数值列，给出差值", () => {

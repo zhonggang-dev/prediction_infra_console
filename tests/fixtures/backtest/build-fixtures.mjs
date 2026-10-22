@@ -1,7 +1,7 @@
 // 回测平台前端的 mock fixtures 生成器：`node tests/fixtures/backtest/build-fixtures.mjs`
 // 结构严格按契约（父任务 design.md 第 3-8 节、执行器 design.md 第 5 节）；数值是确定性伪随机，只用于界面与解码测试，
 // 不代表任何真实回测结果。前端对契约的可选扩展见任务目录 decisions.md。
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { deflateSync } from "node:zlib";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -24,18 +24,9 @@ const datasets = [
 ];
 save("catalog-datasets.json", page(datasets));
 
-// 参数定义严格按 infra 的登记规则（internal/service/backtest/platform/params.go）：只有
-// name/type/label/help/default/choices(标量)/min/max/precision/item_type/min_items/max_items/max_length 这些字段，
-// 没有 default 即必填；枚举的 choices 是字符串，数值参数的 choices 是数字（type 用 integer / number）。
-const paramsTrading = [
-  { name: "scope", type: "enum", label: "回测口径", default: "strict", choices: ["strict", "own"], help: "strict：所有模型在沙盒题目的逐题交集上比较；own：每个模型用自己的全部题目。" },
-  { name: "position_sizing.mode", type: "enum", label: "Position sizing", default: "native", choices: ["native", "fixed_shares", "fixed_stake"], help: "native：策略自带仓位；fixed_shares 用下面的 Shares；fixed_stake 用下面的 Stake。" },
-  { name: "position_sizing.shares", type: "number", label: "Shares（仅 fixed_shares 生效）", default: 1, min: 0.01, precision: 6 },
-  { name: "position_sizing.stake", type: "number", label: "Stake ($)（仅 fixed_stake 生效）", default: 10, min: 0.01, precision: 6 },
-  { name: "bankroll.mode", type: "enum", label: "Bankroll mode", default: "unlimited", choices: ["finite", "unlimited"] },
-  { name: "bankroll.amount", type: "number", label: "Bankroll ($)（仅 finite 生效）", default: 3000, min: 0.01, precision: 6, help: "Finite 模式下现金不足时按剩余现金部分成交。" },
-  { name: "price_dataset", type: "enum", label: "数据集（盘口）", default: "telonex", choices: ["telonex", "mjj_tmp"] },
-];
+// 参数定义不手写：来自执行器 `pmbt dump-param-defs` 的导出（engine-param-definitions.json，与 inventory 登记的
+// metadata.param_definitions 同形）。执行器改了参数定义，就重新导出这个文件再运行本脚本。
+const paramDefinitions = JSON.parse(readFileSync(join(out, "engine-param-definitions.json"), "utf8")).param_definitions;
 const NOT_BRIER = "Market 自己的概率就是中价，Brier 对它没有可比意义（配对差恒为 0）。";
 const engine = {
   kind: "engine", key: "pm-engine", version: "pm-engine-20261019-3b7dbbede090", origin: "platform", status: "available",
@@ -43,29 +34,34 @@ const engine = {
     protocol: "pearson-dmid-v8", released_at: "2026-10-19T10:00:00+08:00", is_default: true,
     signal_window: { start: "2026-08-06T00:00:00+08:00", end_exclusive: "2026-09-05T00:00:00+08:00" },
     market_view_exclusions: { "benchmark/resolved_event_brier": NOT_BRIER, "benchmark/fixed_horizon_brier": NOT_BRIER, "benchmark/calibration": NOT_BRIER, "benchmark/model_signal": "Market 没有 edge（模型概率 − 中价恒为 0）。", "benchmark/deviation": "偏离校准只评模型相对市场中价的偏离。" },
-    param_definitions: {
-      "trading/strategy_comparison": paramsTrading,
-      "benchmark/model_signal": [
-        { name: "sample_scope", type: "enum", label: "样本口径", default: "full", choices: ["full", "common"], help: "full：各模型自身全量；common：共同样本（公平比较）。" },
-        { name: "horizon_hours", type: "integer", label: "排名 horizon（小时，事先声明，不要看完结果再换）", default: 24, choices: [1, 12, 24, 48, 96, 168] },
-      ],
-      "benchmark/fixed_horizon_brier": [{ name: "x_days", type: "integer", label: "打分时点：结算前 x 天", default: 7, min: 3, max: 14 }],
-      "benchmark/calibration": [{ name: "bucket_edges", type: "list", item_type: "number", label: "概率桶边界", default: [0, 0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9, 1], min: 0, max: 1, min_items: 3, max_items: 51, precision: 6, help: "逗号分隔，必须覆盖 0 → 1（口径规则由 infra / 执行器校验）。" }],
-      "benchmark/deviation": [{ name: "tau", type: "number", label: "偏离阈值 τ（0 < τ < 1）", default: 0.1, min: 0, max: 1, precision: 6, help: "只给 |模型概率 − 市场中价| 超过 τ 的格子打分；τ 必须严格介于 0 与 1 之间（由执行器校验）。" }],
-      "signal/factor_batch": [{ name: "include_domain_breakdown", type: "bool", label: "输出分 Domain 诊断", default: true }, { name: "validation_start", type: "text", label: "对照期起点（UTC，可空）", default: "", max_length: 40 }],
-    },
+    param_definitions: paramDefinitions,
   },
 };
 save("catalog-engines.json", page([engine]));
 
-const strategies = [
-  ["baseline", "Baseline", "baseline", null, "Baseline V3：按预测与盘口价差入场。"],
-  ["baseline_v1_1", "Baseline v1.1", "baseline", null, "共同 3h 网格上的方向交易。"],
-  ["baseline_v2", "Baseline v2", "baseline", null, "加入现金约束的 Baseline。"],
-  ["wgeo_mult_factor_v1", "MultFactor v1 · W/G only", "wgeo_mult_factor", ["World", "Geopolitics"], "只在 World / Geopolitics 成交。"],
-  ["wgeo_mult_factor_v2", "MultFactor v2 · W/G only", "wgeo_mult_factor", ["World", "Geopolitics"], "读取小时线因子。"],
-  ["price_v4", "Price V4（纯价格）", "price_probability", null, "不读模型预测，只看盘口价。"],
-].map(([key, label, kind, validated, description]) => ({ kind: "strategy", key, version: "legacy", origin: "legacy", status: "available", metadata: { label, description, definition: { kind, validated_domains: validated }, price_only: kind === "price_probability", reads_hourly_factors: key === "wgeo_mult_factor_v2", requires_execution_cache: kind !== "price_probability" } }));
+// 旧策略：描述与名字相同（执行器 inventory 把 label 写进 description）
+const legacyStrategies = [
+  ["baseline", "Baseline", "baseline", null],
+  ["baseline_v1_1", "Baseline V1.1", "baseline", null],
+  ["baseline_v2", "Baseline V2", "baseline", null],
+  ["wgeo_mult_factor_v1", "MultFactor v1 · W/G only", "wgeo_mult_factor", ["World", "Geopolitics"]],
+  ["wgeo_mult_factor_v2", "MultFactor v2 · W/G only", "wgeo_mult_factor", ["World", "Geopolitics"]],
+  ["price_v4", "Price V4（纯价格）", "price_probability", null],
+].map(([key, label, kind, validated]) => ({ kind: "strategy", key, version: "legacy", origin: "legacy", status: "available", metadata: { label, description: label, definition: { kind, validated_domains: validated }, price_only: kind === "price_probability", reads_hourly_factors: key === "wgeo_mult_factor_v2", requires_execution_cache: kind !== "price_probability" } }));
+
+// 逐时点策略（平台提交）：metadata 形状按执行器 stepwise/intake.py（definition 与 metadata 里各有一份 params / inputs / position_sizing）
+const edgeThreshold = { name: "edge_threshold", type: "number", default: 0.1, min: 0, max: 1, label: "入场边际阈值", help: "预测与盘口价差超过它才入场。" };
+const stepwise = (key, version, label, { predictions, sizing, domains = null, params = [], interval = "1h", seconds = 3600 }) => {
+  const submissionId = `bts-20261021-${key.slice(0, 8).padEnd(8, "x")}`;
+  const definition = { kind: "stepwise", api_version: 1, label, strategy_id: key, version, entry: `${key}.main:Strategy`, decision_trigger: "grid", decision_interval: interval, decision_interval_seconds: seconds, inputs: { predictions }, position_sizing: sizing, domains, params, uses_models: predictions !== "none", submission_id: submissionId, package_sha256: "f".repeat(64) };
+  return { kind: "strategy", key, version, origin: "platform", status: "available", submission_id: submissionId, metadata: { definition, label, submission_id: submissionId, sha256: "f".repeat(64), decision_interval: interval, position_sizing: sizing, params, inputs: { predictions }, example_steps: 3 } };
+};
+const stepwiseStrategies = [
+  stepwise("baseline_v3_stepwise", "1.0.0", "Baseline V3（逐时点包装）", { predictions: "required", sizing: ["native", "fixed_shares", "fixed_stake"] }),
+  stepwise("edge_filter_stepwise", "0.2.0", "边际过滤（逐时点）", { predictions: "optional", sizing: ["native", "fixed_stake"], interval: "30m", seconds: 1800, params: [edgeThreshold, { name: "hold_hours", type: "integer", default: 6, min: 1, max: 48, label: "最长持有（小时）", help: "" }, { name: "use_depth", type: "bool", default: true, label: "考虑盘口深度", help: "" }, { name: "side_mode", type: "enum", default: "both", choices: ["both", "yes_only"], label: "方向", help: "" }] }),
+  stepwise("mid_reversion_stepwise", "0.1.0", "中价回归（逐时点，不读模型）", { predictions: "none", sizing: ["native"], domains: ["Politics", "Sports"], params: [edgeThreshold, { name: "window_steps", type: "integer", default: 12, min: 2, max: 96, label: "回看步数", help: "" }] }),
+];
+const strategies = [...legacyStrategies, ...stepwiseStrategies];
 save("catalog-strategies.json", page(strategies));
 
 // 40 个模型：覆盖「选很多模型时每个 chip 都可见」的场景
@@ -90,10 +86,16 @@ for (let i = 1; i <= 20; i += 1) add(`team_${String(i).padStart(2, "0")}`, "telo
 add("team_01", "telonex", "2026-08-07T21:16:28+08:00", "2026-08-28T00:00:00+08:00", ["sandbox"], {}, "v2/p21");
 save("catalog-models.json", page(modelDefs));
 
-const factorDefs = [
-  ["rev_momentum_3h", "REV 动量 3h", "pool", -1], ["near_logdiff", "近端对数差", "pool", 1], ["book_slope_hourly", "盘口斜率（小时）", "pool", 1], ["hourly_talib_rsi", "TA-Lib RSI（小时）", "pool", -1], ["spread_pct", "买卖价差占比", "pool", -1], ["depth_imbalance", "深度失衡", "pool", 1],
+// 旧平台因子：版本 legacy/legacy、label 多数等于 key、迁移导入没有操作人（pool_changed_by 为空）；平台提交的因子版本是「表/数据版本」
+const legacyFactors = [
+  ["rev_momentum_3h", "REV 动量 3h", "pool", -1, "momentum"], ["near_logdiff", "近端对数差", "pool", 1, "orderbook"], ["book_slope_hourly", "盘口斜率（小时）", "pool", 1, "orderbook"], ["hourly_talib_rsi", "TA-Lib RSI（小时）", "pool", -1, "talib"], ["spread_pct", "spread_pct", "pool", -1, "orderbook"], ["depth_imbalance", "depth_imbalance", "pool", 1, "orderbook"],
+].map(([key, label, state, direction, group]) => ({ kind: "factor", key, version: "legacy/legacy", origin: "legacy", status: "available", pool_state: state, pool_changed_at: "2026-10-12T08:30:00Z", metadata: { label, group, direction, description: `${label}：旧平台登记的因子。`, available: true, coverage: { start: "2026-08-06T00:00:00+08:00", end: "2026-09-04T23:00:00+08:00" }, latest_run_id: key === "rev_momentum_3h" ? "btr-20261019-sig00001" : undefined } }));
+// 批量生成的旧因子：让因子库超过一页（每页 50）
+const bulkFactors = Array.from({ length: 118 }, (_, i) => { const key = `hourly_feature_${String(i + 1).padStart(3, "0")}`; return { kind: "factor", key, version: "legacy/legacy", origin: "legacy", status: "available", pool_state: "experiment", pool_changed_at: "2026-10-12T08:30:00Z", metadata: { label: key, group: ["talib", "momentum", "orderbook", "volume"][i % 4], direction: i % 3 === 0 ? -1 : 1, available: true, coverage: { start: "2026-08-06T00:00:00+08:00", end: "2026-09-04T23:00:00+08:00" } } }; });
+const platformFactors = [
   ["vol_burst", "成交突增", "experiment", 1], ["resid_edge", "残差 edge", "experiment", 1], ["late_trade_ratio", "尾盘成交占比", "experiment", -1],
-].map(([key, label, state, direction], i) => ({ kind: "factor", key, version: i < 6 ? "legacy/pool-v1" : "research_0919/20260919-a", origin: i < 6 ? "legacy" : "platform", status: "available", pool_state: state, pool_changed_by: i < 6 ? "migration" : "console", pool_changed_at: "2026-10-12T08:30:00Z", metadata: { label, direction, description: `${label}：研究侧登记的因子。`, available: key !== "late_trade_ratio", unavailable_reason: key === "late_trade_ratio" ? "telonex 小时线因子目录缺少该因子" : undefined, coverage: { start: "2026-08-06T00:00:00+08:00", end: "2026-09-04T23:00:00+08:00" }, latest_run_id: i === 0 ? "btr-20261019-sig00001" : undefined } }));
+].map(([key, label, state, direction]) => ({ kind: "factor", key, version: "research_0919/20260919-a", origin: "platform", status: "available", pool_state: state, pool_changed_by: "console:alice", pool_changed_at: "2026-10-14T03:00:00Z", metadata: { label, direction, description: `${label}：研究侧提交的因子。`, available: key !== "late_trade_ratio", unavailable_reason: key === "late_trade_ratio" ? "telonex 小时线因子目录缺少该因子" : undefined, coverage: { start: "2026-08-06T00:00:00+08:00", end: "2026-09-04T23:00:00+08:00" } } }));
+const factorDefs = [...legacyFactors, ...platformFactors, ...bulkFactors];
 save("catalog-factors.json", page(factorDefs));
 
 // ───────────────────────── result.json ─────────────────────────
@@ -121,7 +123,9 @@ function tradingResult() {
     const pnl = round(180 - g * 55 + rand() * 20, 2); const peak = round(900 + g * 80, 2);
     return { strategy: group.split(" × ")[0], model: group.split(" × ")[1], selected: 940 - g * 30, trades: 612 - g * 40, pnl, writeoff: { text: `$${(12.4 + g).toFixed(2)} (占|总PnL| ${(6.9 + g).toFixed(1)}%)`, sort: 12.4 + g }, peak_cash: peak, return_pct: round(pnl / peak * 100, 2), mdd: round(-48 - g * 6, 2), mdd_pct: round(-5.3 - g * 0.4, 2), sharpe: [round(0.4 + g * 0.1, 2), round(2.4 - g * 0.2, 2), round(1.4 - g * 0.15, 2)], ir: { lower: round(-0.3, 2), upper: round(2.1, 2), value: round(0.9 - g * 0.1, 2) }, win_rate: round(58.2 - g * 1.5, 1) };
   });
-  const drop = ["no_buy_quote", "thin_book", "cash_short"];
+  // 旧运行已存的结果：旧引擎原因码有中文说明；逐时点账户的原因码（below_one_share、no_liquidity）说明列就是原因码本身
+  const drop = ["no_buy_quote", "thin_book", "cash_short", "below_one_share", "no_liquidity"];
+  const dropExplain = ["吸收档无买价", "盘口过薄无法成交", "现金不足", "below_one_share", "no_liquidity"];
   const entryCombos = groups.slice(0, 2);
   const bars = [];
   for (const combo of entryCombos) for (const dir of ["all", "yes", "no"]) for (let b = 0; b < 20; b += 1) {
@@ -133,14 +137,33 @@ function tradingResult() {
     warnings: [{ level: "warning", text: "MultFactor v2 读取小时线因子：本数据集的小时线来自 orderbook 重建，口径与 official 不同。" }],
     sections: [
       { id: "pnl_curves", type: "series", x: "time", x_label: "时间", y_label: "累计 PnL ($)", y_format: "money", reference_lines: [{ axis: "y", value: 0 }], series },
-      { id: "final_pnl", type: "bars", digits: 2, bars: rows.map((r) => ({ label: `${r.strategy} × ${r.model}`, value: r.pnl })), caption: "期末 PnL 横条排名（MTM 口径）。" },
+      { id: "final_pnl", type: "bars", digits: 2, bars: rows.map((r) => ({ label: `${r.strategy} × ${r.model}`, value: r.pnl })), caption: "期末 PnL 横条排名（**MTM** 口径），`$` 为美元。" },
       { id: "metrics_main", type: "table", columns: metricsCols, rows, default_sort: { key: "pnl", direction: "desc" }, notes: ["候选 = 进入策略漏斗前的 selected 数；回报% = 总PnL ÷ 峰值资本；MDD% = MDD ÷ 峰值资本。", "归0 接近或超过 100% 说明总PnL 的符号由数据缺口决定。"] },
       { id: "metrics_detail", type: "table", title: "辅表 · 现金约束", columns: [{ key: "strategy", label: "策略", kind: "text" }, { key: "cash_constraint", label: "cash_constraint", kind: "text" }, { key: "cash_skipped", label: "cash_skipped_trades", kind: "number", digits: 0 }, { key: "open", label: "open_positions", kind: "number", digits: 0 }], rows: rows.map((r, i) => ({ strategy: r.strategy, cash_constraint: "unlimited", cash_skipped: i * 3, open: 14 - i })) },
-      { id: "drop_reasons", type: "table", columns: [{ key: "strategy", label: "策略", kind: "text" }, { key: "model", label: "模型", kind: "text" }, { key: "reason", label: "原因", kind: "text" }, { key: "explain", label: "说明", kind: "text" }, { key: "count", label: "笔数", kind: "number", digits: 0 }, { key: "share", label: "占 selected", kind: "percent", digits: 1 }], rows: rows.flatMap((r, i) => drop.map((d, j) => ({ strategy: r.strategy, model: r.model, reason: d, explain: ["吸收档无买价", "盘口过薄无法成交", "现金不足"][j], count: 40 - i * 5 - j * 11, share: round((40 - i * 5 - j * 11) / (940 - i * 30) * 100, 1) }))), default_sort: { key: "count", direction: "desc" } },
+      { id: "drop_reasons", type: "table", columns: [{ key: "strategy", label: "策略", kind: "text" }, { key: "model", label: "模型", kind: "text" }, { key: "reason", label: "原因", kind: "text" }, { key: "description", label: "说明", kind: "text" }, { key: "count", label: "笔数", kind: "number", digits: 0 }, { key: "share", label: "占 selected", kind: "percent", digits: 1 }], rows: rows.flatMap((r, i) => drop.map((d, j) => ({ strategy: r.strategy, model: r.model, reason: d, description: dropExplain[j], count: 40 - i * 5 - j * 7, share: round((40 - i * 5 - j * 7) / (940 - i * 30) * 100, 1) }))), default_sort: { key: "count", direction: "desc" }, caption: "candidates = 窗口与 domain 内的概率条数；selected = 过门后的候选笔数；trades = 成交。" },
       { id: "entry_prices", type: "bars", orientation: "vertical", digits: 0, filters: [{ key: "entry_combo", label: "strategy × model", options: entryCombos, default: entryCombos[0] }, { key: "direction", label: "方向", options: [{ value: "all", label: "YES + NO" }, { value: "yes", label: "仅 YES" }, { value: "no", label: "仅 NO" }], default: "all" }], bars, reference_lines: [{ value: 0.42, label: "均值" }, { value: 0.39, label: "中位数" }], caption: "bin 0.05；均值与中位数以竖线标出。" },
-      { id: "manifests", type: "text", format: "json", text: JSON.stringify({ strategy: "baseline", engine: engine.version, args: ["--scope", "strict", "--position-sizing", "native"] }) },
+      { id: "manifests", type: "text", format: "json", title: "manifest · 载体配置", text: JSON.stringify({ strategy: "baseline", engine: engine.version, args: ["--scope", "strict", "--position-sizing", "native"] }) },
     ],
     artifacts: [{ name: "metrics.csv", path: "metrics.csv", bytes: 2287 }, { name: "pnl_comparison_mtm.png", path: "pnl_comparison_mtm.png", bytes: 88123 }],
+  };
+}
+
+/** 新版执行器（中文标题行、原因码在最后一列、账户规则只在口径卡片里出现一次）产出的逐时点策略结果，只有一条曲线。 */
+function stepwiseTradingResult() {
+  const group = "Baseline V3（逐时点包装） × pswarm_v2";
+  const mtm = walk(120, 0.35, 5);
+  const rule = "逐时点账户规则：盘口深度 15 档 · 整股成交 · 费率 0 · 现金不足时部分成交 · 报价容忍 10 分钟 · 快照最长陈旧 20 分钟 · 补齐盘口缺口 · 先卖后买 · 区间结束按中价估值（默认值待研究侧确认）";
+  const pnl = round(mtm[mtm.length - 1][1], 2);
+  return {
+    ...base("trading", "strategy_comparison", "Baseline V3（逐时点包装） · 全部 Domain · 策略自带仓位 · 无限资金 · pswarm_v2 · 2026-08-07 21:16 → 2026-08-31 21:00（UTC+08:00）", scope({ sample_scope: "own", sample_counts: { 策略数: 1, 模型数: 1, 账户规则: rule } })),
+    sections: [
+      { id: "pnl_curves", type: "series", x: "time", x_label: "时间", y_label: "累计 PnL ($)", y_format: "money", reference_lines: [{ axis: "y", value: 0 }], series: [{ name: `${group} · MTM`, group, variant: "mtm", points: mtm }, { name: `${group} · Realised`, group, variant: "realised", points: mtm.map(([t, v]) => [t, round(v * 0.8, 2)]) }] },
+      { id: "final_pnl", type: "bars", digits: 2, bars: [{ label: group, value: pnl }], caption: "期末 PnL 横条排名（MTM 口径）。" },
+      { id: "metrics_main", type: "table", columns: [{ key: "strategy", label: "策略", kind: "text" }, { key: "model", label: "模型", kind: "text" }, { key: "trades", label: "成交", kind: "number", digits: 0 }, { key: "pnl", label: "总PnL", kind: "number", digits: 2, signed: true, prefix: "$" }], rows: [{ strategy: "Baseline V3（逐时点包装）", model: "pswarm_v2", trades: 412, pnl }] },
+      { id: "drop_reasons", type: "table", title: "未成交候选的原因明细", columns: [{ key: "strategy", label: "策略", kind: "text" }, { key: "model", label: "模型", kind: "text" }, { key: "description", label: "未成交原因", kind: "text" }, { key: "count", label: "笔数", kind: "number", digits: 0 }, { key: "share", label: "占入选候选", kind: "percent", digits: 2, fraction: true }, { key: "reason", label: "原因代码", kind: "text" }], rows: [{ strategy: "Baseline V3（逐时点包装）", model: "pswarm_v2", description: "按整股成交，目标不足一股", count: 31, share: 0.042, reason: "below_one_share" }, { strategy: "Baseline V3（逐时点包装）", model: "pswarm_v2", description: "对手盘一档有效报价都没有", count: 12, share: 0.016, reason: "no_liquidity" }], default_sort: { key: "count", direction: "desc" }, caption: "候选（candidates）= 窗口与 Domain 内的概率条数；入选（selected）= 过门后的候选笔数；**成交**（trades）= 真正成交的笔数。" },
+      { id: "manifests", type: "text", format: "json", title: "运行清单（原始 JSON）", text: JSON.stringify({ strategy: "baseline_v3_stepwise", engine: engine.version }) },
+    ],
+    artifacts: [{ name: "metrics.csv", path: "metrics.csv", bytes: 1187 }],
   };
 }
 
@@ -306,7 +329,8 @@ function allSections() {
   };
 }
 
-const results = { trading: tradingResult(), overview: overviewResult(), brier: brierResult(), calibration: calibrationResult(), signal: signalResult(), batch: batchResult(), correlation: correlationResult() };
+// stepwise 放在最后：它会消耗伪随机数，放前面会让其它 fixture 的数值整体变化
+const results = { trading: tradingResult(), overview: overviewResult(), brier: brierResult(), calibration: calibrationResult(), signal: signalResult(), batch: batchResult(), correlation: correlationResult(), stepwise: stepwiseTradingResult() };
 save("result-all-sections.json", allSections());
 
 // ───────────────────────── 运行 ─────────────────────────
@@ -343,6 +367,50 @@ const runs = {
   "btr-20261019-batch001": done("btr-20261019-batch001", "signal", "factor_batch", results.batch, "Signal / 批量因子表"),
   "btr-legacy-factor-v7-01": done("btr-legacy-factor-v7-01", "signal", "factor_batch", { ...results.batch, headline: "旧平台批量因子评估 · factor_evaluation_v7（历史）", scope_card: { ...results.batch.scope_card, protocol: "pearson-dmid-v7" } }, "Signal / 批量因子（旧平台导入）", { origin: "legacy", rerunnable: false, requested_by: "legacy-import", reproduce: null, input_fingerprints: null }),
 };
+// 逐时点策略的运行（新版结果）与不同发起人的运行
+runs["btr-20261021-stepw001"] = done("btr-20261021-stepw001", "trading", "strategy_comparison", results.stepwise, "Trading / 逐时点策略", {
+  requested_by: "console:alice", created_at: "2026-10-21T09:30:00Z",
+  config: configOf("btr-20261021-stepw001", "trading", "strategy_comparison", { requested_by: "console:alice", objects: { models: [{ key: "pswarm_v2", version: "legacy/legacy", model_name: "pswarm_v2" }], strategies: [{ key: "baseline_v3_stepwise", version: "1.0.0", definition: stepwiseStrategies[0].metadata.definition }], factors: [] }, params: { scope: "strict", stepwise: { strategy_params: "{}" } } }),
+});
+// 新形态运行（引擎支持显式输入）：配置里 data_generation 为空串，写 inputs 与每个模型的 domain_slice；输入指纹是 inputs + files，没有 data_generation。
+// 两条新形态运行只在结算表版本与 pswarm_v2 的域映射切片上不同，用来演示同形态对比；与 brier001（旧形态）对比则演示形态不一致。
+const inputVersions = (extra = {}) => ({
+  settlement: "b1e2000000000000000000000000000000000000000000000000000000009c", anchors: "5d7a3c00000000000000000000000000000000000000000000000000000041",
+  orderbook: "release:20260913-v0uepugf:8f3a1c00000000000000000000000000000000000000000000000000000012", factors: "files:214:6b9e2d00000000000000000000000000000000000000000000000000000077",
+  hourly_bars: "c40d8800000000000000000000000000000000000000000000000000000019", tag_slice: "e19b5400000000000000000000000000000000000000000000000000000026", ...extra,
+});
+const newFormConfig = (id, extra = {}, slice = "a7c3e1000000000000000000000000000000000000000000000000000000f5", versions = inputVersions()) => configOf(id, "benchmark", "resolved_event_brier", {
+  data_generation: "", inputs: versions,
+  objects: { models: [{ key: "pswarm_v2", version: "legacy/legacy", model_name: "pswarm_v2", sha256: "9f2c0000000000000000000000000000000000000000000000000000000000e1", domain_slice: slice }], strategies: [], factors: [] }, ...extra,
+});
+const newFormFingerprints = (versions, extra = {}) => ({
+  inputs: { ...versions, domain_slice: "a7c3e1000000000000000000000000000000000000000000000000000000f5" },
+  files: { "backtest/market_data/settlement.parquet": `sha256:${versions.settlement}`, "anchors（沙盒锚点）": `sha256:${versions.anchors}`, "backtest/market_data/orderbook（盘口）": versions.orderbook, "backtest/model_pred/pswarm_v2_pred.parquet": "sha256:9f2c0000000000000000000000000000000000000000000000000000000000e1", ...extra },
+});
+const newFormRun = (id, versions, slice, over = {}) => done(id, "benchmark", "resolved_event_brier", results.brier, "Benchmark / 已结算市场 Brier（输入版本）", {
+  requested_by: "console:alice", created_at: "2026-10-21T10:00:00Z", config: newFormConfig(id, {}, slice, versions),
+  input_fingerprints: { ...newFormFingerprints(versions), inputs: { ...newFormFingerprints(versions).inputs, domain_slice: slice } }, ...over,
+});
+const versionsA = inputVersions();
+const versionsB = inputVersions({ settlement: "ffff000000000000000000000000000000000000000000000000000000000001" });
+runs["btr-20261021-inputs001"] = newFormRun("btr-20261021-inputs001", versionsA, "a7c3e1000000000000000000000000000000000000000000000000000000f5");
+runs["btr-20261021-inputs002"] = newFormRun("btr-20261021-inputs002", versionsB, "3d90b2000000000000000000000000000000000000000000000000000000c8", { created_at: "2026-10-21T11:00:00Z", config: newFormConfig("btr-20261021-inputs002", {}, "3d90b2000000000000000000000000000000000000000000000000000000c8", versionsB) });
+runs["btr-20261019-batch001"].requested_by = "research";
+runs["btr-20261019-ovrvw001"].requested_by = "console:accept";
+runs["btr-legacy-factor-v7-01"].requested_by = "legacy-import";
+runs["btr-20261019-corr0001"].requested_by = "trainer";
+
+// 提交校验运行（board=intake）：运行配置里带 submission（提交编号 / 类型 / 标识）；同一份提交重复提交会有两条校验运行
+const intake = (id, item, submissionId, kind, identity, status, createdAt, by) => run(id, "intake", item, status, {
+  requested_by: by, created_at: createdAt, batch_id: null, started_at: createdAt, finished_at: status === "queued" || status === "running" ? null : createdAt,
+  config: { ...configOf(id, "intake", item), batch_id: null, window: null, domains: null, dataset: "", params: {}, objects: { models: [], strategies: [], factors: [] }, submission: { submission_id: submissionId, kind, identity, sha256: "a".repeat(64), bytes: 48123456, content_type: "application/octet-stream" }, requested_by: by },
+});
+runs["btr-20261019-intake001"] = intake("btr-20261019-intake001", "prediction", "bts-20261019-val00001", "prediction", { model_id: "team_03", train_version: "v2", prediction_version: "p3" }, "running", "2026-10-19T15:00:00Z", "trainer");
+runs["btr-20261019-intake002"] = intake("btr-20261019-intake002", "factor_table", "bts-20261019-ok000001", "factor_table", { table: "research_0919", version: "20260919-a" }, "succeeded", "2026-10-19T14:20:00Z", "research");
+runs["btr-20261019-intake003"] = intake("btr-20261019-intake003", "factor_table", "bts-20261019-ok000001", "factor_table", { table: "research_0919", version: "20260919-a" }, "succeeded", "2026-10-19T13:50:00Z", "research");
+runs["btr-20261019-intake004"] = intake("btr-20261019-intake004", "factor_table", "bts-20261019-bad00001", "factor_table", { table: "research_0919", version: "20260919-b" }, "failed", "2026-10-19T13:00:00Z", "research");
+runs["btr-20261021-intake005"] = intake("btr-20261021-intake005", "strategy", "bts-20261021-baseline_", "strategy", { id: "baseline_v3_stepwise", version: "1.0.0" }, "succeeded", "2026-10-21T08:00:00Z", "console:alice");
+
 for (const [id, value] of Object.entries(runs)) save(`run-${id}.json`, { data: value });
 const summary = (r) => { const { result, reproduce, input_fingerprints, ...rest } = r; void result; void reproduce; void input_fingerprints; return rest; };
 save("runs-list.json", page(Object.values(runs).map(summary), { limit: 20 }));
@@ -354,6 +422,7 @@ const submissions = {
   "bts-20261019-val00001": { submission_id: "bts-20261019-val00001", kind: "prediction", identity: { model_id: "team_03", train_version: "v2", prediction_version: "p3" }, identity_key: "team_03/v2/p3", status: "validating", sha256: "a".repeat(64), bytes: 48123456, content_type: "application/vnd.apache.parquet", errors: [], intake_run_id: "btr-20261019-queue001", submitted_by: "console:console", created_at: "2026-10-19T14:20:00Z" },
   "bts-20261019-ok000001": { submission_id: "bts-20261019-ok000001", kind: "factor_table", identity: { table: "research_0919", version: "20260919-a" }, identity_key: "research_0919/20260919-a", status: "accepted", sha256: "b".repeat(64), bytes: 9123456, content_type: "application/vnd.apache.parquet", errors: [], submitted_by: "console:console", created_at: "2026-10-19T13:00:00Z", decided_at: "2026-10-19T13:02:00Z", intake_run_id: "btr-20261019-brier001" },
   "bts-20261019-bad00001": { submission_id: "bts-20261019-bad00001", kind: "factor_table", identity: { table: "research_0919", version: "20260919-b" }, identity_key: "research_0919/20260919-b", status: "rejected", sha256: "c".repeat(64), bytes: 7123456, content_type: "application/vnd.apache.parquet", errors: [{ path: "vol_burst", code: "missing_values", message: "value 列有 12% 空值" }, { path: "resid_edge", code: "ts_timezone", message: "ts 必须带时区" }], submitted_by: "console:console", created_at: "2026-10-19T12:00:00Z", decided_at: "2026-10-19T12:01:00Z" },
+  "bts-20261021-baseline_": { submission_id: "bts-20261021-baseline_", kind: "strategy", identity: { id: "baseline_v3_stepwise", version: "1.0.0" }, identity_key: "baseline_v3_stepwise/1.0.0", status: "accepted", sha256: "f".repeat(64), bytes: 183422, content_type: "application/gzip", errors: [], intake_run_id: "btr-20261021-intake005", submitted_by: "console:alice", created_at: "2026-10-21T08:00:00Z", decided_at: "2026-10-21T08:01:10Z" },
 };
 for (const [id, value] of Object.entries(submissions)) save(`submission-${id}.json`, { data: value });
 

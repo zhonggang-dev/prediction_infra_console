@@ -1,6 +1,7 @@
 /** 回测平台的中文名称对照：板块、项目、运行状态。 */
 
-import type { RunStatus } from "./backtest-platform.ts";
+import { record, text, type BacktestRun, type RunStatus } from "./backtest-platform.ts";
+import { displayBeijing } from "./backtest-selection.ts";
 
 export const BOARD_LABELS: Record<string, string> = { trading: "Trading PnL", benchmark: "Benchmark", signal: "Signal Test", intake: "提交校验", admin: "平台管理" };
 
@@ -34,3 +35,79 @@ export const STATUS_CLASS: Record<RunStatus, string> = { queued: "pending", runn
 
 /** 板块 → 工作区 Tab 路径，用于「返回」链接。 */
 export const BOARD_TAB: Record<string, string> = { trading: "/backtest-platform/trading", benchmark: "/backtest-platform/benchmark", signal: "/backtest-platform/signal", intake: "/backtest-platform/submissions", admin: "/backtest-platform/runs" };
+
+/** 发起人：内部标识 → 可读名称。未知的原样显示，不猜。 */
+export function requesterLabel(requestedBy: string | undefined): string {
+  if (!requestedBy) return "未知";
+  if (requestedBy === "research") return "研究侧接口";
+  if (requestedBy === "trainer") return "训练侧接口";
+  if (requestedBy === "legacy-import") return "旧平台导入";
+  if (requestedBy.startsWith("console:")) {
+    const operator = requestedBy.slice("console:".length);
+    if (operator === "accept" || operator === "e2e") return "测试（控制台）";
+    return !operator || operator === "console" ? "控制台" : `控制台（${operator}）`;
+  }
+  return requestedBy;
+}
+
+export const SUBMISSION_KIND_LABELS: Record<string, string> = { prediction: "预测表", factor_table: "因子表", strategy: "策略" };
+
+const preview = (names: string[], limit = 3) => names.length <= limit ? names.join("、") : `${names.slice(0, limit).join("、")} 等 ${names.length} 个`;
+
+/** 运行记录的副行：所选对象与窗口（来自列表里带回的运行配置）；配置缺失时返回 undefined。 */
+export function runSummary(run: Pick<BacktestRun, "config">): string | undefined {
+  const config = run.config;
+  if (!config) return undefined;
+  const submission = record(config.submission);
+  if (Object.keys(submission).length > 0) {
+    const kind = SUBMISSION_KIND_LABELS[text(submission.kind) ?? ""] ?? text(submission.kind) ?? "提交";
+    const identity = Object.values(record(submission.identity)).map(String).join(" / ");
+    return identity ? `${kind} ${identity}` : kind;
+  }
+  const objects = record(config.objects);
+  const names = (value: unknown, pick: (entry: Record<string, unknown>) => string | undefined) => (Array.isArray(value) ? value : []).map((entry) => pick(record(entry))).filter((name): name is string => !!name);
+  const strategies = names(objects.strategies, (e) => text(e.key));
+  const models = names(objects.models, (e) => text(e.model_name) ?? text(e.key));
+  const factors = names(objects.factors, (e) => text(e.key));
+  const parts = [strategies.length ? `策略 ${preview(strategies)}` : "", models.length ? `模型 ${preview(models)}` : "", factors.length ? `因子 ${preview(factors)}` : ""].filter(Boolean);
+  const window = record(config.window);
+  const start = text(window.start); const end = text(window.end_exclusive ?? window.end);
+  if (start && end) parts.push(`${displayBeijing(start).slice(0, 10)} → ${displayBeijing(end).slice(0, 10)}`);
+  return parts.length ? parts.join(" · ") : undefined;
+}
+
+/** 样本口径（口径卡片）→ 中文；认不出的原样显示。 */
+export const SAMPLE_SCOPE_LABELS: Record<string, string> = {
+  strict: "严格交集", own: "各模型自有全集", mixed: "混合（旧策略严格交集，逐时点策略自有全集）",
+  full: "各模型自身全量", common: "共同样本", common_3h_grid: "共同三小时网格", pooled: "合并样本",
+};
+export const sampleScopeLabel = (value: string): string => SAMPLE_SCOPE_LABELS[value] ?? value;
+
+/**
+ * 未成交原因码 → 中文。新运行的结果里执行器已经翻译好；这张表只给旧运行（已存结果里「说明」列就是原因码）兜底，
+ * 内容与执行器 `pmbt/stepwise/reasons.py` 的 REASON_LABELS 一致。
+ */
+export const DROP_REASON_LABELS: Record<string, string> = {
+  no_quote: "决策时点往前报价容忍内没有盘口快照", stale_book: "盘口快照的真实采集时间太旧", thin_book: "盘口深度不够，只成交了可见的部分",
+  no_liquidity: "对手盘一档有效报价都没有", below_one_share: "按整股成交，目标不足一股", insufficient_cash: "现金不足",
+  invalid_order: "订单不合规（缺 mode、方向不对、数量不合法……）", domain_not_allowed: "市场不在本次运行的 Domain / 数据范围内", market_closed: "市场已关闭",
+  duplicate_order: "同一时点对同一 (市场, 方向) 重复下单", exceeds_position: "要卖的股数超过持仓（或没有持仓）", already_at_target: "已在目标仓位，无需成交",
+};
+
+/** 旧结果的标题文案 → 新文案（只改展示）。 */
+export const TITLE_REWRITES: Record<string, string> = { "manifest · 载体配置": "运行清单（原始 JSON）" };
+
+const HEADLINE_TOKENS: Array<[RegExp, string]> = [
+  [/^All domains$/, "全部 Domain"], [/^native sizing$/, "策略自带仓位"], [/^fixed shares\b/, "固定股数"], [/^fixed stake\b/, "固定金额"],
+  [/^unlimited$/, "无限资金"], [/^bankroll \$/, "有限资金 $"], [/^(\d+) models$/, "$1 个模型"],
+];
+const HEADLINE_TIME = /(\d{4}-\d{2}-\d{2})[T ](\d{2}:\d{2})(?::\d{2}(?:\.\d+)?)?(Z|[+-]\d{2}:\d{2})?/g;
+
+/** 旧运行的标题行兜底：常见英文词换成中文，时间去掉秒与纳秒尾巴。新运行的标题行执行器已处理，原样通过。 */
+export function prettyHeadline(headline: string): string {
+  const segments = headline.split(" · ").map((segment) => {
+    for (const [pattern, replacement] of HEADLINE_TOKENS) if (pattern.test(segment)) return segment.replace(pattern, replacement);
+    return segment;
+  });
+  return segments.join(" · ").replace(HEADLINE_TIME, (_, date: string, time: string, zone?: string) => `${date} ${time}${zone ? (zone === "Z" ? "（UTC）" : zone) : ""}`);
+}

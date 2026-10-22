@@ -9,7 +9,7 @@
         "status": "available",
         "metadata": {
           "label": "Baseline",
-          "description": "Baseline V3：按预测与盘口价差入场。",
+          "description": "Baseline",
           "definition": {
             "kind": "baseline",
             "validated_domains": null
@@ -26,8 +26,8 @@
         "origin": "legacy",
         "status": "available",
         "metadata": {
-          "label": "Baseline v1.1",
-          "description": "共同 3h 网格上的方向交易。",
+          "label": "Baseline V1.1",
+          "description": "Baseline V1.1",
           "definition": {
             "kind": "baseline",
             "validated_domains": null
@@ -44,8 +44,8 @@
         "origin": "legacy",
         "status": "available",
         "metadata": {
-          "label": "Baseline v2",
-          "description": "加入现金约束的 Baseline。",
+          "label": "Baseline V2",
+          "description": "Baseline V2",
           "definition": {
             "kind": "baseline",
             "validated_domains": null
@@ -63,7 +63,7 @@
         "status": "available",
         "metadata": {
           "label": "MultFactor v1 · W/G only",
-          "description": "只在 World / Geopolitics 成交。",
+          "description": "MultFactor v1 · W/G only",
           "definition": {
             "kind": "wgeo_mult_factor",
             "validated_domains": [
@@ -84,7 +84,7 @@
         "status": "available",
         "metadata": {
           "label": "MultFactor v2 · W/G only",
-          "description": "读取小时线因子。",
+          "description": "MultFactor v2 · W/G only",
           "definition": {
             "kind": "wgeo_mult_factor",
             "validated_domains": [
@@ -105,7 +105,7 @@
         "status": "available",
         "metadata": {
           "label": "Price V4（纯价格）",
-          "description": "不读模型预测，只看盘口价。",
+          "description": "Price V4（纯价格）",
           "definition": {
             "kind": "price_probability",
             "validated_domains": null
@@ -113,6 +113,259 @@
           "price_only": true,
           "reads_hourly_factors": false,
           "requires_execution_cache": false
+        }
+      },
+      {
+        "kind": "strategy",
+        "key": "baseline_v3_stepwise",
+        "version": "1.0.0",
+        "origin": "platform",
+        "status": "available",
+        "submission_id": "bts-20261021-baseline",
+        "metadata": {
+          "definition": {
+            "kind": "stepwise",
+            "api_version": 1,
+            "label": "Baseline V3（逐时点包装）",
+            "strategy_id": "baseline_v3_stepwise",
+            "version": "1.0.0",
+            "entry": "baseline_v3_stepwise.main:Strategy",
+            "decision_trigger": "grid",
+            "decision_interval": "1h",
+            "decision_interval_seconds": 3600,
+            "inputs": {
+              "predictions": "required"
+            },
+            "position_sizing": [
+              "native",
+              "fixed_shares",
+              "fixed_stake"
+            ],
+            "domains": null,
+            "params": [],
+            "uses_models": true,
+            "submission_id": "bts-20261021-baseline",
+            "package_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          "label": "Baseline V3（逐时点包装）",
+          "submission_id": "bts-20261021-baseline",
+          "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "decision_interval": "1h",
+          "position_sizing": [
+            "native",
+            "fixed_shares",
+            "fixed_stake"
+          ],
+          "params": [],
+          "inputs": {
+            "predictions": "required"
+          },
+          "example_steps": 3
+        }
+      },
+      {
+        "kind": "strategy",
+        "key": "edge_filter_stepwise",
+        "version": "0.2.0",
+        "origin": "platform",
+        "status": "available",
+        "submission_id": "bts-20261021-edge_fil",
+        "metadata": {
+          "definition": {
+            "kind": "stepwise",
+            "api_version": 1,
+            "label": "边际过滤（逐时点）",
+            "strategy_id": "edge_filter_stepwise",
+            "version": "0.2.0",
+            "entry": "edge_filter_stepwise.main:Strategy",
+            "decision_trigger": "grid",
+            "decision_interval": "30m",
+            "decision_interval_seconds": 1800,
+            "inputs": {
+              "predictions": "optional"
+            },
+            "position_sizing": [
+              "native",
+              "fixed_stake"
+            ],
+            "domains": null,
+            "params": [
+              {
+                "name": "edge_threshold",
+                "type": "number",
+                "default": 0.1,
+                "min": 0,
+                "max": 1,
+                "label": "入场边际阈值",
+                "help": "预测与盘口价差超过它才入场。"
+              },
+              {
+                "name": "hold_hours",
+                "type": "integer",
+                "default": 6,
+                "min": 1,
+                "max": 48,
+                "label": "最长持有（小时）",
+                "help": ""
+              },
+              {
+                "name": "use_depth",
+                "type": "bool",
+                "default": true,
+                "label": "考虑盘口深度",
+                "help": ""
+              },
+              {
+                "name": "side_mode",
+                "type": "enum",
+                "default": "both",
+                "choices": [
+                  "both",
+                  "yes_only"
+                ],
+                "label": "方向",
+                "help": ""
+              }
+            ],
+            "uses_models": true,
+            "submission_id": "bts-20261021-edge_fil",
+            "package_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          "label": "边际过滤（逐时点）",
+          "submission_id": "bts-20261021-edge_fil",
+          "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "decision_interval": "30m",
+          "position_sizing": [
+            "native",
+            "fixed_stake"
+          ],
+          "params": [
+            {
+              "name": "edge_threshold",
+              "type": "number",
+              "default": 0.1,
+              "min": 0,
+              "max": 1,
+              "label": "入场边际阈值",
+              "help": "预测与盘口价差超过它才入场。"
+            },
+            {
+              "name": "hold_hours",
+              "type": "integer",
+              "default": 6,
+              "min": 1,
+              "max": 48,
+              "label": "最长持有（小时）",
+              "help": ""
+            },
+            {
+              "name": "use_depth",
+              "type": "bool",
+              "default": true,
+              "label": "考虑盘口深度",
+              "help": ""
+            },
+            {
+              "name": "side_mode",
+              "type": "enum",
+              "default": "both",
+              "choices": [
+                "both",
+                "yes_only"
+              ],
+              "label": "方向",
+              "help": ""
+            }
+          ],
+          "inputs": {
+            "predictions": "optional"
+          },
+          "example_steps": 3
+        }
+      },
+      {
+        "kind": "strategy",
+        "key": "mid_reversion_stepwise",
+        "version": "0.1.0",
+        "origin": "platform",
+        "status": "available",
+        "submission_id": "bts-20261021-mid_reve",
+        "metadata": {
+          "definition": {
+            "kind": "stepwise",
+            "api_version": 1,
+            "label": "中价回归（逐时点，不读模型）",
+            "strategy_id": "mid_reversion_stepwise",
+            "version": "0.1.0",
+            "entry": "mid_reversion_stepwise.main:Strategy",
+            "decision_trigger": "grid",
+            "decision_interval": "1h",
+            "decision_interval_seconds": 3600,
+            "inputs": {
+              "predictions": "none"
+            },
+            "position_sizing": [
+              "native"
+            ],
+            "domains": [
+              "Politics",
+              "Sports"
+            ],
+            "params": [
+              {
+                "name": "edge_threshold",
+                "type": "number",
+                "default": 0.1,
+                "min": 0,
+                "max": 1,
+                "label": "入场边际阈值",
+                "help": "预测与盘口价差超过它才入场。"
+              },
+              {
+                "name": "window_steps",
+                "type": "integer",
+                "default": 12,
+                "min": 2,
+                "max": 96,
+                "label": "回看步数",
+                "help": ""
+              }
+            ],
+            "uses_models": false,
+            "submission_id": "bts-20261021-mid_reve",
+            "package_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          "label": "中价回归（逐时点，不读模型）",
+          "submission_id": "bts-20261021-mid_reve",
+          "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "decision_interval": "1h",
+          "position_sizing": [
+            "native"
+          ],
+          "params": [
+            {
+              "name": "edge_threshold",
+              "type": "number",
+              "default": 0.1,
+              "min": 0,
+              "max": 1,
+              "label": "入场边际阈值",
+              "help": "预测与盘口价差超过它才入场。"
+            },
+            {
+              "name": "window_steps",
+              "type": "integer",
+              "default": 12,
+              "min": 2,
+              "max": 96,
+              "label": "回看步数",
+              "help": ""
+            }
+          ],
+          "inputs": {
+            "predictions": "none"
+          },
+          "example_steps": 3
         }
       }
     ],

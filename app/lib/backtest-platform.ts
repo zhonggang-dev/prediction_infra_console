@@ -79,6 +79,11 @@ export interface ParamDef {
   step?: number;
   presets?: Array<{ label: string; value: unknown }>;
   when?: Record<string, unknown>;
+  /**
+   * 前端本地的显示条件（`backtest-param-ui.ts` 按名字写入，不来自 infra）：
+   * stepwise = 只在选中了逐时点策略时显示；models = 只在需要模型的表单里显示。
+   */
+  requires?: "stepwise" | "models";
 }
 
 export interface EngineInfo {
@@ -416,6 +421,12 @@ function decodePoint(value: unknown, xKind: string, id: string): SeriesPoint {
 // ───────────────────────── 运行 ─────────────────────────
 
 export interface RunProgress { done: number; total: number }
+/**
+ * 输入指纹有两种形态：旧形态只有 `data_generation`（整个数据目录的总摘要）+ `files`；
+ * 新形态（引擎支持显式输入）有 `inputs`（输入名 → 版本串）+ `files`，没有 `data_generation`。
+ * 解码时两个字段都可选，`files` 缺失按空处理。
+ */
+export interface InputFingerprints { dataGeneration?: string; inputs?: Record<string, string>; files: Record<string, string> }
 export interface BacktestRun {
   runId: string;
   batchId?: string;
@@ -436,7 +447,7 @@ export interface BacktestRun {
   config?: RawRecord;
   result?: BacktestResult;
   reproduce?: { text: string; fields: RawRecord };
-  inputFingerprints?: { dataGeneration?: string; files: Record<string, string> };
+  inputFingerprints?: InputFingerprints;
   restoredInputs: string[];
   error?: { code?: string; message: string; logTail?: string };
   hasArtifacts: boolean;
@@ -446,6 +457,11 @@ export interface BacktestRun {
   startedAt?: string;
   finishedAt?: string;
   reused: boolean;
+}
+
+function decodeFingerprints(raw: RawRecord): InputFingerprints {
+  const inputs = stringRecord(raw.inputs);
+  return { dataGeneration: text(raw.data_generation), inputs: Object.keys(inputs).length > 0 ? inputs : undefined, files: stringRecord(raw.files) };
 }
 
 const STATUSES: ReadonlySet<string> = new Set(["queued", "running", "succeeded", "failed", "cancelled"]);
@@ -479,7 +495,7 @@ export function decodeRun(value: unknown): BacktestRun {
     config,
     result: raw.result !== undefined && raw.result !== null ? decodeResult(raw.result) : undefined,
     reproduce: reproduce ? { text: requiredText(reproduce.text, "reproduce.text"), fields: record(reproduce.fields) } : undefined,
-    inputFingerprints: fingerprints ? { dataGeneration: text(fingerprints.data_generation), files: stringRecord(fingerprints.files) } : undefined,
+    inputFingerprints: fingerprints ? decodeFingerprints(fingerprints) : undefined,
     restoredInputs: Array.isArray(raw.restored_inputs) ? raw.restored_inputs.map((entry) => typeof entry === "string" ? entry : JSON.stringify(entry)) : [],
     error: error ? { code: text(error.code), message: text(error.message) ?? "运行失败", logTail: text(error.log_tail) } : undefined,
     // infra 只在运行已有产物包时给 artifacts_url（OSS key 不对外）

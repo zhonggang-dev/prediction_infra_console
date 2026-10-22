@@ -6,7 +6,7 @@ import {
   ALL_DOMAINS, applyCombo, beijingDate, buildWindow, coverageWarnings, datasetConflict, defaultDates, deriveCombos, domainState, keepSingleDataset, modelLabel, modelsCoveringWindow, shiftDate, strictModelIntersection,
   type DatasetInfo, type DateWindow, type DomainMode, type DomainSelection, type ModelInfo, type Window,
 } from "../../lib/backtest-selection";
-import { isVisible, type ParamValues } from "../../lib/backtest-params";
+import { isVisible, type ParamContext, type ParamValues } from "../../lib/backtest-params";
 import { V2Notice } from "../console-v2-resource";
 
 // ───────────────────────── 模型 + 窗口状态 ─────────────────────────
@@ -60,8 +60,8 @@ export function useModelWindow(pool: ModelInfo[], options: { autoPin?: boolean }
 
 // ───────────────────────── 模型选择器 ─────────────────────────
 
-export function ModelPicker({ pool, selected, onChange, datasets, label = "模型", disabled = false, disabledNote, exclusionReason, max }: {
-  pool: ModelInfo[]; selected: string[]; onChange: (keys: string[], preserveDates?: boolean) => void; datasets: DatasetInfo[]; label?: string; disabled?: boolean; disabledNote?: string; exclusionReason?: string; max?: number;
+export function ModelPicker({ pool, selected, onChange, datasets, label = "模型", disabled = false, disabledNote, exclusionReason, max, extra }: {
+  pool: ModelInfo[]; selected: string[]; onChange: (keys: string[], preserveDates?: boolean) => void; datasets: DatasetInfo[]; label?: string; disabled?: boolean; disabledNote?: string; exclusionReason?: string; max?: number; extra?: React.ReactNode;
 }) {
   const [query, setQuery] = useState("");
   const [message, setMessage] = useState<Notice>();
@@ -83,7 +83,8 @@ export function ModelPicker({ pool, selected, onChange, datasets, label = "模�
   if (disabled) return <fieldset className="bt-picker" disabled><legend>{label}</legend><p className="bt-muted">{disabledNote ?? "当前口径不需要选择模型。"}</p></fieldset>;
   return <fieldset className="bt-picker">
     <legend>{label}（括号内为预测可用区间，北京时间）</legend>
-    {exclusionReason && <p className="bt-note">本口径不提供 market_favorite*：{exclusionReason}</p>}
+    {exclusionReason && <p className="bt-note">本口径不提供 Market 基准行：{exclusionReason}</p>}
+    {extra}
     {groups.length > 0 && <div className="bt-combos" aria-label="按标签一键加入">
       {groups.map((dataset) => <div className="bt-combo-row" key={dataset.key}>
         <span className="bt-combo-label">{dataset.label}</span>
@@ -165,11 +166,14 @@ export function DomainPicker({ allDomains, value, onChange, allowExclude }: { al
 
 // ───────────────────────── 参数表单 ─────────────────────────
 
-export function ParamForm({ defs, values, errors, onChange, hide = [] }: { defs: ParamDef[]; values: ParamValues; errors: Record<string, string>; onChange: (name: string, value: string | boolean) => void; hide?: string[] }) {
-  const shown = defs.filter((def) => !hide.includes(def.name) && isVisible(def, values));
+/** `choiceDisabled(参数名, 选项值)` 返回原因文字时，该选项置灰（不可选）。 */
+export function ParamForm({ defs, values, errors, onChange, hide = [], context, choiceDisabled, idPrefix = "bt-param" }: {
+  idPrefix?: string; defs: ParamDef[]; values: ParamValues; errors: Record<string, string>; onChange: (name: string, value: string | boolean) => void; hide?: string[]; context?: ParamContext; choiceDisabled?: (name: string, value: string) => string | undefined;
+}) {
+  const shown = defs.filter((def) => !hide.includes(def.name) && isVisible(def, values, context));
   if (shown.length === 0) return null;
   return <div className="bt-param-grid">{shown.map((def) => {
-    const id = `bt-param-${def.name.replace(/[^A-Za-z0-9_-]/g, "-")}`;
+    const id = `${idPrefix}-${def.name.replace(/[^A-Za-z0-9_-]/g, "-")}`;
     const error = errors[def.name];
     const help = <>{def.help && <small className="bt-help">{def.help}</small>}{error && <small className="bt-error" role="alert">{def.label}{error}</small>}</>;
     if (def.type === "bool") return <div className="bt-param" key={def.name}><label className="bt-check" htmlFor={id}><input id={id} type="checkbox" checked={values[def.name] === true} onChange={(event) => onChange(def.name, event.target.checked)} /><span>{def.label}</span></label>{help}</div>;
@@ -177,8 +181,8 @@ export function ParamForm({ defs, values, errors, onChange, hide = [] }: { defs:
       const choices = def.choices ?? [];
       return <div className="bt-param" key={def.name}><span className="bt-param-label" id={`${id}-label`}>{def.label}</span>
         {choices.length <= 4
-          ? <div className="v2-local-tabs" role="radiogroup" aria-labelledby={`${id}-label`}>{choices.map((choice) => <button type="button" role="radio" aria-checked={String(values[def.name]) === String(choice.value)} key={String(choice.value)} className={String(values[def.name]) === String(choice.value) ? "active" : ""} onClick={() => onChange(def.name, String(choice.value))}>{choice.label}</button>)}</div>
-          : <select id={id} className="select" aria-labelledby={`${id}-label`} value={String(values[def.name] ?? "")} onChange={(event) => onChange(def.name, event.target.value)}>{choices.map((choice) => <option key={String(choice.value)} value={String(choice.value)}>{choice.label}</option>)}</select>}
+          ? <div className="v2-local-tabs" role="radiogroup" aria-labelledby={`${id}-label`}>{choices.map((choice) => { const blocked = choiceDisabled?.(def.name, String(choice.value)); return <button type="button" role="radio" aria-checked={String(values[def.name]) === String(choice.value)} key={String(choice.value)} className={String(values[def.name]) === String(choice.value) ? "active" : ""} disabled={blocked !== undefined} title={blocked} onClick={() => onChange(def.name, String(choice.value))}>{choice.label}</button>; })}</div>
+          : <select id={id} className="select" aria-labelledby={`${id}-label`} value={String(values[def.name] ?? "")} onChange={(event) => onChange(def.name, event.target.value)}>{choices.map((choice) => <option key={String(choice.value)} value={String(choice.value)} disabled={choiceDisabled?.(def.name, String(choice.value)) !== undefined}>{choice.label}</option>)}</select>}
         {help}</div>;
     }
     const numeric = def.type === "integer" || def.type === "number";

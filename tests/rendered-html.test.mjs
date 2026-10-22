@@ -227,3 +227,20 @@ test("数据集轮换 BFF 拒绝写请求", async () => {
   const response = await render("/api/console/dataset-rotation", { method: "POST" });
   assert.equal(response.status, 404);
 });
+
+test("回测平台旧平台外链是运行时配置：改地址、设为 off 都在请求时生效（不是构建时写死）", async () => {
+  const name = "BACKTEST_LEGACY_PLATFORM_URL";
+  const previous = process.env[name];
+  try {
+    process.env[name] = "https://legacy.example.test/pm/";
+    const custom = await (await render("/backtest-platform/trading")).text();
+    assert.match(custom, /href="https:\/\/legacy\.example\.test\/pm\/"[^>]*>打开旧平台 PM Backtest/);
+    assert.doesNotMatch(custom, /href="http:\/\/172\.21\.20\.221:8501\/"[^>]*>打开旧平台/);
+    process.env[name] = "off";
+    const off = await (await render("/backtest-platform/runs")).text();
+    assert.doesNotMatch(off, /打开旧平台 PM Backtest/);
+  } finally {
+    if (previous === undefined) delete process.env[name];
+    else process.env[name] = previous;
+  }
+});
