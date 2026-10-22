@@ -60,6 +60,7 @@ curl http://127.0.0.1:13001/
 | `BACKTEST_DATASET_TOKEN` | 独立的回测数据集读写令牌 |
 | `BACKTEST_PLATFORM_CONSOLE_TOKEN` | 回测平台（`/backtest-platform`）BFF 使用的 Console 角色令牌，只在服务端；与 infra 的同名配置一致 |
 | `BACKTEST_PLATFORM_OPERATOR` | 可选。BFF 通过 `X-Backtest-Operator` 头传给 infra 的操作人，缺省 `console`；V2 接入登录后改为用户名 |
+| `BACKTEST_LEGACY_PLATFORM_URL` | 可选。回测平台页头「打开旧平台 PM Backtest」外链：未设置沿用过渡期默认地址；设为空串或 `off` 不显示（旧平台下线后用）；其它值必须是 http(s) 地址。请求时读取，改了重启即生效 |
 | `TRADING_EXECUTION_BASE_URL` | Go 交易执行服务地址，例如 `https://execution.example.com` |
 | `TRADING_EXECUTION_API_TOKEN` | 仅读取交易执行服务 API 的 Bearer Token |
 | `TRADING_EXECUTION_LIVE_READ_ONLY_TOKEN` | 实盘与基础服务监控共用的只读 Token |

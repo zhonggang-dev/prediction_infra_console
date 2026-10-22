@@ -7,9 +7,10 @@ import {
   backtestApi, type BarsSection, type MetricsSection, type ResultFilter, type ResultSection, type SeriesSection, type TableSection, type TextSection,
 } from "../../lib/backtest-platform";
 import {
-  EMPTY, badgeTone, cellValue, downloadCsv, formatCell, formatNumber, matchesFilters, matchesWhen, nextSort, pinColumns, pushClicked, rankNumbers, searchRows, sortRows, toCsv,
+  EMPTY, badgeTone, cellValue, downloadCsv, formatCell, formatNumber, matchesFilters, matchesWhen, nextSort, normalizeDropReasons, pinColumns, pushClicked, rankNumbers, searchRows, sortRows, toCsv,
   type FilterSelection,
 } from "../../lib/backtest-table";
+import { TITLE_REWRITES } from "../../lib/backtest-labels";
 import { BarsChart, Heatmap, SeriesChart } from "./charts";
 
 // ───────────────────────── 筛选条 ─────────────────────────
@@ -96,13 +97,13 @@ export function SortableTable({ section, selection, csvName, onSortChange, label
       </tr>)}</tbody>
     </table></div>}
     {rows.length > limit && <div className="v2-pagination"><span>显示前 {limit} 行，共 {rows.length} 行</span><div><button type="button" className="button" onClick={() => setLimit(limit + ROW_PAGE)}>再显示 {ROW_PAGE} 行</button><button type="button" className="button" onClick={() => setLimit(rows.length)}>全部显示</button></div></div>}
-    {section.notes.map((note) => <p className="bt-note" key={note}>{note}</p>)}
+    {section.notes.map((note) => <p className="bt-note" key={note}>{inline(note)}</p>)}
   </div>;
 }
 
 // ───────────────────────── 文本（最小 markdown） ─────────────────────────
 
-function inline(source: string): React.ReactNode[] {
+export function inline(source: string): React.ReactNode[] {
   const parts: React.ReactNode[] = [];
   const pattern = /(\*\*[^*]+\*\*|`[^`]+`)/g;
   let last = 0; let match: RegExpExecArray | null; let key = 0;
@@ -171,7 +172,7 @@ export function TextView({ section }: { section: TextSection }) {
 /** 已知区块 id 的默认标题 / 默认折叠（区块自带的 title / collapsed 优先）。来源：执行器任务 design.md 第 5 节。 */
 export const SECTION_TITLES: Record<string, string> = {
   pnl_curves: "PnL 对比图", final_pnl: "期末 PnL 排名", metrics_main: "指标明细", metrics_detail: "辅表 · 口径、样本量和异常计数", drop_reasons: "未成交候选的原因明细",
-  entry_prices: "Entry price 分布", manifests: "manifest · 载体配置", manifest: "manifest · 载体配置", ranking: "排名图", metrics: "指标明细", brier_bars: "市场等权 Brier",
+  entry_prices: "Entry price 分布", manifests: "运行清单（原始 JSON）", manifest: "运行清单（原始 JSON）", ranking: "排名图", metrics: "指标明细", brier_bars: "市场等权 Brier",
   verdicts: "与 Market 比较的结论", metrics_raw: "原始指标列", scope_ranks: "两个口径的排名对比 · 全样本 vs 赔率 20%–80%", accuracy_bars: "方向正确率", pairwise: "两两模型比较（逐市场 Brier 差）",
   coverage_funnel: "样本漏斗", original_brier: "对拍：原有三小时网格口径", report: "引擎报告", curve: "校准曲线", summary: "汇总", buckets: "逐桶明细", bucket_markets: "桶内市场明细", vs_brier: "与 Brier 并排",
   not_leaderboard: "这不是排行榜", ratio_bars: "头条比值：market brier ÷ 模型 brier", headline: "头条", terrain: "地形指纹（横向比之前必读）", by_stratum: "按中价分层 / 按偏离方向", common_terrain: "统一地形对照",
@@ -181,13 +182,16 @@ export const SECTION_TITLES: Record<string, string> = {
 };
 const DEFAULT_COLLAPSED = new Set(["metrics_detail", "manifests", "manifest", "metrics_raw", "report", "definitions", "metric_correlation", "pearson", "pair_samples", "coverage_funnel", "pairwise", "by_stratum", "bucket_markets"]);
 
-export function sectionTitle(section: ResultSection): string | undefined { return section.title ?? SECTION_TITLES[section.id]; }
+export function sectionTitle(section: ResultSection): string | undefined {
+  const title = section.title ?? SECTION_TITLES[section.id];
+  return title === undefined ? undefined : TITLE_REWRITES[title] ?? title;
+}
 export function isCollapsed(section: ResultSection): boolean { return section.collapsed ?? DEFAULT_COLLAPSED.has(section.id); }
 
 export function SectionFrame({ section, children }: { section: ResultSection; children: React.ReactNode }) {
   const title = sectionTitle(section);
   const collapsed = isCollapsed(section);
-  const body = <>{section.caption && <p className="bt-caption">{section.caption}</p>}{children}</>;
+  const body = <>{section.caption && <p className="bt-caption">{inline(section.caption)}</p>}{children}</>;
   if (collapsed && title) return <details className="bt-section bt-details" id={`bt-section-${section.id}`}><summary>{title}</summary>{body}</details>;
   return <section className="bt-section" id={`bt-section-${section.id}`} aria-labelledby={title ? `bt-title-${section.id}` : undefined}>
     {title && <h3 className="bt-section-title" id={`bt-title-${section.id}`}>{title}</h3>}
@@ -198,7 +202,7 @@ export function SectionFrame({ section, children }: { section: ResultSection; ch
 export function SectionBody({ section, runId, selection, csvName, onSortChange }: { section: ResultSection; runId: string; selection: FilterSelection; csvName: string; onSortChange?: (key: string) => void }) {
   switch (section.type) {
     case "metrics": return <MetricsView section={section} />;
-    case "table": return <SortableTable section={section} selection={selection} csvName={csvName} onSortChange={onSortChange} label={sectionTitle(section) ?? section.id} />;
+    case "table": return <SortableTable section={normalizeDropReasons(section)} selection={selection} csvName={csvName} onSortChange={onSortChange} label={sectionTitle(section) ?? section.id} />;
     case "series": {
       const filtered: SeriesSection = { ...section, series: section.series.filter((line) => matchesFilters(line, selection)) };
       return <SeriesChart section={filtered} title={sectionTitle(section)} />;

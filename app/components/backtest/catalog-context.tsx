@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { decorateParamDefs } from "../../lib/backtest-param-ui";
 import { backtestApi, decodeEngine, type CatalogItem, type EngineInfo, type ParamDef } from "../../lib/backtest-platform";
 import { datasetInfo, modelInfo, strategyInfo, type DatasetInfo, type ModelInfo, type StrategyInfo } from "../../lib/backtest-selection";
 import { v2ErrorText } from "../console-v2-resource";
@@ -58,7 +59,7 @@ export function useCatalog() {
   return context;
 }
 
-/** 某个 board/item 的参数定义；引擎里没有登记则返回空数组（表单只显示对象选择部分）。 */
+/** 某个 board/item 的参数定义（已套用前端展示规则：条件显示、选项中文名）；引擎里没有登记则返回空数组（表单只显示对象选择部分）。 */
 export function paramDefsFor(engine: EngineInfo | undefined, board: string, item: string): ParamDef[] {
-  return engine?.paramDefinitions[`${board}/${item}`] ?? [];
+  return decorateParamDefs(`${board}/${item}`, engine?.paramDefinitions[`${board}/${item}`] ?? []);
 }

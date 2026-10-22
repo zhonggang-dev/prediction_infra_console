@@ -56,7 +56,7 @@
       "created_at": "2026-10-19T14:30:00+08:00"
     },
     "rerunnable": true,
-    "requested_by": "console:console",
+    "requested_by": "research",
     "created_at": "2026-10-19T14:30:00Z",
     "started_at": "2026-10-19T14:30:05Z",
     "finished_at": "2026-10-19T14:41:22Z",

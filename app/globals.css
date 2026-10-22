@@ -697,7 +697,16 @@ tbody tr:hover { background: #f7faf6; }
 .bt-option-head { display: block; }
 .bt-option em { color: var(--muted); font-style: normal; font-weight: 400; }
 .bt-option small { color: var(--muted); font-size: 10px; }
-.bt-strategy-options { max-height: 340px; }
+.bt-strategy-group { display: grid; gap: 6px; }
+.bt-group-title { margin: 0; color: var(--ink-soft); font-size: 11px; font-weight: 700; }
+/* 策略列表不设内部滚动框：多列网格，全部展开 */
+.bt-strategy-options { max-height: none; overflow: visible; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+.bt-strategy-options .bt-option { border-right: 1px solid #edf0eb; }
+.bt-locked-params { margin: 0; padding: 0; list-style: none; display: grid; gap: 4px; }
+.bt-locked-params li { display: grid; gap: 1px; padding: 6px 10px; border: 1px dashed var(--line); border-radius: 5px; color: var(--muted); font-size: 11px; }
+.bt-locked-params small { color: var(--muted); font-size: 10px; }
+.bt-option:has(input:disabled) { opacity: .55; cursor: not-allowed; }
+.v2-local-tabs button:disabled { opacity: .45; cursor: not-allowed; }
 .bt-chips { display: flex; flex-wrap: wrap; gap: 6px; }
 .bt-chip { max-width: 100%; display: inline-flex; align-items: center; gap: 6px; padding: 3px 4px 3px 9px; border: 1px solid #c8ddd0; border-radius: 12px; background: var(--mint-soft); color: #1f5f4e; font-size: 11px; }
 .bt-chip > span { overflow-wrap: anywhere; }
@@ -719,6 +728,9 @@ tbody tr:hover { background: #f7faf6; }
 .bt-details > :not(summary) { margin-top: 10px; }
 .bt-details-inline { margin-top: 12px; }
 .bt-details-inline > summary { cursor: pointer; color: var(--muted); font-size: 11px; }
+.bt-details-inline .section-head { margin: 10px 0 6px; }
+.bt-details-inline h4 { margin: 0; font-size: 12px; }
+.bt-details-inline > .bt-caption { margin: 8px 0; }
 .bt-scope { margin-top: 14px; display: grid; gap: 8px; }
 .bt-scope-facts { grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 8px; border: 0; background: transparent; overflow: visible; }
 .bt-scope-facts .v2-fact { border: 1px solid var(--line); border-radius: 5px; }

@@ -5,6 +5,7 @@
 
 import type { BacktestRun, RawRecord, TableSection } from "./backtest-platform.ts";
 import { cellValue, formatCell, sortValue } from "./backtest-table.ts";
+import { fingerprintForm } from "./backtest-inputs.ts";
 
 /** 每次运行必然不同、不应算作「配置差异」的字段（共用契约第 3 节的复用键排除项）。 */
 const VOLATILE_CONFIG_KEYS = new Set(["run_id", "batch_id", "parent_run_id", "requested_by", "created_at"]);
@@ -22,7 +23,7 @@ export function flatten(value: unknown, prefix = "", out: Map<string, string> = 
       if (prefix === "" && VOLATILE_CONFIG_KEYS.has(key)) continue;
       flatten(entry, prefix ? `${prefix}.${key}` : key, out);
     }
-  } else out.set(prefix, value === null || value === undefined ? "null" : String(value));
+  } else out.set(prefix, value === null || value === undefined ? "null" : value === "" ? "（空）" : String(value));
   return out;
 }
 
@@ -31,12 +32,25 @@ export function diffFlat(a: Map<string, string>, b: Map<string, string>): FieldD
   return paths.filter((path) => a.get(path) !== b.get(path)).map((path) => ({ path, a: a.get(path) ?? "（无）", b: b.get(path) ?? "（无）" }));
 }
 
-export interface RunDiff { config: FieldDiff[]; fingerprints: FieldDiff[]; sameConfigSha: boolean | undefined }
+export interface RunDiff {
+  config: FieldDiff[];
+  fingerprints: FieldDiff[];
+  sameConfigSha: boolean | undefined;
+  /** 两次运行的输入记录形态不同（一边是 inputs、一边是 data_generation）：此时只比对 files。 */
+  fingerprintFormMismatch: boolean;
+}
 
 export function diffRuns(a: BacktestRun, b: BacktestRun): RunDiff {
+  const formA = fingerprintForm(a.inputFingerprints);
+  const formB = fingerprintForm(b.inputFingerprints);
+  // 只有两边形态都认得、且不一样才算不一致；一边没有输入记录（旧平台导入等）按并集照常比
+  const mismatch = formA !== "unknown" && formB !== "unknown" && formA !== formB;
   const fingerprints = (run: BacktestRun) => {
     const map = new Map<string, string>();
-    if (run.inputFingerprints?.dataGeneration) map.set("data_generation", run.inputFingerprints.dataGeneration);
+    if (!mismatch) {
+      if (run.inputFingerprints?.dataGeneration) map.set("data_generation", run.inputFingerprints.dataGeneration);
+      for (const [name, version] of Object.entries(run.inputFingerprints?.inputs ?? {})) map.set(`inputs.${name}`, version);
+    }
     for (const [file, sha] of Object.entries(run.inputFingerprints?.files ?? {})) map.set(file, sha);
     return map;
   };
@@ -44,6 +58,7 @@ export function diffRuns(a: BacktestRun, b: BacktestRun): RunDiff {
     config: diffFlat(flatten(a.config ?? {}), flatten(b.config ?? {})),
     fingerprints: diffFlat(fingerprints(a), fingerprints(b)),
     sameConfigSha: a.configSha256 && b.configSha256 ? a.configSha256 === b.configSha256 : undefined,
+    fingerprintFormMismatch: mismatch,
   };
 }
 

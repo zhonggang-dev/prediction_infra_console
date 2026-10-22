@@ -89,7 +89,7 @@ function BenchmarkFormInner({ data }: { data: CatalogData }) {
   };
 
   return <form className="bt-form" onSubmit={(event) => { event.preventDefault(); if (blockers.length === 0) submit(); }}>
-    <p className="bt-caption">固定口径评测：不可配置策略、仓位与资金。按北京时间，结束日不含。</p>
+    <p className="bt-caption">不可配置策略、仓位与资金。按北京时间，结束日不含。</p>
     <fieldset className="bt-picker">
       <legend>Benchmark 目录</legend>
       <div className="v2-local-tabs" role="radiogroup" aria-label="Benchmark 族">

@@ -391,6 +391,23 @@ test("回测平台工作区：Tab ARIA、默认交易回测、只渲染当前面
   assert.match(html, /打开旧平台 PM Backtest/);
 });
 
+test("回测平台旧平台外链是运行时配置：改地址、设为 off 都在请求时生效（不是构建时写死）", async () => {
+  const name = "BACKTEST_LEGACY_PLATFORM_URL";
+  const previous = process.env[name];
+  try {
+    process.env[name] = "https://legacy.example.test/pm/";
+    const custom = await (await render("/backtest-platform/trading")).text();
+    assert.match(custom, /href="https:\/\/legacy\.example\.test\/pm\/"[^>]*>打开旧平台 PM Backtest/);
+    assert.doesNotMatch(custom, /href="http:\/\/172\.21\.20\.221:8501\/"[^>]*>打开旧平台/);
+    process.env[name] = "off";
+    const off = await (await render("/backtest-platform/runs")).text();
+    assert.doesNotMatch(off, /打开旧平台 PM Backtest/);
+  } finally {
+    if (previous === undefined) delete process.env[name];
+    else process.env[name] = previous;
+  }
+});
+
 test("回测平台直达各 Tab 选中对应视图", async () => {
   for (const [path, tab] of [["/backtest-platform/runs", "runs"], ["/backtest-platform/submissions", "submissions"], ["/backtest-platform/benchmark", "benchmark"], ["/backtest-platform/factors", "factors"], ["/backtest-platform/signal", "signal"], ["/backtest-platform/trading", "trading"]]) {
     const html = await (await render(path)).text();

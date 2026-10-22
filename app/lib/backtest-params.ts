@@ -7,6 +7,12 @@ import type { ParamDef } from "./backtest-platform.ts";
 
 export type ParamValues = Record<string, string | boolean>;
 
+/**
+ * 表单所处的上下文，决定带 `requires` 的参数是否显示（例如逐时点专用参数只在选中了逐时点策略时出现）。
+ * 隐藏的参数不校验、不提交：infra 会按引擎定义补默认值，所以提交的配置与「显示并保持默认值」等价。
+ */
+export type ParamContext = Partial<Record<NonNullable<ParamDef["requires"]>, boolean>>;
+
 export function initialParamValues(defs: ParamDef[]): ParamValues {
   const values: ParamValues = {};
   for (const def of defs) values[def.name] = stateFromValue(def, def.defaultValue);
@@ -20,7 +26,8 @@ function stateFromValue(def: ParamDef, value: unknown): string | boolean {
   return String(value);
 }
 
-export function isVisible(def: ParamDef, values: ParamValues): boolean {
+export function isVisible(def: ParamDef, values: ParamValues, context: ParamContext = {}): boolean {
+  if (def.requires && context[def.requires] !== true) return false;
   if (!def.when) return true;
   return Object.entries(def.when).every(([name, expected]) => Array.isArray(expected) ? expected.map(String).includes(String(values[name])) : String(values[name]) === String(expected));
 }
@@ -53,10 +60,10 @@ function choiceMatches(def: ParamDef, input: string): boolean {
 }
 
 /** 返回 name → 错误文案；没有错误返回空对象。只校验类型、范围、枚举、个数、长度；更细的口径规则由 infra 校验后回显。 */
-export function validateParams(defs: ParamDef[], values: ParamValues): Record<string, string> {
+export function validateParams(defs: ParamDef[], values: ParamValues, context: ParamContext = {}): Record<string, string> {
   const errors: Record<string, string> = {};
   for (const def of defs) {
-    if (!isVisible(def, values)) continue;
+    if (!isVisible(def, values, context)) continue;
     const raw = values[def.name];
     if (def.type === "bool") continue;
     const input = String(raw ?? "").trim();
@@ -115,10 +122,10 @@ function convert(def: ParamDef, raw: string | boolean | undefined): unknown {
 }
 
 /** 请求里的 `params`：只含当前可见的参数，点号展开为嵌套对象。 */
-export function paramsPayload(defs: ParamDef[], values: ParamValues): Record<string, unknown> {
+export function paramsPayload(defs: ParamDef[], values: ParamValues, context: ParamContext = {}): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const def of defs) {
-    if (!isVisible(def, values)) continue;
+    if (!isVisible(def, values, context)) continue;
     const value = convert(def, values[def.name]);
     if (value === undefined) continue;
     const path = def.name.split(".");
@@ -130,4 +137,24 @@ export function paramsPayload(defs: ParamDef[], values: ParamValues): Record<str
     cursor[path[path.length - 1]] = value;
   }
   return out;
+}
+
+/**
+ * 与默认值不同的参数（平名，不展开点号）。用于把一组参数写成「只含改动」的紧凑对象：
+ * 没有任何改动时是空对象，对应引擎默认值，配置摘要因此稳定。
+ */
+export function paramsDiff(defs: ParamDef[], values: ParamValues): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const def of defs) {
+    const value = convert(def, values[def.name]);
+    if (value === undefined) continue;
+    if (JSON.stringify(value) === JSON.stringify(def.defaultValue)) continue;
+    out[def.name] = value;
+  }
+  return out;
+}
+
+/** 键按字母序的 JSON，同一组改动永远得到同一个字符串（配置摘要要稳定）。 */
+export function stableJson(value: Record<string, unknown>): string {
+  return JSON.stringify(Object.fromEntries(Object.entries(value).sort(([a], [b]) => a < b ? -1 : a > b ? 1 : 0)));
 }

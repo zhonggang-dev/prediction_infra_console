@@ -1,0 +1,57 @@
+{
+  "data": {
+    "run_id": "btr-20261019-intake004",
+    "batch_id": null,
+    "parent_run_id": null,
+    "origin": "platform",
+    "board": "intake",
+    "item": "factor_table",
+    "status": "failed",
+    "lost": false,
+    "stage": null,
+    "stage_label": null,
+    "progress": null,
+    "log_tail": null,
+    "heartbeat_at": null,
+    "attempt": 1,
+    "cancel_requested": false,
+    "config_sha256": "ntake004a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4",
+    "config": {
+      "schema_version": "backtest.run_config.v1",
+      "run_id": "btr-20261019-intake004",
+      "batch_id": null,
+      "parent_run_id": null,
+      "board": "intake",
+      "item": "factor_table",
+      "engine": "pm-engine-20261019-3b7dbbede090",
+      "dataset": "",
+      "data_generation": "dg-1f3a9c20b7d44e10",
+      "window": null,
+      "domains": null,
+      "objects": {
+        "models": [],
+        "strategies": [],
+        "factors": []
+      },
+      "params": {},
+      "requested_by": "research",
+      "created_at": "2026-10-19T14:30:00+08:00",
+      "submission": {
+        "submission_id": "bts-20261019-bad00001",
+        "kind": "factor_table",
+        "identity": {
+          "table": "research_0919",
+          "version": "20260919-b"
+        },
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "bytes": 48123456,
+        "content_type": "application/octet-stream"
+      }
+    },
+    "rerunnable": true,
+    "requested_by": "research",
+    "created_at": "2026-10-19T13:00:00Z",
+    "started_at": "2026-10-19T13:00:00Z",
+    "finished_at": "2026-10-19T13:00:00Z"
+  }
+}

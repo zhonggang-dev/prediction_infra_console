@@ -1,29 +1,51 @@
 "use client";
 
-import { useCallback, useMemo, useState } from "react";
-import { factorGroupOf, type BacktestResult, type BacktestRun, type ResultSection, type SeriesSection } from "../../lib/backtest-platform";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { backtestApi, factorGroupOf, type BacktestResult, type BacktestRun, type ResultSection, type SeriesSection } from "../../lib/backtest-platform";
 import { alignPnlSeries, defaultSelection, matchesFilters, formatNumber, type FilterSelection } from "../../lib/backtest-table";
 import { displayBeijing } from "../../lib/backtest-selection";
+import { sampleScopeLabel } from "../../lib/backtest-labels";
 import { V2Notice } from "../console-v2-resource";
 import { SeriesChart } from "./charts";
-import { FilterBar, SectionBody, SectionFrame, sectionTitle, sectionVisible } from "./result-sections";
+import { FilterBar, SectionBody, SectionFrame, inline, sectionTitle, sectionVisible } from "./result-sections";
 
 // ───────────────────────── 口径卡片 ─────────────────────────
 
+let datasetLabelsPromise: Promise<Record<string, string>> | undefined;
+
+/** 数据集 key → 目录里的中文名。只取数据集这一类目录（不加载模型等大目录），失败时退回显示 key。 */
+function useDatasetLabels(): Record<string, string> {
+  const [labels, setLabels] = useState<Record<string, string>>({});
+  useEffect(() => {
+    let cancelled = false;
+    datasetLabelsPromise ??= backtestApi.catalogAll("dataset").then((items) => Object.fromEntries(items.map((item) => [item.key, typeof item.metadata.label === "string" && item.metadata.label ? item.metadata.label : item.key])));
+    datasetLabelsPromise.then((next) => { if (!cancelled) setLabels(next); }).catch(() => { datasetLabelsPromise = undefined; });
+    return () => { cancelled = true; };
+  }, []);
+  return labels;
+}
+
+/** 样本数里很长的条目（例如账户规则说明）单独成段，不挤进一行事实卡片。 */
+const LONG_COUNT = 40;
+
 export function ScopeCardView({ result, run }: { result: BacktestResult; run: BacktestRun }) {
   const card = result.scopeCard;
+  const datasetLabels = useDatasetLabels();
   const facts: Array<{ label: string; value: React.ReactNode }> = [];
+  const counts = card.sampleCounts.filter((entry) => `${entry.label}${entry.value}`.length <= LONG_COUNT);
+  const longCounts = card.sampleCounts.filter((entry) => `${entry.label}${entry.value}`.length > LONG_COUNT);
   if (card.window) facts.push({ label: "窗口（北京时间，右开）", value: `${displayBeijing(card.window.start)} → ${displayBeijing(card.window.endExclusive)}${card.window.align === "strict_common" ? " · 公共时间区间" : ""}` });
   if (card.domains.length) facts.push({ label: "Domain", value: card.domains.join("、") });
-  if (card.dataset) facts.push({ label: "数据集", value: card.dataset });
+  if (card.dataset) facts.push({ label: "数据集", value: datasetLabels[card.dataset] ?? card.dataset });
   if (card.engine || card.protocol) facts.push({ label: "引擎 / 协议", value: [card.engine, card.protocol].filter(Boolean).join(" · ") });
-  if (card.sampleScope) facts.push({ label: "样本口径", value: card.sampleScope });
-  if (card.sampleCounts.length) facts.push({ label: "样本数", value: card.sampleCounts.map((entry) => `${entry.label} ${entry.value}`).join(" · ") });
+  if (card.sampleScope) facts.push({ label: "样本口径", value: sampleScopeLabel(card.sampleScope) });
+  if (counts.length) facts.push({ label: "样本数", value: counts.map((entry) => `${entry.label} ${entry.value}`).join(" · ") });
   if (card.batchMembers.length) facts.push({ label: "批次成员（影响 Holm 校正）", value: `${card.batchMembers.length} 个：${card.batchMembers.slice(0, 8).join("、")}${card.batchMembers.length > 8 ? "…" : ""}` });
   if (run.origin === "legacy") facts.push({ label: "来源", value: "旧平台历史结果（只读，不可重跑）" });
-  if (facts.length === 0) return null;
+  if (facts.length === 0 && longCounts.length === 0) return null;
   return <section className="bt-scope" aria-label="口径卡片">
     <div className="v2-facts bt-scope-facts">{facts.map((fact) => <div className="v2-fact" key={fact.label}><span>{fact.label}</span><strong>{fact.value}</strong></div>)}</div>
+    {longCounts.map((entry) => <p className="bt-note" key={entry.label}><strong>{entry.label}</strong>：{entry.value}</p>)}
     {card.batchMembers.length > 1 && <p className="bt-note">Holm 校正按本批 {card.batchMembers.length} 个对象计算，单独评估结果可能不同。</p>}
   </section>;
 }
@@ -53,7 +75,8 @@ function PnlGapPanel({ section, defaultBasis }: { section: SeriesSection; defaul
   const [a, setA] = useState(groups[0] ?? "");
   const [b, setB] = useState(groups[1] ?? "");
   const pick = useCallback((group: string) => section.series.find((line) => (line.group ?? line.name) === group && line.variant === basis), [section.series, basis]);
-  if (groups.length < 2) return <div className="bt-gap"><h4>PnL Gap 对比</h4><p className="bt-muted">至少需要两个 strategy × model 回测结果才能计算 Gap。</p></div>;
+  // 只有一条曲线（一个策略 × 模型）没有可比的对象：不显示这一块
+  if (groups.length < 2) return null;
   const lineA = pick(a); const lineB = pick(b);
   const aligned = a !== b && lineA && lineB ? alignPnlSeries(lineA.points, lineB.points) : undefined;
   const money = (v: number) => `${v < 0 ? "-" : v > 0 ? "+" : ""}$${formatNumber(Math.abs(v), 2)}`;
@@ -116,6 +139,11 @@ function layoutBlocks(sections: ResultSection[], factor: string | undefined): Bl
   return blocks;
 }
 
+/** 旧结果把同一段账户规则说明既写进「说明」又写进口径卡片的样本数：口径卡片已经有，就不再重复提示。 */
+function duplicatesScopeCard(warning: string, result: BacktestResult): boolean {
+  return warning.length > LONG_COUNT && result.scopeCard.sampleCounts.some((entry) => entry.value.includes(warning) || (warning.includes(entry.value) && entry.value.length > LONG_COUNT));
+}
+
 export function ResultView({ run }: { run: BacktestRun }) {
   const result = run.result as BacktestResult;
   const [selections, setSelections] = useState<Selections>(() => ({ [GLOBAL]: defaultSelection(result.filters), ...Object.fromEntries(result.sections.filter((s) => s.filters.length).map((s) => [s.id, defaultSelection(s.filters)])) }));
@@ -142,12 +170,12 @@ export function ResultView({ run }: { run: BacktestRun }) {
         ? <PnlCurvesPanel section={{ ...section, series: section.series.filter((line) => matchesFilters(line, merged)) }} />
         : <SectionBody section={section} runId={run.runId} selection={merged} csvName={`${run.runId}-${section.id.replaceAll(":", "_")}`} onSortChange={section.id === "main" ? followSortedColumn : undefined} />}
     </>;
-    return framed ? <SectionFrame key={section.id} section={section}>{body}</SectionFrame> : <div key={section.id} className="bt-tab-section">{sectionTitle(section) && <h4 className="bt-tab-section-title">{sectionTitle(section)}</h4>}{section.caption && <p className="bt-caption">{section.caption}</p>}{body}</div>;
+    return framed ? <SectionFrame key={section.id} section={section}>{body}</SectionFrame> : <div key={section.id} className="bt-tab-section">{sectionTitle(section) && <h4 className="bt-tab-section-title">{sectionTitle(section)}</h4>}{section.caption && <p className="bt-caption">{inline(section.caption)}</p>}{body}</div>;
   };
 
   const visible = result.sections.filter((section) => sectionVisible(section, globalSelection));
   return <>
-    {result.warnings.map((warning) => <V2Notice key={warning.text} error={warning.level === "error"} title={warning.level === "info" ? "说明" : warning.level === "error" ? "错误" : "注意"} description={warning.text} />)}
+    {result.warnings.filter((warning) => !duplicatesScopeCard(warning.text, result)).map((warning) => <V2Notice key={warning.text} error={warning.level === "error"} title={warning.level === "info" ? "说明" : warning.level === "error" ? "错误" : "注意"} description={warning.text} />)}
     <FilterBar filters={result.filters} selection={globalSelection} onSelect={(key, value) => select(GLOBAL, key, value)} ariaLabel="结果显示档位" />
     {layoutBlocks(visible, factor).map((block) => {
       if (block.kind === "section") return renderSection(block.section);
