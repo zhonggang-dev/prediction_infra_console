@@ -23,8 +23,8 @@ type Detail =
 const variantLabels: Record<RotationVariant, string> = { mv: "MV", ms: "MS", original: "original", syn: "Syn" };
 const variantDescriptions: Record<RotationVariant, string> = { mv: "masked 制品", ms: "逐页清洗", original: "原始归档", syn: "QA 合成题" };
 
-/** 数据集轮换页面只消费后端安全 DTO，不提供演示数据回落。 */
-export function DatasetRotationPage({ embedded = false, focusVersion }: { embedded?: boolean; focusVersion?: string } = {}) {
+/** 数据集轮转页面只消费后端安全 DTO，不提供演示数据回落。 */
+export function DatasetRotationPage({ embedded = false, focusVersion, showCurrentButton = true }: { embedded?: boolean; focusVersion?: string; showCurrentButton?: boolean } = {}) {
   const [data, setData] = useState<DatasetRotationData>();
   const [error, setError] = useState<string>();
   const [loading, setLoading] = useState(true);
@@ -41,7 +41,7 @@ export function DatasetRotationPage({ embedded = false, focusVersion }: { embedd
     } catch (requestError) {
       setData(undefined);
       setDetail(undefined);
-      setError(requestError instanceof Error ? requestError.message : "数据集轮换接口不可用");
+      setError(requestError instanceof Error ? requestError.message : "数据集轮转接口不可用");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -69,7 +69,7 @@ export function DatasetRotationPage({ embedded = false, focusVersion }: { embedd
     {!embedded && <header className="page-head rotation-page-head">
       <div>
         <p className="eyebrow">Dataset Rotation</p>
-        <h1>数据集轮换</h1>
+        <h1>数据集轮转</h1>
         <p className="description">查看可用版本，跟踪自动轮换。</p>
       </div>
       <div className="rotation-head-actions">
@@ -77,7 +77,7 @@ export function DatasetRotationPage({ embedded = false, focusVersion }: { embedd
       </div>
     </header>}
 
-    {error && <div className="notice error rotation-error"><div><strong>无法读取数据集轮换</strong><p>{error}</p></div><button className="button" onClick={() => void load()} disabled={refreshing}>重试</button></div>}
+    {error && <div className="notice error rotation-error"><div><strong>无法读取数据集轮转</strong><p>{error}</p></div><button className="button" onClick={() => void load()} disabled={refreshing}>重试</button></div>}
     {loading && !data && <RotationSkeleton />}
     {data && <>
       <div className="rotation-rulebar" aria-label="轮换计划摘要">
@@ -90,7 +90,7 @@ export function DatasetRotationPage({ embedded = false, focusVersion }: { embedd
       <section className="section rotation-section" aria-label="发布周期记录">
         <div className="section-head rotation-section-head">
           <div><h2 className="section-title">发布周期记录</h2><p className="section-caption">一行一个版本 · 发布日为该版本首次发布日</p></div>
-          <button className={`button ${detail?.kind === "current" ? "primary" : ""}`} onClick={() => openDetail({ kind: "current" })}>各类型当前可用版本</button>
+          {showCurrentButton && <button className={`button ${detail?.kind === "current" ? "primary" : ""}`} onClick={() => openDetail({ kind: "current" })}>各类型当前可用版本</button>}
         </div>
         <ReleaseTable data={data} onCell={(release, variant, purpose) => openDetail({ kind: "cell", datasetVersion: release.datasetVersion, variant: variant.variant, purpose })} />
         <p className="rotation-table-note">单位：Sandbox 个数 · 训练列为本轮增量 · 点击查看版本与下载</p>
