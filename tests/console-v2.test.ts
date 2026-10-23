@@ -149,7 +149,7 @@ test("Trading filters and V2 detail rows expose only backend status values and k
   assert.match(resource, /v2-action-cell/);
   assert.match(resource, /useSearchParams/);
   assert.match(resource, /searchParams\.get\("q"\)/);
-  assert.match(trading, /BindingTable/);
+  assert.doesNotMatch(trading, /BindingTable/);
   assert.match(trading, /CycleEvidence/);
   assert.match(trading, /OrderTraceEvidence/);
   assert.match(trading, /confirmed_at/);
@@ -174,13 +174,15 @@ test("业务工作区复用真实资料轮换与交易视图，不回退到 read
   assert.doesNotMatch(assets, /datasetMembers\(\{ limit: 1, status: "ready" \}\)/);
   assert.match(overview, /consoleApi\.datasetRotation/);
   assert.doesNotMatch(overview, /datasetMembers\(\{ limit: 1 \}\)/);
-  assert.match(trading, /<LiveTradingPage[^>]*embedded/);
-  assert.match(trading, /<TradeRecordsPage embedded/);
+  assert.doesNotMatch(trading, /<LiveTradingPage/);
+  assert.match(trading, /<TradeRecordsPage embedded sharedAccountOnly showPnL \/>/);
+  assert.match(trading, /consoleV2\.trading\.holdings/);
+  assert.match(trading, /LatestEdgeSnapshot/);
   assert.match(trading, /\/trading\/ledger/);
   assert.match(trading, /aliases: \["\/trading", "\/live"\]/);
   assert.match(trading, /23:59:59\.999999Z/);
-  assert.match(trading, /sharedQueryKeys: \["execution_account_id", "model_id", "strategy_id", "from", "to"\]/);
-  assert.match(trading, /<TradingOverview previewObservedAt=\{previewObservedAt\} account=\{context\.account\}/);
+  assert.match(trading, /sharedQueryKeys: \["execution_account_id"\]/);
+  assert.match(trading, /<TradingOverview account=\{context\.account\} \/>/);
   assert.match(ledger, /params\.get\("from"\)/);
   assert.match(ledger, /params\.get\("to"\)/);
   assert.match(ledger, /date\.setUTCDate\(date\.getUTCDate\(\) \+ 1\)/);
@@ -189,7 +191,7 @@ test("业务工作区复用真实资料轮换与交易视图，不回退到 read
   assert.match(resource, /parentPanel\?\.active/);
   assert.match(resource, /while \(ancestor\)/);
   assert.doesNotMatch(resource, /closest<HTMLElement>\("\[role=\\"tabpanel\\"\]"\)/);
-  assert.match(trading, /notifyFilterChange/);
+  assert.match(trading, /WORKSPACE_FILTER_CHANGE_EVENT/);
   assert.match(trading, /reconciliation_view: "issues"/);
   assert.match(trading, /delete next\.reconciliation_view/);
   assert.match(trading, /next\.status === "ALL"/);
@@ -235,6 +237,9 @@ test("V2 BFF is GET-only, allowlisted, authenticated server-side and bounded to 
       const colonCycle = await GET(new Request("http://console.test/api/console/v2/trading/decision-cycles/main:20260818T042000Z"), { params: Promise.resolve({ path: ["trading", "decision-cycles", "main:20260818T042000Z"] }) });
       assert.equal(colonCycle.status, 200);
       assert.equal(calls[1].url, "http://trading.test/api/v1/console/v2/decision-cycles/main%3A20260818T042000Z");
+      const holdingLots = await GET(new Request("http://console.test/api/console/v2/trading/holdings/lots?limit=5&offset=5"), { params: Promise.resolve({ path: ["trading", "holdings", "lots"] }) });
+      assert.equal(holdingLots.status, 200);
+      assert.equal(calls[2].url, "http://trading.test/api/v1/console/v2/holdings/lots?limit=5&offset=5");
     } finally {
       globalThis.fetch = previousFetch;
     }

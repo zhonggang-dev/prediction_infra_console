@@ -31,6 +31,7 @@ const TRADING_RESOURCES = new Set([
   "runtime",
   "decision-cycles",
   "orders",
+  "holdings",
   "position-lots",
   "reconciliation-runs",
   "reconciliation-issues",
@@ -119,6 +120,9 @@ function resolveTarget(path: string[]): ProxyTarget | undefined {
   }
   if (resource === "orders" && segments.length === 3 && segments[2] === "trace" && SAFE_ID.test(segments[1])) {
     return { baseUrl: process.env.TRADING_EXECUTION_BASE_URL, token: process.env.TRADING_EXECUTION_LIVE_READ_ONLY_TOKEN, endpoint: `/api/v1/console/v2/orders/${encodeURIComponent(segments[1])}/trace`, serviceName: "Trading Execution" };
+  }
+  if (resource === "holdings" && segments.length === 2 && segments[1] === "lots") {
+    return { baseUrl: process.env.TRADING_EXECUTION_BASE_URL, token: process.env.TRADING_EXECUTION_LIVE_READ_ONLY_TOKEN, endpoint: "/api/v1/console/v2/holdings/lots", serviceName: "Trading Execution" };
   }
   if (segments.length !== 1 || !TRADING_RESOURCES.has(resource)) return undefined;
   return { baseUrl: process.env.TRADING_EXECUTION_BASE_URL, token: process.env.TRADING_EXECUTION_LIVE_READ_ONLY_TOKEN, endpoint: `/api/v1/console/v2/${resource}`, serviceName: "Trading Execution" };

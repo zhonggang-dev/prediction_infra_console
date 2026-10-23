@@ -23,8 +23,9 @@ type WalletPnLSeries = {
 type PnLChart = { days: string[]; rows: WalletPnLSeries[] };
 
 /** 实盘页的 UTC 日级收益视图；按钱包聚合账本收益，支持多钱包累计 PnL 对比。 */
-export function DailyPnLDashboard({ report, loading, days, onDays, preview = false }: { report?: DailyPnLReport; loading: boolean; days: number; onDays: (days: number) => void; preview?: boolean }) {
-  const allWalletsChart = useMemo(() => buildPnLChart(report), [report]);
+export function DailyPnLDashboard({ report, loading, days, onDays, preview = false, accountId }: { report?: DailyPnLReport; loading: boolean; days: number; onDays: (days: number) => void; preview?: boolean; accountId?: string }) {
+  const scopedReport = useMemo(() => accountId && report ? { ...report, items: report.items.filter((item) => item.executionAccountId === accountId) } : report, [accountId, report]);
+  const allWalletsChart = useMemo(() => buildPnLChart(scopedReport), [scopedReport]);
   const walletIDs = allWalletsChart.rows.map((row) => row.executionAccountId);
   const [selectionOverride, setSelectionOverride] = useState<string[] | null>(null);
   const selectedWalletIDs = selectionOverride?.filter((id) => walletIDs.includes(id)) ?? walletIDs;
@@ -32,7 +33,7 @@ export function DailyPnLDashboard({ report, loading, days, onDays, preview = fal
   const selectedWalletSet = new Set(effectiveWalletIDs);
   const chart = { ...allWalletsChart, rows: allWalletsChart.rows.filter((row) => selectedWalletSet.has(row.executionAccountId)) };
   const today = chart.rows
-    .map((row) => ({ ...row, point: row.points.get(report?.toDay ?? "") }))
+    .map((row) => ({ ...row, point: row.points.get(scopedReport?.toDay ?? "") }))
     .sort((left, right) => numeric(right.point?.realizedPnl) - numeric(left.point?.realizedPnl));
   const todayNet = today.reduce((total, row) => total + numeric(row.point?.realizedPnl), 0);
   const todayTrades = today.reduce((total, row) => total + (row.point?.closedTradeCount ?? 0), 0);
@@ -58,7 +59,7 @@ export function DailyPnLDashboard({ report, loading, days, onDays, preview = fal
       <div><div className="pnl-title-line"><h2 className="section-title" id="daily-pnl-title">钱包 PnL 对比</h2>{preview && <span className="pnl-preview-chip">预览数据</span>}</div><p className="section-caption">多选钱包比较累计已实现 PnL · 来自已确认并入账的成交与结算（SELL 平仓 + REDEEM 赎回）· 手续费已计入 · UTC 自然日</p></div>
       <div className="pnl-range" aria-label="盈亏时间范围">{[7, 14, 30].map((value) => <button key={value} aria-pressed={days === value} className={days === value ? "active" : ""} onClick={() => onDays(value)}>{value} 天</button>)}</div>
     </div>
-    {loading ? <DailyPnLSkeleton /> : !report || !allWalletsChart.rows.length ? <div className="panel pnl-empty"><strong>还没有可展示的钱包 PnL</strong><span>启用策略绑定后，即使当天没有平仓或赎回也会在这里显示 $0.00。</span></div> : <>
+    {loading ? <DailyPnLSkeleton /> : !scopedReport || !allWalletsChart.rows.length ? <div className="panel pnl-empty"><strong>还没有可展示的钱包 PnL</strong><span>启用策略绑定后，即使当天没有平仓或赎回也会在这里显示 $0.00。</span></div> : <>
       <WalletComparisonSelector rows={allWalletsChart.rows} selectedWalletIDs={selectedWalletSet} onToggle={toggleWallet} onSelectAll={() => setSelectionOverride(null)} />
       <div className="pnl-hero">
         <div className="pnl-net"><span>今日净已实现</span><strong className={todayNet < 0 ? "negative" : "positive"}>{signedMoney(todayNet)}</strong><small>{today.length} 个钱包 · {todayTrades} 笔平仓 · {todayRedemptions} 笔赎回</small></div>
@@ -69,9 +70,9 @@ export function DailyPnLDashboard({ report, loading, days, onDays, preview = fal
         </div>
       </div>
       <div className="pnl-layout">
-        <WalletPnLLineChart chart={chart} report={report} />
+        <WalletPnLLineChart chart={chart} report={scopedReport} />
         <div className="panel pnl-today-panel">
-          <div className="pnl-panel-head"><div><strong>今日钱包明细</strong><span>{report.toDay} · UTC</span></div><span className="pnl-live-dot"><i />{preview ? "预览数据" : "成交与结算账本"}</span></div>
+          <div className="pnl-panel-head"><div><strong>今日钱包明细</strong><span>{scopedReport.toDay} · UTC</span></div><span className="pnl-live-dot"><i />{preview ? "预览数据" : "成交与结算账本"}</span></div>
           <div className="pnl-today-list">{today.map((row, index) => { const value = numeric(row.point?.realizedPnl); return <div className="pnl-today-item" key={row.key}>
             <span className="pnl-rank">{String(index + 1).padStart(2, "0")}</span><div><strong title={row.executionAccountId}>{shortID(row.executionAccountId, 8)}</strong><span>{listLabel(row.strategyIds)}</span><small>{listLabel(row.modelIds)}</small></div><div><strong className={value < 0 ? "negative" : value > 0 ? "positive" : "muted"}>{signedMoney(value)}</strong><small>{settlementLabel(row.point)}</small></div>
           </div>; })}</div>

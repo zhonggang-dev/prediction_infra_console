@@ -41,3 +41,11 @@ export function appliedFilterFromUrl(params: URLSearchParams, key: string, fallb
   const value = raw?.trim() ?? fallback;
   return key === "from" || key === "to" ? value.slice(0, 10) : value;
 }
+
+/** Read a committed list offset during a URL replay before params settle. */
+export function appliedListOffset(currentHref: string, limit: number) {
+  const raw = new URL(currentHref, "http://console.local").searchParams.get("offset");
+  const numeric = Number(raw);
+  if (!Number.isSafeInteger(numeric) || numeric < 0 || numeric > Number.MAX_SAFE_INTEGER - 100) return 0;
+  return Math.floor(numeric / limit) * limit;
+}
