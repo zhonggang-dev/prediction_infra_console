@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { DatasetRotationContractError, datasetTestDownloadState, decodeDatasetRotation } from "../app/lib/dataset-rotation.ts";
+import { DatasetRotationContractError, datasetTestDownloadState, datasetTrainDownloadState, decodeDatasetRotation } from "../app/lib/dataset-rotation.ts";
 
 const variant = (name: string, overrides: Record<string, unknown> = {}) => ({
   variant: name,
@@ -67,6 +67,13 @@ test("历史已发布但尚未核对的 test 下载交给下载时严格校验",
   assert.equal(datasetTestDownloadState("not_checked", true), "unavailable");
   assert.equal(datasetTestDownloadState("mismatch", false), "unavailable");
   assert.equal(datasetTestDownloadState("unavailable", false), "unavailable");
+});
+
+test("累计训练下载只对正数生成，0和未知都不伪造下载", () => {
+  assert.equal(datasetTrainDownloadState(903), "available");
+  assert.equal(datasetTrainDownloadState(0), "empty");
+  assert.equal(datasetTrainDownloadState(undefined), "unknown");
+  assert.equal(datasetTrainDownloadState(null), "unknown");
 });
 
 test("解码器拒绝缺字段或未知存储状态，避免页面误报已发布", () => {
