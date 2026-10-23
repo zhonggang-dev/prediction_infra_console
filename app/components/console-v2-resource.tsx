@@ -397,10 +397,15 @@ export function V2ListPage<T>({ title, description, load, columns, rowKey, rende
     {renderDetail && <dialog id={detailDialogId} ref={detailDialogRef} className="v2-detail-dialog" aria-modal="true" aria-labelledby={detailTitleId} onClick={(event) => { if (event.target === event.currentTarget) closeDetail(); }} onCancel={(event) => { event.preventDefault(); closeDetail(); }} onClose={handleDialogClose}>
       <div className="v2-detail-dialog-inner">
         <div className="section-head"><div><p className="eyebrow">详情</p><h2 id={detailTitleId} className="section-title">{title}</h2></div><button type="button" className="button v2-detail-close" onClick={closeDetail}>关闭</button></div>
+        {activeItem && <V2DetailSummary columns={columns} item={activeItem} />}
         {activeItem && renderDetail(activeItem, () => setSelected(undefined))}
       </div>
     </dialog>}
   </section>;
+}
+
+function V2DetailSummary<T>({ columns, item }: { columns: Array<V2Column<T>>; item: T }) {
+  return <section className="v2-detail-summary" aria-label="列表摘要"><h3>列表摘要</h3><div className="v2-detail-summary-grid">{columns.map((column) => <div className="v2-detail-summary-item" key={column.label}><span>{column.label}</span><div>{column.render(item)}</div></div>)}</div></section>;
 }
 
 export function V2Pagination<T>({ page, disabled = false, onPage }: { page: Pick<ConsoleV2Page<T>, "items" | "limit" | "offset" | "hasMore"> & { total?: number; observedAt?: string }; disabled?: boolean; onPage: (offset: number) => void }) {

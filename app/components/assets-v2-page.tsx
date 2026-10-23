@@ -11,22 +11,25 @@ const variantLabels: Record<RotationVariant, string> = { original: "original", m
 const DOWNLOAD_VARIANTS = new Set<string>(ROTATION_VARIANTS);
 
 export function AssetsV2Page({ view = "assets" }: { view?: "assets" | "datasets" | "backtests" }) {
+  const [refreshKey, setRefreshKey] = useState(0);
   const config = view === "backtests"
     ? { eyebrow: "Assets / Legacy Export", title: "历史回测导出", description: "这是历史数据交付目录；新回测平台在独立工作区运行，旧导出不会覆盖当前数据集与成员。" }
     : view === "datasets"
-      ? { eyebrow: "Assets / Current Dataset", title: "当前数据集版本", description: "先确认各资料类型的当前版本，再按版本、资料类型和用途查看成员；轮换和下载都保留版本上下文。" }
+      ? { eyebrow: "Dataset / Rotation", title: "数据集轮转", description: "先选择资料类型，再选择该类型的已发布版本和用途；固定测试、累计训练与轮换历史保持同一数据集语义。" }
       : { eyebrow: "Assets / Archive", title: "资料归档", description: "按来源、用途和稳定身份查找归档事实；目录提交、成员就绪和交易资格分别显示。" };
+  const contextLinks = view === "backtests"
+    ? [{ href: "/backtest-platform", label: "打开回测平台" }, { href: "/datasets", label: "返回数据集轮转" }]
+    : view === "assets"
+      ? [{ href: "/backtests", label: "历史回测导出" }, { href: "http://172.21.20.221:8501/", label: "打开 PM Backtest", external: true }]
+      : [];
 
-  return <V2Frame eyebrow={config.eyebrow} title={config.title} description={config.description}>
-    <V2ContextLinks links={view === "backtests"
-      ? [{ href: "/backtest-platform", label: "打开回测平台" }, { href: "/datasets", label: "返回当前数据集" }]
-      : [{ href: "/backtests", label: "历史回测导出" }, { href: "http://172.21.20.221:8501/", label: "打开 PM Backtest", external: true }]}
-    />
-    {view === "backtests" ? <BacktestProducts /> : view === "datasets" ? <DatasetVersionWorkspace /> : <AssetCatalog />}
+  return <V2Frame eyebrow={config.eyebrow} title={config.title} description={config.description} onRefresh={view === "datasets" ? () => setRefreshKey((value) => value + 1) : undefined}>
+    {contextLinks.length > 0 && <V2ContextLinks links={contextLinks} />}
+    {view === "backtests" ? <BacktestProducts /> : view === "datasets" ? <DatasetVersionWorkspace refreshKey={refreshKey} /> : <AssetCatalog />}
   </V2Frame>;
 }
 
-function DatasetVersionWorkspace() {
+function DatasetVersionWorkspace({ refreshKey }: { refreshKey: number }) {
   const [rotation, setRotation] = useState<DatasetRotationData>();
   const [rotationError, setRotationError] = useState<string>();
   const [rotationLoading, setRotationLoading] = useState(true);
@@ -48,7 +51,7 @@ function DatasetVersionWorkspace() {
       if (!cancelled) setRotationLoading(false);
     });
     return () => { cancelled = true; };
-  }, []);
+  }, [refreshKey]);
 
   const currentByVariant = useMemo(() => new Map((rotation?.currentVersions ?? []).map((item) => [item.variant, item])), [rotation]);
   const trainByVariant = useMemo(() => new Map((rotation?.trainingSets ?? []).map((item) => [item.variant, item])), [rotation]);
@@ -97,7 +100,7 @@ function DatasetVersionWorkspace() {
     <details className="v2-dataset-rotation-embedded" open>
       <summary>轮换执行、发布历史与规则</summary>
       <p className="v2-inline-note">这里展示版本发布、文件核对和执行状态，与上面的当前版本选择保持同一资料范围。</p>
-      <DatasetRotationPage embedded focusVersion={version || undefined} showCurrentButton={false} />
+      <DatasetRotationPage embedded focusVersion={version || undefined} showCurrentButton={false} refreshKey={refreshKey} />
     </details>
   </div>;
 }

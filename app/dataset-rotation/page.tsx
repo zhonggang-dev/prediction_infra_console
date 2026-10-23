@@ -1,5 +1,5 @@
-import { DatasetRotationPage } from "../components/dataset-rotation-page";
+import { AssetsV2Page } from "../components/assets-v2-page";
 
 export default function DatasetRotationRoute() {
-  return <DatasetRotationPage />;
+  return <AssetsV2Page view="datasets" />;
 }
