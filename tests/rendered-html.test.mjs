@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { appliedFilterFromUrl, mergeSharedQuery, workspaceHrefWithAppliedQuery } from "../app/lib/console-workspace.ts";
+import { appliedFilterFromUrl, appliedListOffset, mergeSharedQuery, workspaceHrefWithAppliedQuery } from "../app/lib/console-workspace.ts";
 
 async function render(pathname = "/", init = {}) {
   const workerUrl = new URL("../dist/server/index.js", import.meta.url);
@@ -46,6 +46,12 @@ test("工作区切换 URL 只携带目标面板已应用的查询", () => {
   assert.equal(workspaceHrefWithAppliedQuery("/trading/orders", "http://localhost/trading/cycles?q=draft-not-applied", " v2-order "), "/trading/orders?q=v2-order");
   assert.equal(workspaceHrefWithAppliedQuery("/trading/orders?q=stale", "http://localhost/trading/cycles?q=cycle", ""), "/trading/orders");
   assert.equal(workspaceHrefWithAppliedQuery("/trading/orders?status=stale", "http://localhost/trading/cycles?status=cycle", "status=FILLED&execution_account_id=wallet-1&limit=50"), "/trading/orders?status=FILLED&execution_account_id=wallet-1&limit=50");
+});
+
+test("参数回放时保留目标列表已提交的 offset", () => {
+  assert.equal(appliedListOffset("http://localhost/trading/orders?offset=20", 20), 20);
+  assert.equal(appliedListOffset("http://localhost/trading/orders?offset=21", 20), 20);
+  assert.equal(appliedListOffset("http://localhost/trading/orders", 20), 0);
 });
 
 test("预测视图切换只继承共享范围，不继承结果/任务私有筛选", () => {
@@ -111,6 +117,20 @@ test("服务端直达订单页应用 URL 查询并暴露 tab 语义", async () =
   assert.match(html, /id="v2-tab-trading-orders"[^>]*role="tab"[^>]*aria-selected="true"[^>]*aria-controls="v2-panel-trading-orders"/);
   assert.match(html, /id="v2-panel-trading-orders"[^>]*role="tabpanel"[^>]*aria-labelledby="v2-tab-trading-orders"/);
   assert.match(html, /data-v2-search-applied="v2-order"[^>]*value="v2-order"/);
+});
+
+test("中文列表详情 dialog 具有实例身份并正确关联标题", async () => {
+  const html = await (await render("/markets")).text();
+  const dialogs = [...html.matchAll(/<dialog id="([^"]+)"[^>]*aria-labelledby="([^"]+)"/g)];
+  assert.ok(dialogs.length >= 1, "长期运行池应提供中文详情 dialog");
+  assert.equal(new Set(dialogs.map((match) => match[1])).size, dialogs.length, "详情 dialog ID 必须唯一");
+  for (const [, dialogId, headingId] of dialogs) {
+    assert.equal(dialogId, `${headingId}-dialog`);
+    assert.notEqual(headingId, "v2-detail-title--", "中文标题不能退化为共享的常量ID");
+    assert.match(html, new RegExp(`<h2 id="${headingId}"[^>]*>[^<]+</h2>`));
+  }
+  assert.match(html, /<h2[^>]*>长期运行池<\/h2>/);
+  assert.match(html, /查看运行池维护记录/);
 });
 
 test("交易对账默认打开开放问题并保留局部视图范围", async () => {
@@ -191,36 +211,26 @@ test("服务端可渲染交易与结算记录页面", async () => {
   assert.match(html, /REDEEM · 赎回结算/);
 });
 
-test("服务端可渲染实盘监控页面", async () => {
+test("服务端可渲染实盘概况的初始未知状态", async () => {
   const response = await render("/live");
   assert.equal(response.status, 200);
   const html = await response.text();
-  assert.match(html, /实盘监控/);
-  assert.match(html, /从机会扫描到成交入账/);
-  assert.match(html, /选择钱包/);
-  assert.match(html, /系统管理持仓/);
-  assert.match(html, /当前持仓价值/);
-  assert.match(html, /Peak Cash Used/);
-  assert.match(html, /累计投入成本/);
-  assert.match(html, /Realized PnL/);
-  assert.match(html, /Unrealized PnL/);
-  assert.match(html, /Total PnL/);
-  assert.match(html, /Return/);
-  assert.match(html, /最大回撤/);
-  assert.match(html, /钱包 PnL 对比/);
-  assert.match(html, /多选钱包比较累计已实现 PnL/);
-  assert.match(html, /SELL 平仓 \+ REDEEM 赎回/);
-  assert.match(html, /模型 Edge 分布/);
-  assert.match(html, /模型概率 − 盘口中间价/);
-  assert.match(html, /正在读取真实实盘快照/);
+  assert.match(html, /实盘概况/);
+  assert.match(html, /账户经营摘要/);
+  assert.match(html, /当前许可 \/ 最近周期/);
+  assert.match(html, /总盈亏（已实现 \/ 浮动）/);
+  assert.match(html, /暂未返回账户事实/);
+  assert.doesNotMatch(html, /实盘快照与账户质量|系统管理持仓明细|钱包 PnL 对比|模型 Edge 分布/);
   assert.doesNotMatch(html, /\$12,842\.36/);
-  assert.doesNotMatch(html, />LIVE</);
 });
 
 test("交易旧 URL 复用新版工作区并保留实盘与账本内容", async () => {
   const live = await (await render("/live")).text();
-  assert.match(live, /实盘快照与账户质量/);
-  assert.match(live, /从机会扫描到成交入账/);
+  assert.match(live, /账户范围/);
+  assert.match(live, /账户经营摘要/);
+  assert.match(live, /当前许可 \/ 最近周期/);
+  assert.doesNotMatch(live, /实盘快照与账户质量/);
+  assert.doesNotMatch(live, /系统管理持仓明细/);
   assert.match(live, /id="v2-tab-trading-overview"[^>]*aria-selected="true"/);
   assert.equal((live.match(/class="brand"/g) ?? []).length, 1, "实盘旧 URL 不应嵌套 ConsoleShell");
 
@@ -231,17 +241,19 @@ test("交易旧 URL 复用新版工作区并保留实盘与账本内容", async 
   assert.equal((ledger.match(/class="brand"/g) ?? []).length, 1, "账本旧 URL 不应嵌套 ConsoleShell");
 });
 
-test("账本嵌入工作区服从顶部共享身份与日期上下文", async () => {
+test("账本嵌入工作区只共享账户，模型策略和日期保留本页筛选", async () => {
   const response = await render("/trading/ledger?execution_account_id=wallet-1&model_id=model-1&strategy_id=strategy-1&from=2026-10-15&to=2026-10-16");
   const html = await response.text();
   const filters = html.match(/<form class="trade-filters"[\s\S]*?<\/form>/)?.[0] ?? "";
   assert.ok(filters, "嵌入账本应渲染筛选区域");
-  assert.match(filters, /账本共享时间上下文/);
-  assert.match(filters, /模型（顶部上下文）/);
-  assert.match(filters, /策略（顶部上下文）/);
-  assert.match(filters, /执行账户（顶部上下文）/);
+  assert.match(filters, /开始日期/);
+  assert.match(filters, /结束日期/);
+  assert.match(filters, /模型/);
+  assert.match(filters, /策略/);
+  assert.match(filters, /执行账户（共享范围）/);
   assert.match(filters, /disabled/);
-  assert.doesNotMatch(filters, /placeholder="例如 forecast-v2"/);
+  assert.match(filters, /placeholder="例如 forecast-v2"/);
+  assert.doesNotMatch(filters, /顶部上下文|账本共享时间上下文/);
 });
 
 test("账本保留已应用列表状态供工作区切换恢复", async () => {

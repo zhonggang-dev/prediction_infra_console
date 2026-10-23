@@ -5,6 +5,8 @@
  * origin BFF; service credentials and upstream URLs remain server-only.
  */
 
+import { decodeTradingHolding, holdingIdentity, type ConsoleV2Holding } from "./trading-holdings.ts";
+
 export type ConsoleV2Service = "infra" | "trading";
 
 export interface ConsoleV2Page<T> {
@@ -440,6 +442,8 @@ export interface ConsoleV2Order {
   marketId?: string;
   conditionId?: string;
   tokenId?: string;
+  marketQuestion?: string;
+  outcomeName?: string;
   createdAt?: string;
   updatedAt?: string;
   evidenceSummary: ConsoleV2OrderEvidenceSummary;
@@ -619,6 +623,8 @@ export const consoleV2 = {
     decisionCycle: (id: string) => object("trading", `decision-cycles/${encodeURIComponent(id)}`, {}, decodeRecord),
     orders: (params: PageParams = {}) => page("trading", "orders", params, decodeOrder),
     orderTrace: (id: string) => object("trading", `orders/${encodeURIComponent(id)}/trace`, {}, decodeOrderTrace),
+    holdings: (params: PageParams = {}) => page("trading", "holdings", params, decodeHolding),
+    holdingLots: (identity: ConsoleV2Holding, params: PageParams = {}) => page("trading", "holdings/lots", { ...params, holding_identity: holdingIdentity(identity) }, decodePositionLot),
     positionLots: (params: PageParams = {}) => page("trading", "position-lots", params, decodePositionLot),
     reconciliationRuns: (params: PageParams = {}) => page("trading", "reconciliation-runs", params, decodeReconciliationRun),
     reconciliationIssues: (params: PageParams = {}) => page("trading", "reconciliation-issues", params, decodeReconciliationIssue),
@@ -791,7 +797,7 @@ function decodeDecisionCycle(value: RawRecord): ConsoleV2DecisionCycle {
 }
 
 function decodeOrder(value: RawRecord): ConsoleV2Order {
-  return { orderId: requiredText(value.order_id, "order.order_id"), clientOrderId: optionalText(value.client_order_id), venueOrderId: optionalText(value.venue_order_id), status: requiredText(value.status, "order.status"), side: optionalText(value.side), price: nullableNumber(value.price), shares: nullableNumber(value.shares), filledShares: nullableNumber(value.filled_shares), averageFillPrice: nullableNumber(value.average_fill_price), executionAccountId: optionalText(value.execution_account_id), modelId: optionalText(value.model_id), strategyId: optionalText(value.strategy_id), marketSource: optionalText(value.market_source), source: optionalText(value.venue ?? value.source), marketId: optionalText(value.market_id), conditionId: optionalText(value.condition_id), tokenId: optionalText(value.token_id), createdAt: optionalTime(value.created_at), updatedAt: optionalTime(value.updated_at), evidenceSummary: decodeOrderEvidenceSummary(value.evidence_summary) };
+  return { orderId: requiredText(value.order_id, "order.order_id"), clientOrderId: optionalText(value.client_order_id), venueOrderId: optionalText(value.venue_order_id), status: requiredText(value.status, "order.status"), side: optionalText(value.side), price: nullableNumber(value.price), shares: nullableNumber(value.shares), filledShares: nullableNumber(value.filled_shares), averageFillPrice: nullableNumber(value.average_fill_price), executionAccountId: optionalText(value.execution_account_id), modelId: optionalText(value.model_id), strategyId: optionalText(value.strategy_id), marketSource: optionalText(value.market_source), source: optionalText(value.venue ?? value.source), marketId: optionalText(value.market_id), conditionId: optionalText(value.condition_id), tokenId: optionalText(value.token_id), marketQuestion: optionalText(value.market_question), outcomeName: optionalText(value.outcome_name), createdAt: optionalTime(value.created_at), updatedAt: optionalTime(value.updated_at), evidenceSummary: decodeOrderEvidenceSummary(value.evidence_summary) };
 }
 
 function decodeOrderEvidenceSummary(value: unknown): ConsoleV2OrderEvidenceSummary {
@@ -801,6 +807,10 @@ function decodeOrderEvidenceSummary(value: unknown): ConsoleV2OrderEvidenceSumma
 
 function decodePositionLot(value: RawRecord): ConsoleV2PositionLot {
   return { lotId: requiredText(value.lot_id, "position_lot.lot_id"), modelId: optionalText(value.model_id), strategyId: optionalText(value.strategy_id), executionAccountId: optionalText(value.execution_account_id), marketId: optionalText(value.market_id), conditionId: optionalText(value.condition_id), tokenId: optionalText(value.token_id), status: requiredText(value.status, "position_lot.status"), openingOrderId: optionalText(value.opening_order_id), openingFillKey: optionalText(value.opening_fill_key), originalShares: nullableNumber(value.original_shares), remainingShares: nullableNumber(value.remaining_shares), originalCost: nullableNumber(value.original_cost), remainingCost: nullableNumber(value.remaining_cost), averageEntryPrice: nullableNumber(value.average_entry_price), openedAt: optionalTime(value.opened_at), closedAt: optionalTime(value.closed_at) };
+}
+
+function decodeHolding(value: RawRecord): ConsoleV2Holding {
+  return decodeTradingHolding(value, { requiredText, optionalText, optionalTime });
 }
 
 function decodeReconciliationRun(value: RawRecord): ConsoleV2ReconciliationRun {

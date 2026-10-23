@@ -99,7 +99,9 @@ function ledgerActivityType(value: unknown): LedgerActivityType {
 
 function mapLedgerActivity(item: RawRecord): LedgerActivity {
   const occurredAt = optionalTime(item.occurred_at);
-  if (!occurredAt) throw new ConsoleApiError("账本活动接口缺少 occurred_at", "live");
+  const confirmedAt = optionalTime(item.confirmed_at);
+  const appliedAt = optionalTime(item.applied_at);
+  if (!occurredAt || !confirmedAt || !appliedAt) throw new ConsoleApiError("账本活动接口缺少成交、确认或入账时间", "live");
   return {
     activityKey: string(item.activity_key), activityType: ledgerActivityType(item.activity_type), venue: string(item.venue),
     executionAccountId: string(item.execution_account_id), modelId: string(item.model_id), strategyId: string(item.strategy_id),
@@ -110,8 +112,7 @@ function mapLedgerActivity(item: RawRecord): LedgerActivity {
     shares: string(item.shares, "0"), price: optional(item.price), grossNotional: optional(item.gross_notional),
     totalFee: string(item.total_fee, "0"), netCashDelta: string(item.net_cash_delta, "0"),
     costBasis: optional(item.cost_basis), settlementPayout: optional(item.settlement_payout), realizedPnl: string(item.realized_pnl, "0"),
-    transactionHash: optional(item.transaction_hash), occurredAt,
-    confirmedAt: optionalTime(item.confirmed_at) ?? occurredAt, appliedAt: optionalTime(item.applied_at) ?? occurredAt,
+    transactionHash: optional(item.transaction_hash), occurredAt, confirmedAt, appliedAt,
   };
 }
 

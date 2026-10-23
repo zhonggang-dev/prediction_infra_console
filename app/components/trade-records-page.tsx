@@ -3,8 +3,9 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { consoleApi, ConsoleApiError } from "../lib/console-api";
-import type { ApiMode, LedgerActivity, LedgerActivityPage, LedgerActivityParams, LedgerActivityType } from "../lib/types";
+import type { ApiMode, DailyPnLReport, LedgerActivity, LedgerActivityPage, LedgerActivityParams, LedgerActivityType } from "../lib/types";
 import { ConsoleShell } from "./console-shell";
+import { DailyPnLDashboard } from "./daily-pnl-dashboard";
 import { WORKSPACE_FILTER_CHANGE_EVENT } from "./console-v2-resource";
 import { Icon } from "./icons";
 
@@ -12,11 +13,11 @@ type RangeKey = "24h" | "7d" | "30d" | "all" | "custom";
 type Filters = { range: RangeKey; from: string; to: string; activityType: "" | LedgerActivityType; modelId: string; strategyId: string; executionAccountId: string; query: string };
 
 const defaultFilters: Filters = { range: "24h", from: "", to: "", activityType: "", modelId: "", strategyId: "", executionAccountId: "", query: "" };
-const rangeLabels: Record<RangeKey, string> = { "24h": "最近 24 小时", "7d": "最近 7 天", "30d": "最近 30 天", all: "全部时间", custom: "自定义上下文" };
+const rangeLabels: Record<RangeKey, string> = { "24h": "最近 24 小时", "7d": "最近 7 天", "30d": "最近 30 天", all: "全部时间", custom: "自定义日期" };
 const activityLabels: Record<LedgerActivityType, string> = { BUY: "买入成交", SELL: "卖出成交", EXTERNAL_SELL: "外部卖出", REDEEM: "赎回结算" };
 
 /** 交易与结算记录：成交（BUY / SELL）与链上赎回结算（REDEEM）使用统一账本活动接口，避免与预测记录口径混淆。 */
-export function TradeRecordsPage({ embedded = false }: { embedded?: boolean } = {}) {
+export function TradeRecordsPage({ embedded = false, sharedAccountOnly = false, showPnL = false }: { embedded?: boolean; sharedAccountOnly?: boolean; showPnL?: boolean } = {}) {
   const searchParams = useSearchParams();
   const rootRef = useRef<HTMLDivElement | null>(null);
   const initialLimit = normalizeLedgerLimit(searchParams.get("limit"));
@@ -31,6 +32,10 @@ export function TradeRecordsPage({ embedded = false }: { embedded?: boolean } = 
   const [demoEnabled, setDemoEnabled] = useState(false);
   const [error, setError] = useState<string>();
   const [loading, setLoading] = useState(true);
+  const [pnlReport, setPnlReport] = useState<DailyPnLReport>();
+  const [pnlDays, setPnlDays] = useState(14);
+  const [pnlLoading, setPnlLoading] = useState(false);
+  const [pnlError, setPnlError] = useState<string>();
 
   useEffect(() => {
     const syncFromUrl = () => {
@@ -85,6 +90,18 @@ export function TradeRecordsPage({ embedded = false }: { embedded?: boolean } = 
     return () => { cancelled = true; };
   }, [demoEnabled, filters, limit, offset, refreshKey]);
 
+  useEffect(() => {
+    if (!showPnL) return;
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      if (cancelled) return;
+      setPnlLoading(true);
+      setPnlError(undefined);
+      void consoleApi.dailyPnL(pnlDays).then((result) => { if (!cancelled) setPnlReport(result.data); }).catch((requestError) => { if (!cancelled) { setPnlReport(undefined); setPnlError(requestError instanceof Error ? requestError.message : "每日盈亏数据暂不可用"); } }).finally(() => { if (!cancelled) setPnlLoading(false); });
+    }, 0);
+    return () => { cancelled = true; window.clearTimeout(timer); };
+  }, [pnlDays, refreshKey, showPnL]);
+
   const apply = (event: React.FormEvent) => {
     event.preventDefault();
     setOffset(0);
@@ -93,8 +110,10 @@ export function TradeRecordsPage({ embedded = false }: { embedded?: boolean } = 
     syncLedgerUrl(next, limit, 0);
   };
   const reset = () => {
-    const next = embedded
-      ? { ...defaultFilters, range: filters.from || filters.to ? "custom" as const : defaultFilters.range, from: filters.from, to: filters.to, modelId: filters.modelId, strategyId: filters.strategyId, executionAccountId: filters.executionAccountId }
+    const next = sharedAccountOnly
+      ? { ...defaultFilters, executionAccountId: filters.executionAccountId }
+      : embedded
+        ? { ...defaultFilters, range: filters.from || filters.to ? "custom" as const : defaultFilters.range, from: filters.from, to: filters.to, modelId: filters.modelId, strategyId: filters.strategyId, executionAccountId: filters.executionAccountId }
       : defaultFilters;
     setDraft(next); setFilters(next); setOffset(0); syncLedgerUrl(next, limit, 0);
   };
@@ -104,17 +123,19 @@ export function TradeRecordsPage({ embedded = false }: { embedded?: boolean } = 
 
   const content = <div ref={rootRef} className="trade-records-content" data-v2-list-state data-v2-list-query={filters.query} data-v2-list-limit={limit} data-v2-list-offset={offset} data-v2-list-params={JSON.stringify(appliedListParams)}>
     {embedded ? <div className="trading-embedded-toolbar">
-      <div><span className="eyebrow">Trading / Ledger</span><strong>资金账本与结算</strong><small>交易与结算记录：已确认并入账的成交与结算按 BUY、SELL、EXTERNAL_SELL 与 REDEEM 分开保留。</small></div>
+      <div><span className="eyebrow">Trading / Ledger</span><strong>资金账本与结算</strong><small>交易与结算记录：已确认并入账的成交与结算按 BUY、SELL、EXTERNAL_SELL 与 REDEEM 分开保留；日期按账本活动发生时间。</small></div>
       <button className="button" onClick={() => setRefreshKey((value) => value + 1)} disabled={loading}><Icon name="refresh" /> {loading ? "刷新中" : "刷新数据"}</button>
     </div> : <header className="page-head">
-      <div><p className="eyebrow">Trading Execution / Ledger</p><h1>交易与结算记录</h1><p className="description">来自已确认并入账的成交与结算：BUY / SELL 为 Polymarket CLOB 真实成交，EXTERNAL_SELL 为外部卖出记账，REDEEM 为链上赎回结算。订单已接受不等于成交；REDEEM 不是卖出成交。</p></div>
+      <div><p className="eyebrow">Trading Execution / Ledger</p><h1>交易与结算记录</h1><p className="description">来自已确认并入账的成交与结算：BUY / SELL 为 Polymarket CLOB 真实成交，EXTERNAL_SELL 为外部卖出记账，REDEEM 为链上赎回结算。订单已接受不等于成交；REDEEM 不是卖出成交。日期按账本活动发生时间。</p></div>
       <button className="button" onClick={() => setRefreshKey((value) => value + 1)} disabled={loading}><Icon name="refresh" /> 刷新数据</button>
     </header>}
     {mode === "demo" && <Notice title="当前为演示数据" description="数据仅用于预览页面，不代表任何钱包的真实成交或赎回。" action="返回真实数据" onAction={() => setDemoEnabled(false)} />}
     {error && <Notice error title="无法读取交易执行账本" description={error} action={mode === "unavailable" ? "手动查看演示数据" : undefined} onAction={() => setDemoEnabled(true)} />}
+    {showPnL && pnlError && <Notice error title="无法读取钱包 PnL" description={pnlError} />}
+    {showPnL && <DailyPnLDashboard report={pnlReport} loading={pnlLoading && !pnlReport} days={pnlDays} onDays={setPnlDays} accountId={filters.executionAccountId || undefined} />}
     <LedgerMetrics data={data} loading={loading && !data} range={rangeLabels[filters.range]} />
     <section className="section panel trade-panel">
-      <LedgerFilters draft={draft} setDraft={setDraft} apply={apply} reset={reset} loading={loading} embedded={embedded} />
+      <LedgerFilters draft={draft} setDraft={setDraft} apply={apply} reset={reset} loading={loading} sharedAccountOnly={sharedAccountOnly} />
       <LedgerTable data={data} loading={loading} onPage={(nextOffset) => { setOffset(nextOffset); syncLedgerUrl(filters, limit, nextOffset); }} onLimit={changeLimit} />
     </section>
   </div>;
@@ -139,12 +160,14 @@ function Metric({ label, value, meta, tone = "neutral" }: { label: string; value
   return <div className={`trade-metric ${tone}`}><span className="metric-label">{label}</span><strong>{value}</strong><span className="metric-meta">{meta}</span></div>;
 }
 
-function LedgerFilters({ draft, setDraft, apply, reset, loading, embedded }: { draft: Filters; setDraft: React.Dispatch<React.SetStateAction<Filters>>; apply: (event: React.FormEvent) => void; reset: () => void; loading: boolean; embedded: boolean }) {
+function LedgerFilters({ draft, setDraft, apply, reset, loading, sharedAccountOnly }: { draft: Filters; setDraft: React.Dispatch<React.SetStateAction<Filters>>; apply: (event: React.FormEvent) => void; reset: () => void; loading: boolean; sharedAccountOnly: boolean }) {
   const update = (key: keyof Filters, value: string) => setDraft((current) => ({ ...current, [key]: value } as Filters));
   return <form className="trade-filters" onSubmit={apply}>
-    <label><span>时间范围</span>{embedded && (draft.from || draft.to) ? <select className="select" value="custom" disabled aria-label="账本共享时间上下文"><option value="custom">自定义上下文</option></select> : <select className="select" value={draft.range} onChange={(event) => setDraft((current) => ({ ...current, range: event.target.value as RangeKey, from: "", to: "" }))}><option value="24h">最近 24 小时</option><option value="7d">最近 7 天</option><option value="30d">最近 30 天</option><option value="all">全部时间</option><option value="custom" disabled>自定义上下文</option></select>}</label>
+    <label><span>时间范围</span><select className="select" value={draft.range} onChange={(event) => setDraft((current) => ({ ...current, range: event.target.value as RangeKey, from: "", to: "" }))}><option value="24h">最近 24 小时</option><option value="7d">最近 7 天</option><option value="30d">最近 30 天</option><option value="all">全部时间</option><option value="custom">自定义日期</option></select></label>
+    <label><span>开始日期</span><input className="input" type="date" value={draft.from} onChange={(event) => update("from", event.target.value)} /></label>
+    <label><span>结束日期</span><input className="input" type="date" value={draft.to} onChange={(event) => update("to", event.target.value)} /></label>
     <label><span>活动类型</span><select className="select" value={draft.activityType} onChange={(event) => update("activityType", event.target.value)}><option value="">全部类型</option><option value="BUY">BUY · 买入</option><option value="SELL">SELL · 卖出</option><option value="EXTERNAL_SELL">EXTERNAL_SELL · 外部卖出</option><option value="REDEEM">REDEEM · 赎回结算</option></select></label>
-    {embedded ? <><label><span>模型（顶部上下文）</span><input className="input" value={draft.modelId || "全部模型"} readOnly disabled aria-label="账本共享模型上下文" /></label><label><span>策略（顶部上下文）</span><input className="input" value={draft.strategyId || "全部策略"} readOnly disabled aria-label="账本共享策略上下文" /></label><label className="account-filter"><span>执行账户（顶部上下文）</span><input className="input" value={draft.executionAccountId || "全部账户"} readOnly disabled aria-label="账本共享账户上下文" /></label></> : <><label><span>模型</span><input className="input" value={draft.modelId} onChange={(event) => update("modelId", event.target.value)} placeholder="例如 forecast-v2" /></label><label><span>策略</span><input className="input" value={draft.strategyId} onChange={(event) => update("strategyId", event.target.value)} placeholder="例如 multfactor_v2" /></label><label className="account-filter"><span>执行账户</span><input className="input" value={draft.executionAccountId} onChange={(event) => update("executionAccountId", event.target.value)} placeholder="例如 wallet-6" /></label></>}
+    <><label><span>模型</span><input className="input" value={draft.modelId} onChange={(event) => update("modelId", event.target.value)} placeholder="例如 forecast-v2" /></label><label><span>策略</span><input className="input" value={draft.strategyId} onChange={(event) => update("strategyId", event.target.value)} placeholder="例如 multfactor_v2" /></label><label className="account-filter"><span>{sharedAccountOnly ? "执行账户（共享范围）" : "执行账户"}</span><input className="input" value={draft.executionAccountId} readOnly={sharedAccountOnly} disabled={sharedAccountOnly} onChange={(event) => update("executionAccountId", event.target.value)} placeholder="例如 wallet-6" /></label></>
     <label className="search-filter"><span>搜索</span><input className="input" value={draft.query} onChange={(event) => update("query", event.target.value)} placeholder="市场、订单、Trade ID、Lot、token 或链上哈希" /></label>
     <div className="trade-filter-actions"><button type="button" className="button" onClick={reset}>重置</button><button className="button primary" disabled={loading}>应用筛选</button></div>
   </form>;
