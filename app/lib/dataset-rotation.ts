@@ -108,6 +108,13 @@ export function datasetTestDownloadState(storageStatus: RotationStorageStatus, i
   return "unavailable";
 }
 
+export type DatasetTrainDownloadState = "available" | "empty" | "unknown";
+
+export function datasetTrainDownloadState(count: number | null | undefined): DatasetTrainDownloadState {
+  if (count === undefined || count === null || !Number.isFinite(count)) return "unknown";
+  return count > 0 ? "available" : "empty";
+}
+
 type RecordValue = Record<string, unknown>;
 
 export function decodeDatasetRotation(value: unknown): DatasetRotationData {

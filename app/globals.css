@@ -877,7 +877,8 @@ tbody tr:hover { background: #f7faf6; }
 .trading-context-toolbar { margin: 0 0 14px; padding: 12px 14px; border: 1px solid var(--line); border-left: 3px solid var(--mint); border-radius: 7px; display: flex; align-items: end; flex-wrap: wrap; gap: 9px 12px; background: var(--surface); }.trading-context-title { min-width: 220px; flex: 1 1 240px; display: grid; gap: 3px; }.trading-context-title strong { color: var(--ink-soft); font-size: 12px; }.trading-context-title small, .trading-context-note { color: var(--muted); font-size: 9px; line-height: 1.45; }.trading-context-toolbar label { min-width: 135px; display: grid; gap: 4px; color: var(--muted); font-size: 9px; }.trading-context-toolbar label .select, .trading-context-toolbar label .input { width: 100%; min-width: 0; }.trading-context-actions { display: flex; gap: 7px; }.trading-context-actions .button { min-height: 32px; }.trading-context-note { flex: 1 1 100%; }
 
 /* Dataset workspace additions stay scoped to the assets domain. */
-.v2-dataset-workspace { display: grid; gap: 16px; }
+.v2-dataset-workspace { display: grid; grid-template-columns: minmax(0, 1fr); min-width: 0; gap: 16px; }
+.v2-dataset-workspace > *, .v2-dataset-workspace .v2-list-section, .v2-dataset-workspace .v2-list-panel, .v2-dataset-workspace .v2-version-context, .v2-dataset-workspace .v2-dataset-selector, .v2-dataset-workspace .v2-version-downloads { min-width: 0; max-width: 100%; }
 .v2-current-version-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; margin-top: 16px; }
 .v2-current-version-card { display: grid; min-width: 0; gap: 6px; padding: 13px; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); }
 .v2-current-version-card.selected { border-color: var(--mint); box-shadow: 0 0 0 1px var(--mint); }

@@ -4,6 +4,7 @@ import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { consoleApi } from "../lib/console-api";
 import {
   datasetTestDownloadState,
+  datasetTrainDownloadState,
   type DatasetRotationCurrentVersion,
   type DatasetRotationData,
   type DatasetRotationExecution,
@@ -186,9 +187,10 @@ function RotationDetail({ detail, data, onClose }: { detail: Detail; data: Datas
   const range = purpose === "train" ? [variant.trainWindowStart, variant.trainWindowEnd] : [release.windowStart, release.windowEnd];
   const endpoint = purpose === "train" ? `/api/console/downloads/trainsets?variant=${encodeURIComponent(variant.variant)}` : `/api/console/downloads/testsets/${encodeURIComponent(version)}?variant=${encodeURIComponent(variant.variant)}`;
   const testDownloadState = purpose === "test" && variant.status === "published" ? datasetTestDownloadState(variant.storageStatus, variant.isCurrent) : "unavailable";
-  const canDownload = purpose === "train" ? variant.status === "published" : testDownloadState !== "unavailable";
+  const trainDownloadState = purpose === "train" ? datasetTrainDownloadState(count) : "unknown";
+  const canDownload = purpose === "train" ? variant.status === "published" && trainDownloadState === "available" : testDownloadState !== "unavailable";
   const downloadNote = purpose === "train"
-    ? "累计已发布批次，按变体合并去重；单个 Sandbox 归档请前往 Sandbox 页面。"
+    ? trainDownloadState === "empty" ? "无累计训练数据，当前不生成 train 下载；单个 Sandbox 归档请前往 Sandbox 页面。" : trainDownloadState === "unknown" ? "累计训练数量未知，当前不生成 train 下载；单个 Sandbox 归档请前往 Sandbox 页面。" : "累计已发布批次，按变体合并去重；单个 Sandbox 归档请前往 Sandbox 页面。"
     : testDownloadState === "download_checked"
       ? "历史清单尚未核对，下载时由服务端执行严格文件预检。"
       : "固定版本测试集，使用同源 BFF 并绑定该 variant。";
