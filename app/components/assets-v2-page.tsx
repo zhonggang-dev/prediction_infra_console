@@ -3,37 +3,33 @@
 import { useEffect, useMemo, useState } from "react";
 import { consoleApi } from "../lib/console-api";
 import { consoleV2, type ConsoleV2Asset, type ConsoleV2BacktestProduct, type ConsoleV2DatasetMember } from "../lib/console-v2";
-import { ROTATION_VARIANTS, type DatasetRotationCurrentVersion, type DatasetRotationData, type RotationVariant } from "../lib/dataset-rotation";
-import { formatV2Bytes, formatV2Number, formatV2Time, V2ContextLinks, V2Facts, V2Frame, V2ListPage, V2Tabs, V2WorkspacePanel, useV2Filter, useWorkspaceTabs, v2Bool, v2Status, v2Unknown } from "./console-v2-resource";
+import { datasetTestDownloadState, datasetTrainDownloadState, ROTATION_VARIANTS, type DatasetRotationCurrentVersion, type DatasetRotationData, type RotationVariant } from "../lib/dataset-rotation";
+import { formatV2Bytes, formatV2Number, formatV2Time, V2ContextLinks, V2Facts, V2Frame, V2ListPage, useV2Filter, v2Bool, v2Status, v2Unknown } from "./console-v2-resource";
 import { DatasetRotationPage } from "./dataset-rotation-page";
 
 const variantLabels: Record<RotationVariant, string> = { original: "original", mv: "MV", ms: "MS", syn: "Syn" };
 const DOWNLOAD_VARIANTS = new Set<string>(ROTATION_VARIANTS);
 
 export function AssetsV2Page({ view = "assets" }: { view?: "assets" | "datasets" | "backtests" }) {
-  const tabs = [{ href: "/datasets", label: "当前数据集版本", aliases: ["/assets"] }, { href: "/sandboxes", label: "资料归档", aliases: ["/assets/archive"] }] as const;
-  const initialHref = view === "datasets" ? "/datasets" : "/sandboxes";
-  const workspace = useWorkspaceTabs(tabs, initialHref);
+  const [refreshKey, setRefreshKey] = useState(0);
   const config = view === "backtests"
     ? { eyebrow: "Assets / Legacy Export", title: "历史回测导出", description: "这是历史数据交付目录；新回测平台在独立工作区运行，旧导出不会覆盖当前数据集与成员。" }
-    : workspace.active === "/datasets"
-      ? { eyebrow: "Assets / Current Dataset", title: "当前数据集版本", description: "先确认各资料类型的当前版本，再按版本、资料类型和用途查看成员；轮换和下载都保留版本上下文。" }
+    : view === "datasets"
+      ? { eyebrow: "Dataset / Rotation", title: "数据集轮转", description: "先选择资料类型，再选择该类型的已发布版本和用途；固定测试、累计训练与轮换历史保持同一数据集语义。" }
       : { eyebrow: "Assets / Archive", title: "资料归档", description: "按来源、用途和稳定身份查找归档事实；目录提交、成员就绪和交易资格分别显示。" };
+  const contextLinks = view === "backtests"
+    ? [{ href: "/backtest-platform", label: "打开回测平台" }, { href: "/datasets", label: "返回数据集轮转" }]
+    : view === "assets"
+      ? [{ href: "/backtests", label: "历史回测导出" }, { href: "http://172.21.20.221:8501/", label: "打开 PM Backtest", external: true }]
+      : [];
 
-  return <V2Frame eyebrow={config.eyebrow} title={config.title} description={config.description}>
-    <V2ContextLinks links={view === "backtests"
-      ? [{ href: "/backtest-platform", label: "打开新版回测平台" }, { href: "/datasets", label: "返回当前数据集" }]
-      : [{ href: "/backtests", label: "历史回测导出" }, { href: "http://172.21.20.221:8501/", label: "打开 PM Backtest", external: true }]}
-    />
-    {view === "backtests" ? <BacktestProducts /> : <>
-      <V2Tabs tabs={tabs} active={workspace.active} onSelect={(href) => workspace.select(href as typeof workspace.active)} />
-      <V2WorkspacePanel active={workspace.active} href="/datasets" visited={workspace.visited.has("/datasets")}><DatasetVersionWorkspace /></V2WorkspacePanel>
-      <V2WorkspacePanel active={workspace.active} href="/sandboxes" visited={workspace.visited.has("/sandboxes")}><AssetCatalog /></V2WorkspacePanel>
-    </>}
+  return <V2Frame eyebrow={config.eyebrow} title={config.title} description={config.description} onRefresh={view === "datasets" ? () => setRefreshKey((value) => value + 1) : undefined}>
+    {contextLinks.length > 0 && <V2ContextLinks links={contextLinks} />}
+    {view === "backtests" ? <BacktestProducts /> : view === "datasets" ? <DatasetVersionWorkspace refreshKey={refreshKey} /> : <AssetCatalog />}
   </V2Frame>;
 }
 
-function DatasetVersionWorkspace() {
+function DatasetVersionWorkspace({ refreshKey }: { refreshKey: number }) {
   const [rotation, setRotation] = useState<DatasetRotationData>();
   const [rotationError, setRotationError] = useState<string>();
   const [rotationLoading, setRotationLoading] = useState(true);
@@ -55,18 +51,25 @@ function DatasetVersionWorkspace() {
       if (!cancelled) setRotationLoading(false);
     });
     return () => { cancelled = true; };
-  }, []);
+  }, [refreshKey]);
 
   const currentByVariant = useMemo(() => new Map((rotation?.currentVersions ?? []).map((item) => [item.variant, item])), [rotation]);
   const trainByVariant = useMemo(() => new Map((rotation?.trainingSets ?? []).map((item) => [item.variant, item])), [rotation]);
   const selectedVariant = isRotationVariant(variant) ? variant : undefined;
-  const selectedCurrent = selectedVariant && version && currentByVariant.get(selectedVariant)?.datasetVersion === version ? currentByVariant.get(selectedVariant) : undefined;
+  const selectedReleaseVariant = selectedVariant && version ? rotation?.releases.flatMap((release) => release.variants.map((item) => ({ release, item }))).find(({ release, item }) => release.datasetVersion === version && item.variant === selectedVariant && item.status === "published") : undefined;
+  const selectedCurrent = selectedVariant && version && currentByVariant.get(selectedVariant)?.datasetVersion === version ? currentByVariant.get(selectedVariant) : selectedReleaseVariant ? { variant: selectedReleaseVariant.item.variant, datasetVersion: selectedReleaseVariant.release.datasetVersion, testCount: selectedReleaseVariant.item.testCount, storageStatus: selectedReleaseVariant.item.storageStatus } : undefined;
   const selectedTrain = selectedVariant ? trainByVariant.get(selectedVariant) : undefined;
-  const canDownloadTest = Boolean(selectedCurrent && selectedCurrent.storageStatus === "verified");
+  const selectedDownloadState = selectedReleaseVariant
+    ? datasetTestDownloadState(selectedReleaseVariant.item.storageStatus, selectedReleaseVariant.item.isCurrent)
+    : selectedCurrent
+      ? datasetTestDownloadState(selectedCurrent.storageStatus, true)
+      : "unavailable";
+  const canDownloadTest = selectedDownloadState !== "unavailable";
+  const testDownloadLabel = selectedDownloadState === "available" ? "固定 test 可用" : selectedDownloadState === "download_checked" ? "下载时校验" : "该类型版本不可下载";
 
   return <div className="v2-dataset-workspace">
     <section className="v2-version-context panel" aria-label="当前数据集版本">
-      <div className="section-head"><div><p className="eyebrow">Current published versions</p><h2 className="section-title">各资料类型当前可用版本</h2><p className="section-caption">版本以当前发布记录为准；单个成员的就绪状态仍在成员列表单独查看。</p></div>{rotationError ? v2Status("error", "读取失败") : v2Status(rotationLoading ? "loading" : "available", rotationLoading ? "读取中" : "已读取")}</div>
+      <div className="section-head"><div><p className="eyebrow">Current published versions</p><h2 className="section-title">当前数据集版本</h2><p className="section-caption">每种资料类型独立维护版本；成员状态和下载状态分别查看。</p></div>{rotationError ? v2Status("error", "读取失败") : v2Status(rotationLoading ? "loading" : "available", rotationLoading ? "读取中" : "已读取")}</div>
       {rotationError && <p className="v2-inline-note">{rotationError}。当前版本无法确认时，暂不生成下载或默认成员范围。</p>}
       {!rotationError && !rotationLoading && <>
         <div className="v2-current-version-grid">
@@ -82,22 +85,22 @@ function DatasetVersionWorkspace() {
     </section>
 
     <section className="section panel panel-pad v2-dataset-selector" aria-label="数据集成员查询上下文">
-      <div className="section-head"><div><h2 className="section-title">选择版本 → 资料类型 → 用途</h2><p className="section-caption">先锁定版本、资料类型和用途，再查看对应成员。</p></div>{version && selectedVariant && purpose ? v2Status("available", "查询已限定") : v2Status("unknown", "请选择范围")}</div>
+      <div className="section-head"><div><h2 className="section-title">选择资料类型 → 版本 → 用途</h2><p className="section-caption">先选择资料类型，再选择该类型真实已发布版本和用途。</p></div>{version && selectedVariant && purpose ? v2Status("available", "查询已限定") : v2Status("unknown", "请选择范围")}</div>
       <div className="v2-dataset-selector-grid">
-        <label><span>已发布版本</span><select className="select" aria-label="已发布版本" value={version} onChange={(event) => { setVersion(event.target.value); if (!event.target.value) setVariant(""); }}><option value="">请选择版本</option>{Array.from(new Set((rotation?.currentVersions ?? []).map((item) => item.datasetVersion))).map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
-        <label><span>资料类型</span><select className="select" aria-label="资料类型" value={variant} onChange={(event) => setVariant(event.target.value)}><option value="">请选择资料类型</option>{ROTATION_VARIANTS.map((item) => <option key={item} value={item}>{variantLabels[item]}{currentByVariant.has(item) ? " · 当前有版本" : " · 暂无当前版本"}</option>)}</select></label>
+        <label><span>资料类型</span><select className="select" aria-label="资料类型" value={variant} onChange={(event) => { setVariant(event.target.value); setVersion(""); }}><option value="">请选择资料类型</option>{ROTATION_VARIANTS.map((item) => <option key={item} value={item}>{variantLabels[item]}</option>)}</select></label>
+        <label><span>该类型已发布版本</span><select className="select" aria-label="该类型已发布版本" value={version} disabled={!selectedVariant} onChange={(event) => setVersion(event.target.value)}><option value="">{selectedVariant ? "请选择版本" : "请先选择资料类型"}</option>{selectedVariant && Array.from(new Set((rotation?.releases ?? []).flatMap((release) => release.variants.some((item) => item.variant === selectedVariant && item.status === "published") ? [release.datasetVersion] : []))).map((item) => <option key={item} value={item}>{item}</option>)}</select></label>
         <label><span>成员用途</span><select className="select" aria-label="成员用途" value={purpose} onChange={(event) => setPurpose(event.target.value)}><option value="">请选择用途</option><option value="test">test · 固定窗口</option><option value="train">train · 累计增量</option></select></label>
       </div>
       {version && selectedVariant && <p className="v2-inline-note">当前范围：{version} / {variantLabels[selectedVariant]} · {selectedTrain ? `累计 train ${formatV2Number(selectedTrain.count, 0)} 个` : "该资料类型暂无累计 train 记录"} · 固定 test {selectedCurrent ? `${formatV2Number(selectedCurrent.testCount, 0)} 个` : "当前版本未提供"}。</p>}
     </section>
 
-    {version && selectedVariant && <DatasetDownloadPanel version={version} variant={selectedVariant} current={selectedCurrent} train={selectedTrain} canDownloadTest={canDownloadTest} />}
-    <DatasetMembers version={version || undefined} variant={selectedVariant} purpose={purpose || undefined} canDownloadTest={canDownloadTest} />
+    {version && selectedVariant && <DatasetDownloadPanel version={version} variant={selectedVariant} current={selectedCurrent} train={selectedTrain} canDownloadTest={canDownloadTest} testDownloadLabel={testDownloadLabel} />}
+    <DatasetMembers version={version || undefined} variant={selectedVariant} purpose={purpose || undefined} canDownloadTest={canDownloadTest} testDownloadLabel={testDownloadLabel} />
 
     <details className="v2-dataset-rotation-embedded" open>
       <summary>轮换执行、发布历史与规则</summary>
       <p className="v2-inline-note">这里展示版本发布、文件核对和执行状态，与上面的当前版本选择保持同一资料范围。</p>
-      <DatasetRotationPage embedded focusVersion={version || undefined} />
+      <DatasetRotationPage embedded focusVersion={version || undefined} showCurrentButton={false} refreshKey={refreshKey} />
     </details>
   </div>;
 }
@@ -110,10 +113,11 @@ function CurrentVersionCard({ variant, current, train, selected, onSelect }: { v
   </div>;
 }
 
-function DatasetDownloadPanel({ version, variant, current, train, canDownloadTest }: { version: string; variant: RotationVariant; current?: DatasetRotationCurrentVersion; train?: { count: number }; canDownloadTest: boolean }) {
+function DatasetDownloadPanel({ version, variant, current, train, canDownloadTest, testDownloadLabel }: { version: string; variant: RotationVariant; current?: { testCount: number; datasetVersion: string }; train?: { count: number }; canDownloadTest: boolean; testDownloadLabel: string }) {
   const encodedVariant = encodeURIComponent(variant);
   const encodedVersion = encodeURIComponent(version);
-  return <section className="section panel panel-pad v2-version-downloads"><div className="section-head"><div><h2 className="section-title">版本级下载</h2><p className="section-caption">{version} / {variantLabels[variant]} 的页面级下载。固定 test 绑定当前发布版本；累计 train 按资料类型跨已发布批次合并去重。</p></div>{v2Status(canDownloadTest ? "available" : "unknown", canDownloadTest ? "固定 test 可用" : "清单未核对")}</div><div className="v2-download-actions"><strong>{version} · {variantLabels[variant]}</strong>{canDownloadTest ? <a className="button" href={`/api/console/downloads/testsets/${encodedVersion}?variant=${encodedVariant}`} target="_blank" rel="noreferrer" download>下载固定 test（{formatV2Number(current?.testCount, 0)}）</a> : <span className="v2-inline-note">当前版本文件清单尚未核对，暂不生成固定 test 下载。</span>}{train ? <a className="button" href={`/api/console/downloads/trainsets?variant=${encodedVariant}`} target="_blank" rel="noreferrer" download>下载累计 train（{formatV2Number(train.count, 0)}）</a> : <span className="v2-inline-note">当前资料类型没有累计 train 记录，暂不生成下载请求。</span>}<small>累计 train 不是单个成员文件；如需时间范围，可展开高级范围表单。</small></div></section>;
+  const trainState = datasetTrainDownloadState(train?.count);
+  return <section className="section panel panel-pad v2-version-downloads"><div className="section-head"><div><h2 className="section-title">数据集下载</h2><p className="section-caption">{version} / {variantLabels[variant]} 的数据集文件。固定 test 绑定真实版本；累计 train 按资料类型跨已发布批次合并去重。</p></div>{v2Status(canDownloadTest ? "available" : "unknown", testDownloadLabel)}</div><div className="v2-download-actions"><strong>{version} · {variantLabels[variant]}</strong>{canDownloadTest ? <a className="button" href={`/api/console/downloads/testsets/${encodedVersion}?variant=${encodedVariant}`} target="_blank" rel="noreferrer" download>下载固定 test（{formatV2Number(current?.testCount, 0)}）</a> : <span className="v2-inline-note">该类型版本当前不可生成固定 test 下载。</span>}{trainState === "available" ? <a className="button" href={`/api/console/downloads/trainsets?variant=${encodedVariant}`} target="_blank" rel="noreferrer" download>下载累计 train（{formatV2Number(train?.count, 0)}）</a> : trainState === "empty" ? <span className="v2-inline-note">无累计训练数据，当前不生成 train 下载。</span> : <span className="v2-inline-note">累计训练数量未知，当前不生成 train 下载。</span>}<small>{testDownloadLabel === "下载时校验" ? "历史清单尚未核对，下载时由服务端执行严格文件预检。" : "累计 train 不是单个成员文件；如需查看成员，先选择用途后按需打开。"}</small></div></section>;
 }
 
 function AssetCatalog() {
@@ -129,7 +133,15 @@ function AssetCatalog() {
     { label: "资料状态", render: (item) => v2Status(item.committedAt ? "committed" : "pending", item.committedAt ? "已提交目录" : "未提交") },
     { label: "模式 / 交易", render: (item) => <div className="v2-cell-copy"><span>{v2Unknown(item.mode)}</span><small>{assetTradeLabel(item)}</small></div> },
     { label: "大小 / 提交时间", render: (item) => <div className="v2-cell-copy"><span>{formatV2Bytes(item.archiveSizeBytes)}</span><small>{formatV2Time(item.committedAt)}</small></div> },
-  ]} renderDetail={(item) => <><V2Facts values={[{ label: "资料类型", value: item.assetKind }, { label: "市场来源", value: v2Unknown(item.marketSource) }, { label: "Sandbox ID", value: v2Unknown(item.sandboxId), mono: true }, { label: "任务 ID", value: v2Unknown(item.jobId), mono: true }, { label: "Selected market ID", value: v2Unknown(item.selectedMarketId), mono: true }, { label: "市场 ID", value: v2Unknown(item.marketId), mono: true }, { label: "条件 ID", value: v2Unknown(item.conditionId), mono: true }, { label: "数据集绑定", value: item.datasetMembershipIdentity ? `${item.datasetMembershipIdentity.sourceNamespace} / ${item.datasetMembershipIdentity.externalDirectoryId}` : "未证明绑定，不按 ID 前缀猜测" }, { label: "Generated QA ID", value: v2Unknown(item.generatedQaId), mono: true }, { label: "QA 版本", value: formatV2Number(item.qaVersion, 0) }, { label: "交易语义", value: assetTradeLabel(item) }, { label: "决策时间", value: formatV2Time(item.decisionAt) }, { label: "信息截止", value: formatV2Time(item.informationCutoffAt) }]} /><AssetDownloadActions item={item} /><p className="v2-inline-note">目录提交只说明资料进入目录；它不会自动推导成员 ready、预测资格或交易资格。Generated QA 的交易语义固定为不适用。</p></>} emptyDescription="没有符合条件的资料目录记录；页面不会按表名推断缺失的 Kalshi 或 QA 来源。" /><AdvancedSandboxDownloadTools /></>;
+  ]} renderDetail={(item) => <AssetDetail item={item} />} emptyDescription="没有符合条件的资料目录记录；页面不会按表名推断缺失的 Kalshi 或 QA 来源。" /><AdvancedSandboxDownloadTools /></>;
+}
+
+function AssetDetail({ item }: { item: ConsoleV2Asset }) {
+  const qa = item.assetKind === "GENERATED_QA";
+  const values = qa
+    ? [{ label: "资料类型", value: item.assetKind }, { label: "资料来源", value: v2Unknown(item.marketSource) }, { label: "Sandbox ID", value: v2Unknown(item.sandboxId), mono: true }, { label: "任务 ID", value: v2Unknown(item.jobId), mono: true }, { label: "题目", value: v2Unknown(item.question) }, { label: "QA ID", value: v2Unknown(item.generatedQaId), mono: true }, { label: "来源题目 ID", value: v2Unknown(item.sourceQaId), mono: true }, { label: "QA 版本", value: formatV2Number(item.qaVersion, 0) }, { label: "资料状态", value: item.committedAt ? "已提交目录" : "未提交" }, { label: "提交时间", value: formatV2Time(item.committedAt) }]
+    : [{ label: "资料类型", value: item.assetKind }, { label: "市场来源", value: v2Unknown(item.marketSource) }, { label: "Sandbox ID", value: v2Unknown(item.sandboxId), mono: true }, { label: "任务 ID", value: v2Unknown(item.jobId), mono: true }, { label: "题目", value: v2Unknown(item.question) }, { label: "Selected market ID", value: v2Unknown(item.selectedMarketId), mono: true }, { label: "市场 ID", value: v2Unknown(item.marketId), mono: true }, { label: "条件 ID", value: v2Unknown(item.conditionId), mono: true }, { label: "交易语义", value: assetTradeLabel(item) }, { label: "决策时间", value: formatV2Time(item.decisionAt) }, { label: "信息截止", value: formatV2Time(item.informationCutoffAt) }, { label: "提交时间", value: formatV2Time(item.committedAt) }];
+  return <><V2Facts values={values} /><AssetDownloadActions item={item} /><p className="v2-inline-note">{qa ? "Generated QA 只展示题目与 QA 字段，交易语义不适用。" : "Market 资料展示市场身份、问题和交易适用性；数据集成员身份在数据集轮转中单独核对。"}</p></>;
 }
 
 function AssetDownloadActions({ item }: { item: ConsoleV2Asset }) {
@@ -144,7 +156,7 @@ function assetTradeLabel(item: ConsoleV2Asset) {
   return item.assetKind === "GENERATED_QA" ? "不适用" : v2Bool(item.tradeEnabled, "可交易", "仅资料");
 }
 
-function DatasetMembers({ version, variant, purpose, canDownloadTest }: { version?: string; variant?: string; purpose?: string; canDownloadTest: boolean }) {
+function DatasetMembers({ version, variant, purpose, canDownloadTest, testDownloadLabel }: { version?: string; variant?: string; purpose?: string; canDownloadTest: boolean; testDownloadLabel: string }) {
   const [sourceNamespace, setSourceNamespace] = useV2Filter("source_namespace");
   const [externalDirectoryId, setExternalDirectoryId] = useV2Filter("external_directory_id");
   const [status, setStatus] = useV2Filter("member_status");
@@ -159,12 +171,12 @@ function DatasetMembers({ version, variant, purpose, canDownloadTest }: { versio
     { label: "成员状态", render: (item) => v2Status(item.status, memberStatusLabel(item.status)) },
     { label: "决策时间", render: (item) => formatV2Time(item.decisionAt) },
     { label: "更新时间", render: (item) => formatV2Time(item.updatedAt) },
-  ]} renderDetail={(item) => <><V2Facts values={[{ label: "成员 ID", value: item.memberId, mono: true }, { label: "数据集版本", value: item.datasetVersion }, { label: "资料变体", value: isRotationVariant(item.variant) ? variantLabels[item.variant] : item.variant }, { label: "用途", value: item.purpose }, { label: "成员状态", value: memberStatusLabel(item.status) }, { label: "来源命名空间", value: v2Unknown(item.sourceNamespace) }, { label: "外部目录 ID", value: v2Unknown(item.externalDirectoryId), mono: true }, { label: "来源版本", value: v2Unknown(item.sourceVersion) }, { label: "清洗记录", value: v2Unknown(item.cleaningRecordId), mono: true }, { label: "决策时间", value: formatV2Time(item.decisionAt) }, { label: "SHA256", value: v2Unknown(item.artifactSha256), mono: true }]} /><DatasetDownloadActions item={item} canDownloadTest={canDownloadTest} /></>} />;
+  ]} renderDetail={(item) => <><V2Facts values={[{ label: "成员 ID", value: item.memberId, mono: true }, { label: "数据集版本", value: item.datasetVersion }, { label: "资料变体", value: isRotationVariant(item.variant) ? variantLabels[item.variant] : item.variant }, { label: "用途", value: item.purpose }, { label: "成员状态", value: memberStatusLabel(item.status) }, { label: "来源命名空间", value: v2Unknown(item.sourceNamespace) }, { label: "外部目录 ID", value: v2Unknown(item.externalDirectoryId), mono: true }, { label: "来源版本", value: v2Unknown(item.sourceVersion) }, { label: "清洗记录", value: v2Unknown(item.cleaningRecordId), mono: true }, { label: "决策时间", value: formatV2Time(item.decisionAt) }, { label: "SHA256", value: v2Unknown(item.artifactSha256), mono: true }]} /><DatasetDownloadActions item={item} canDownloadTest={canDownloadTest} testDownloadLabel={testDownloadLabel} /></>} />;
 }
 
-function DatasetDownloadActions({ item, canDownloadTest }: { item: ConsoleV2DatasetMember; canDownloadTest: boolean }) {
+function DatasetDownloadActions({ item, canDownloadTest, testDownloadLabel }: { item: ConsoleV2DatasetMember; canDownloadTest: boolean; testDownloadLabel: string }) {
   if (!DOWNLOAD_VARIANTS.has(item.variant)) return <p className="v2-inline-note">该成员资料变体不在下载范围内，暂不生成下载入口。</p>;
-  if (item.purpose === "test") return canDownloadTest ? <div className="v2-download-actions"><strong>固定测试集</strong><a className="button" href={`/api/console/downloads/testsets/${encodeURIComponent(item.datasetVersion)}?variant=${encodeURIComponent(item.variant)}`} target="_blank" rel="noreferrer" download>下载 test</a><small>当前版本清单已核对，下载绑定实际 published 版本与 variant。</small></div> : <p className="v2-inline-note">成员已返回，但当前版本的清单核对不是 verified；暂不生成固定 test 下载。</p>;
+  if (item.purpose === "test") return canDownloadTest ? <div className="v2-download-actions"><strong>固定测试集</strong><a className="button" href={`/api/console/downloads/testsets/${encodeURIComponent(item.datasetVersion)}?variant=${encodeURIComponent(item.variant)}`} target="_blank" rel="noreferrer" download>下载 test</a><small>{testDownloadLabel === "下载时校验" ? "历史清单尚未核对，下载时由服务端执行严格文件预检。" : "下载绑定真实 published 版本与 variant，服务端执行文件预检。"}</small></div> : <p className="v2-inline-note">该成员不属于可下载的 published 版本。</p>;
   if (item.purpose === "train") return <p className="v2-inline-note">累计 train 是按资料类型的页面级集合，请使用上方版本级下载；此处只展示成员来源与制品事实。</p>;
   return <p className="v2-inline-note">成员用途为 {item.purpose}，当前只为 test 与 train 提供下载语义。</p>;
 }
@@ -174,13 +186,13 @@ function AdvancedSandboxDownloadTools() {
 }
 
 function BacktestProducts() {
-  return <><V2ListPage<ConsoleV2BacktestProduct> title="历史回测导出" description="Legacy export 只代表旧交付目录，不代表新版回测平台的研究实验或可运行数据集。" load={consoleV2.infra.backtestProducts} rowKey={(item) => `${item.productKind}:${item.version}`} searchPlaceholder="搜索产品类型、版本或状态" columns={[
+  return <><V2ListPage<ConsoleV2BacktestProduct> title="历史回测导出" description="Legacy export 只代表旧交付目录，不代表回测平台的研究实验或可运行数据集。" load={consoleV2.infra.backtestProducts} rowKey={(item) => `${item.productKind}:${item.version}`} searchPlaceholder="搜索产品类型、版本或状态" columns={[
     { label: "产品 / 版本", className: "primary", render: (item) => <div className="v2-cell-copy"><strong>{item.productKind}</strong><small>{item.version}</small></div> },
     { label: "状态", render: (item) => v2Status(item.status, item.status) },
     { label: "窗口", render: (item) => `${formatV2Time(item.windowStart)} → ${formatV2Time(item.windowEnd)}` },
     { label: "记录数", render: (item) => formatV2Number(item.count, 0) },
     { label: "发布时间", render: (item) => formatV2Time(item.publishedAt) },
-  ]} renderDetail={(item) => <V2Facts values={[{ label: "产品类型", value: item.productKind }, { label: "版本", value: item.version, mono: true }, { label: "状态", value: item.status }, { label: "窗口开始", value: formatV2Time(item.windowStart) }, { label: "窗口结束", value: formatV2Time(item.windowEnd) }, { label: "记录数", value: formatV2Number(item.count, 0) }]} />} emptyDescription="暂无真实 legacy 发布目录记录；页面不恢复旧创建表单，也不把训练/测试成员冒充回测 parquet。" /><div className="v2-capability-note"><strong>外部目录能力：</strong> PM Backtest 与新版回测平台保持独立，输入/实验/结果不在这张历史导出表中合并。</div></>;
+  ]} emptyDescription="暂无真实 legacy 发布目录记录；页面不恢复旧创建表单，也不把训练/测试成员冒充回测 parquet。" /><div className="v2-capability-note"><strong>外部目录能力：</strong> PM Backtest 与回测平台保持独立，输入/实验/结果不在这张历史导出表中合并。</div></>;
 }
 
 function isRotationVariant(value: string | undefined): value is RotationVariant {

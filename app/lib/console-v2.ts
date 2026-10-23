@@ -83,6 +83,31 @@ export interface ConsoleV2PredictionCoverageModel {
   pendingTaskCount: number | null;
 }
 
+export interface ConsoleV2PredictionModel {
+  modelId: string;
+  taskCount: number | null;
+  resultCount: number | null;
+  directResultCount: number | null;
+  sandboxResultCount: number | null;
+  latestPredictionAsOf?: string;
+  latestReceivedAt?: string;
+}
+
+export interface ConsoleV2PredictionBatchSummary {
+  modelId: string;
+  predictionAsOf: string;
+  marketSource: string;
+  resultCount: number | null;
+  sandboxCount: number | null;
+  directResultCount: number | null;
+  sandboxResultCount: number | null;
+  unknownResultCount: number | null;
+  maxResultId: string;
+  sourceKinds: string[];
+  generationIds: string[];
+  latestReceivedAt?: string;
+}
+
 export interface ConsoleV2RunningMarket {
   generationId: string;
   runningMarketId: string;
@@ -529,7 +554,7 @@ async function requestV2<T>(service: ConsoleV2Service, path: string, params: Pag
   try {
     response = await fetch(`/api/console/v2/${service}/${path}${suffix}`, { cache: "no-store" });
   } catch {
-    throw new ConsoleV2ApiError("新版控制台网络不可用，请检查服务连接。", 0, "UPSTREAM_UNAVAILABLE");
+    throw new ConsoleV2ApiError("控制台网络不可用，请检查服务连接。", 0, "UPSTREAM_UNAVAILABLE");
   }
   const payload = await response.json().catch(() => ({}));
   if (!response.ok) {
@@ -538,7 +563,7 @@ async function requestV2<T>(service: ConsoleV2Service, path: string, params: Pag
     const details = asRecord(error.details);
     const directError = typeof error.error === "string" ? error.error : undefined;
     throw new ConsoleV2ApiError(
-      text(error.message) ?? directError ?? text(nested.message) ?? text(details.message) ?? "新版控制台接口请求失败",
+      text(error.message) ?? directError ?? text(nested.message) ?? text(details.message) ?? "控制台接口请求失败",
       response.status,
       text(error.code) ?? text(nested.code) ?? text(details.code),
     );
@@ -580,6 +605,8 @@ export const consoleV2 = {
     selectionRuns: (params: PageParams = {}) => page("infra", "selection-runs", params, decodeSelectionRun),
     selectedMarkets: (params: PageParams = {}) => page("infra", "selected-markets", params, decodeSelectedMarket),
     predictions: (params: PageParams = {}) => page("infra", "predictions", params, decodePrediction),
+    predictionModels: (params: PageParams = {}) => page("infra", "prediction-models", params, decodePredictionModel),
+    predictionBatches: (params: PageParams = {}) => page("infra", "prediction-batches", params, decodePredictionBatch),
     predictionTasks: (params: PageParams = {}) => page("infra", "prediction-tasks", params, decodePredictionTask),
     assets: (params: PageParams = {}) => page("infra", "assets", params, decodeAsset),
     datasetMembers: (params: PageParams = {}) => page("infra", "dataset-members", params, decodeDatasetMember),
@@ -634,6 +661,14 @@ function decodePredictionCoverage(value: RawRecord): ConsoleV2PredictionCoverage
 
 function decodePredictionCoverageModel(value: RawRecord): ConsoleV2PredictionCoverageModel {
   return { predictionModelId: requiredText(value.prediction_model_id, "prediction_coverage.models.prediction_model_id"), expectedTaskCount: nullableNumber(value.expected_task_count), completedTaskCount: nullableNumber(value.completed_task_count), pendingTaskCount: nullableNumber(value.pending_task_count) };
+}
+
+function decodePredictionModel(value: RawRecord): ConsoleV2PredictionModel {
+  return { modelId: requiredText(value.model_id, "prediction_model.model_id"), taskCount: nullableNumber(value.task_count), resultCount: nullableNumber(value.result_count), directResultCount: nullableNumber(value.direct_result_count), sandboxResultCount: nullableNumber(value.sandbox_result_count), latestPredictionAsOf: optionalTime(value.latest_prediction_as_of), latestReceivedAt: optionalTime(value.latest_received_at) };
+}
+
+function decodePredictionBatch(value: RawRecord): ConsoleV2PredictionBatchSummary {
+  return { modelId: requiredText(value.model_id, "prediction_batch.model_id"), predictionAsOf: requiredTime(value.prediction_as_of, "prediction_batch.prediction_as_of"), marketSource: requiredText(value.market_source, "prediction_batch.market_source"), resultCount: nullableNumber(value.result_count), sandboxCount: nullableNumber(value.sandbox_count), directResultCount: nullableNumber(value.direct_result_count), sandboxResultCount: nullableNumber(value.sandbox_result_count), unknownResultCount: nullableNumber(value.unknown_result_count), maxResultId: requiredId(value.max_result_id, "prediction_batch.max_result_id"), sourceKinds: textArray(value.source_kinds), generationIds: idArray(value.generation_ids, "prediction_batch.generation_ids"), latestReceivedAt: optionalTime(value.latest_received_at) };
 }
 
 function decodeGeneration(value: RawRecord): ConsoleV2Generation {
@@ -800,6 +835,7 @@ function asRecord(value: unknown): RawRecord { return value !== null && typeof v
 function asRecordOrUndefined(value: unknown): RawRecord | undefined { const record = value === undefined || value === null ? undefined : asRecord(value); return record && Object.keys(record).length ? record : undefined; }
 function arrayRecords(value: unknown): RawRecord[] { return Array.isArray(value) ? value.map(asRecord) : []; }
 function textArray(value: unknown): string[] { return Array.isArray(value) ? value.filter((item) => typeof item === "string" && item.trim()).map(String) : []; }
+function idArray(value: unknown, field: string): string[] { if (!Array.isArray(value)) throw new ConsoleV2ContractError(`V2 接口缺少 ${field}`); return value.map((item, index) => { if (typeof item !== "number" || !Number.isSafeInteger(item) || item < 1) throw new ConsoleV2ContractError(`V2 接口返回了无效的 ${field}[${index}]`); return String(item); }); }
 function asStringRecord(value: unknown): Record<string, string> { const record = asRecord(value); return Object.fromEntries(Object.entries(record).filter(([, item]) => typeof item === "string").map(([key, item]) => [key, String(item)])); }
 function text(value: unknown): string | undefined { return value === undefined || value === null || value === "" ? undefined : String(value); }
 function requiredText(value: unknown, field: string): string { const result = text(value)?.trim(); if (!result) throw new ConsoleV2ContractError(`V2 接口缺少 ${field}`); return result; }

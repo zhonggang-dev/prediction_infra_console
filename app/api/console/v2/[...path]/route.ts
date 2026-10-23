@@ -16,6 +16,8 @@ const INFRA_RESOURCES = new Set([
   "selection-runs",
   "selected-markets",
   "predictions",
+  "prediction-models",
+  "prediction-batches",
   "prediction-tasks",
   "assets",
   "dataset-members",
@@ -66,8 +68,8 @@ export async function DELETE() {
 
 async function forward(request: Request, path: string[]): Promise<Response> {
   const target = resolveTarget(path);
-  if (!target) return json({ code: "V2_ROUTE_NOT_FOUND", message: "不支持的新版控制台接口。" }, 404);
-  if (!target.baseUrl || !target.token) return json({ code: "BACKEND_NOT_CONFIGURED", message: `${target.serviceName} 的新版只读连接尚未配置。` }, 503);
+  if (!target) return json({ code: "V2_ROUTE_NOT_FOUND", message: "不支持的控制台接口。" }, 404);
+  if (!target.baseUrl || !target.token) return json({ code: "BACKEND_NOT_CONFIGURED", message: `${target.serviceName} 的只读连接尚未配置。` }, 503);
 
   const url = new URL(target.endpoint, target.baseUrl);
   url.search = new URL(request.url).search;
@@ -139,7 +141,7 @@ function copyHeaders(source: Headers): Headers {
 }
 
 function methodNotAllowed(): Response {
-  return new Response(JSON.stringify({ code: "READ_ONLY", message: "新版控制台只读接口仅允许 GET。" }), { status: 405, headers: { allow: "GET", "content-type": "application/json", "cache-control": "no-store" } });
+  return new Response(JSON.stringify({ code: "READ_ONLY", message: "控制台只读接口仅允许 GET。" }), { status: 405, headers: { allow: "GET", "content-type": "application/json", "cache-control": "no-store" } });
 }
 
 function json(body: Record<string, string>, status: number): Response {

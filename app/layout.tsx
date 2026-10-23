@@ -8,19 +8,19 @@ export async function generateMetadata(): Promise<Metadata> {
   const protocol = requestHeaders.get("x-forwarded-proto") ?? (host.startsWith("localhost") || host.startsWith("127.0.0.1") ? "http" : "https");
   const image = new URL("/og-observability.png", `${protocol}://${host}`).toString();
   return {
-    title: "Prediction Console · 新版运维",
-    description: "Prediction Infra 新版控制台基础，按市场、预测、资料和交易链路逐步接入",
+    title: "Prediction Console · 运维控制台",
+    description: "Prediction Infra 运维控制台，按市场、预测、数据集和交易链路查看真实状态",
     icons: { icon: "/favicon.svg" },
     openGraph: {
-      title: "Prediction Console · 新版运维",
-      description: "Prediction Infra 新版控制台基础，按市场、预测、资料和交易链路逐步接入",
+      title: "Prediction Console · 运维控制台",
+      description: "Prediction Infra 运维控制台，按市场、预测、数据集和交易链路查看真实状态",
       type: "website",
-      images: [{ url: image, width: 1731, height: 909, alt: "新版双服务基础监控" }],
+      images: [{ url: image, width: 1731, height: 909, alt: "Prediction Infra 运维控制台" }],
     },
     twitter: {
       card: "summary_large_image",
-      title: "Prediction Console · 新版运维",
-      description: "Prediction Infra 新版控制台基础，按市场、预测、资料和交易链路逐步接入",
+      title: "Prediction Console · 运维控制台",
+      description: "Prediction Infra 运维控制台，按市场、预测、数据集和交易链路查看真实状态",
       images: [image],
     },
   };

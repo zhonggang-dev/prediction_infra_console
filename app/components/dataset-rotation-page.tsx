@@ -2,14 +2,16 @@
 
 import { Fragment, useCallback, useEffect, useMemo, useState } from "react";
 import { consoleApi } from "../lib/console-api";
-import type {
-  DatasetRotationCurrentVersion,
-  DatasetRotationData,
-  DatasetRotationExecution,
-  DatasetRotationRelease,
-  DatasetRotationTrainingSet,
-  DatasetRotationVariant,
-  RotationVariant,
+import {
+  datasetTestDownloadState,
+  datasetTrainDownloadState,
+  type DatasetRotationCurrentVersion,
+  type DatasetRotationData,
+  type DatasetRotationExecution,
+  type DatasetRotationRelease,
+  type DatasetRotationTrainingSet,
+  type DatasetRotationVariant,
+  type RotationVariant,
 } from "../lib/dataset-rotation";
 import { ConsoleShell } from "./console-shell";
 import { Icon } from "./icons";
@@ -23,8 +25,8 @@ type Detail =
 const variantLabels: Record<RotationVariant, string> = { mv: "MV", ms: "MS", original: "original", syn: "Syn" };
 const variantDescriptions: Record<RotationVariant, string> = { mv: "masked 制品", ms: "逐页清洗", original: "原始归档", syn: "QA 合成题" };
 
-/** 数据集轮换页面只消费后端安全 DTO，不提供演示数据回落。 */
-export function DatasetRotationPage({ embedded = false, focusVersion }: { embedded?: boolean; focusVersion?: string } = {}) {
+/** 数据集轮转页面只消费后端安全 DTO，不提供演示数据回落。 */
+export function DatasetRotationPage({ embedded = false, focusVersion, showCurrentButton = true, refreshKey = 0 }: { embedded?: boolean; focusVersion?: string; showCurrentButton?: boolean; refreshKey?: number } = {}) {
   const [data, setData] = useState<DatasetRotationData>();
   const [error, setError] = useState<string>();
   const [loading, setLoading] = useState(true);
@@ -41,7 +43,7 @@ export function DatasetRotationPage({ embedded = false, focusVersion }: { embedd
     } catch (requestError) {
       setData(undefined);
       setDetail(undefined);
-      setError(requestError instanceof Error ? requestError.message : "数据集轮换接口不可用");
+      setError(requestError instanceof Error ? requestError.message : "数据集轮转接口不可用");
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -61,7 +63,7 @@ export function DatasetRotationPage({ embedded = false, focusVersion }: { embedd
       window.clearTimeout(initial);
       window.clearInterval(timer);
     };
-  }, [load]);
+  }, [load, refreshKey]);
 
   const openDetail = (next: Detail) => setDetail((current) => sameDetail(current, next) ? undefined : next);
 
@@ -69,7 +71,7 @@ export function DatasetRotationPage({ embedded = false, focusVersion }: { embedd
     {!embedded && <header className="page-head rotation-page-head">
       <div>
         <p className="eyebrow">Dataset Rotation</p>
-        <h1>数据集轮换</h1>
+        <h1>数据集轮转</h1>
         <p className="description">查看可用版本，跟踪自动轮换。</p>
       </div>
       <div className="rotation-head-actions">
@@ -77,7 +79,7 @@ export function DatasetRotationPage({ embedded = false, focusVersion }: { embedd
       </div>
     </header>}
 
-    {error && <div className="notice error rotation-error"><div><strong>无法读取数据集轮换</strong><p>{error}</p></div><button className="button" onClick={() => void load()} disabled={refreshing}>重试</button></div>}
+    {error && <div className="notice error rotation-error"><div><strong>无法读取数据集轮转</strong><p>{error}</p></div><button className="button" onClick={() => void load()} disabled={refreshing}>重试</button></div>}
     {loading && !data && <RotationSkeleton />}
     {data && <>
       <div className="rotation-rulebar" aria-label="轮换计划摘要">
@@ -90,7 +92,7 @@ export function DatasetRotationPage({ embedded = false, focusVersion }: { embedd
       <section className="section rotation-section" aria-label="发布周期记录">
         <div className="section-head rotation-section-head">
           <div><h2 className="section-title">发布周期记录</h2><p className="section-caption">一行一个版本 · 发布日为该版本首次发布日</p></div>
-          <button className={`button ${detail?.kind === "current" ? "primary" : ""}`} onClick={() => openDetail({ kind: "current" })}>各类型当前可用版本</button>
+          {showCurrentButton && <button className={`button ${detail?.kind === "current" ? "primary" : ""}`} onClick={() => openDetail({ kind: "current" })}>各类型当前可用版本</button>}
         </div>
         <ReleaseTable data={data} onCell={(release, variant, purpose) => openDetail({ kind: "cell", datasetVersion: release.datasetVersion, variant: variant.variant, purpose })} />
         <p className="rotation-table-note">单位：Sandbox 个数 · 训练列为本轮增量 · 点击查看版本与下载</p>
@@ -159,6 +161,7 @@ function DatasetCell({ release, variant, purpose, timezone, onCell }: { release:
   const current = !isTrain && variant.isCurrent && variant.storageStatus === "verified";
   const unavailableCurrent = !isTrain && variant.isCurrent && !current;
   const status = variantStatusText(variant.status);
+  const testDownloadState = !isTrain && variant.status === "published" ? datasetTestDownloadState(variant.storageStatus, variant.isCurrent) : "unavailable";
   const storageWarning = variant.storageStatus === "unavailable" || variant.storageStatus === "mismatch";
   return <td className={`rotation-data-cell ${storageWarning ? "storage-warning" : ""}`}>
     <button className="rotation-cell-button" type="button" onClick={() => onCell(release, variant, purpose)}>
@@ -166,7 +169,7 @@ function DatasetCell({ release, variant, purpose, timezone, onCell }: { release:
       {count === 0 && isTrain && <span className="rotation-cell-note">无训练成员</span>}
       {count === 0 && !isTrain && <span className="rotation-cell-note">暂无测试成员</span>}
       <strong className="rotation-count">{integer(count)}</strong>
-      {!(isTrain && count === 0) && <span className={current || unavailableCurrent ? "rotation-state" : "rotation-cell-note"}>{current ? "当前可用" : unavailableCurrent ? storageStatusText(variant.storageStatus) : isTrain ? "本轮增量" : status}</span>}
+      {!(isTrain && count === 0) && <span className={current || unavailableCurrent || testDownloadState === "download_checked" ? "rotation-state" : "rotation-cell-note"}>{current ? "当前可用" : unavailableCurrent || (!isTrain && testDownloadState === "unavailable" && (variant.storageStatus === "mismatch" || variant.storageStatus === "unavailable")) ? storageStatusText(variant.storageStatus) : testDownloadState === "download_checked" ? "下载时校验" : isTrain ? "本轮增量" : status}</span>}
     </button>
   </td>;
 }
@@ -183,7 +186,15 @@ function RotationDetail({ detail, data, onClose }: { detail: Detail; data: Datas
   const count = purpose === "train" ? variant.trainCount : variant.testCount;
   const range = purpose === "train" ? [variant.trainWindowStart, variant.trainWindowEnd] : [release.windowStart, release.windowEnd];
   const endpoint = purpose === "train" ? `/api/console/downloads/trainsets?variant=${encodeURIComponent(variant.variant)}` : `/api/console/downloads/testsets/${encodeURIComponent(version)}?variant=${encodeURIComponent(variant.variant)}`;
-  return <div className="rotation-detail" aria-live="polite"><DetailHeader title={`${variantLabels[variant.variant]} · ${variantDescriptions[variant.variant]} / ${purpose === "train" ? "训练集" : "测试集"}`} onClose={onClose} /><div className="rotation-facts"><Fact label="批次版本" value={version} /><Fact label="时间范围" value={range[0] && range[1] ? `${formatDateOnly(range[0], data.timezone)} — ${formatDateOnly(range[1], data.timezone)}` : "暂无训练时间范围"} /><Fact label="本轮成员数" value={`${integer(count)} 个`} /><Fact label="发布时间" value={variant.publishedAt ? formatDateTime(variant.publishedAt, data.timezone) : "尚未发布"} /><Fact label="状态" value={variantStatusText(variant.status)} /><Fact label="存储状态" value={storageStatusText(variant.storageStatus)} /></div><div className="rotation-api"><span>下载动作</span><a className="button" href={endpoint} target="_blank" rel="noreferrer" download>{purpose === "train" ? "下载累计 train" : "下载固定 test"}</a><small>{purpose === "train" ? "累计已发布批次，按变体合并去重；时间范围下载在资料页高级工具中。" : "固定版本测试集，使用同源 BFF 并绑定该 variant。"}</small></div></div>;
+  const testDownloadState = purpose === "test" && variant.status === "published" ? datasetTestDownloadState(variant.storageStatus, variant.isCurrent) : "unavailable";
+  const trainDownloadState = purpose === "train" ? datasetTrainDownloadState(count) : "unknown";
+  const canDownload = purpose === "train" ? variant.status === "published" && trainDownloadState === "available" : testDownloadState !== "unavailable";
+  const downloadNote = purpose === "train"
+    ? trainDownloadState === "empty" ? "无累计训练数据，当前不生成 train 下载；单个 Sandbox 归档请前往 Sandbox 页面。" : trainDownloadState === "unknown" ? "累计训练数量未知，当前不生成 train 下载；单个 Sandbox 归档请前往 Sandbox 页面。" : "累计已发布批次，按变体合并去重；单个 Sandbox 归档请前往 Sandbox 页面。"
+    : testDownloadState === "download_checked"
+      ? "历史清单尚未核对，下载时由服务端执行严格文件预检。"
+      : "固定版本测试集，使用同源 BFF 并绑定该 variant。";
+  return <div className="rotation-detail" aria-live="polite"><DetailHeader title={`${variantLabels[variant.variant]} · ${variantDescriptions[variant.variant]} / ${purpose === "train" ? "训练集" : "测试集"}`} onClose={onClose} /><div className="rotation-facts"><Fact label="批次版本" value={version} /><Fact label="时间范围" value={range[0] && range[1] ? `${formatDateOnly(range[0], data.timezone)} — ${formatDateOnly(range[1], data.timezone)}` : "暂无训练时间范围"} /><Fact label="本轮成员数" value={`${integer(count)} 个`} /><Fact label="发布时间" value={variant.publishedAt ? formatDateTime(variant.publishedAt, data.timezone) : "尚未发布"} /><Fact label="状态" value={variantStatusText(variant.status)} /><Fact label="存储状态" value={storageStatusText(variant.storageStatus)} /></div><div className="rotation-api"><span>下载动作</span>{canDownload ? <a className="button" href={endpoint} target="_blank" rel="noreferrer" download>{purpose === "train" ? "下载累计 train" : "下载固定 test"}</a> : <span className="v2-inline-note">该版本当前不可生成固定 test 下载。</span>}<small>{downloadNote}</small></div></div>;
 }
 
 function CurrentVersion({ current, timezone }: { current: DatasetRotationCurrentVersion; timezone: string }) {

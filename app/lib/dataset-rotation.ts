@@ -12,6 +12,7 @@ export const ROTATION_VERSION_STATUSES = ["waiting_input", "registering", "prepa
 export type RotationVersionStatus = (typeof ROTATION_VERSION_STATUSES)[number];
 export type RotationReleaseKind = "market" | "syn";
 export type RotationStorageStatus = "verified" | "unavailable" | "mismatch" | "not_checked";
+export type DatasetTestDownloadState = "available" | "download_checked" | "unavailable";
 export type RotationExecutionStatus = "idle" | "waiting_input" | "registering" | "preparing" | "publishing" | "published" | "failed";
 
 export interface DatasetRotationVariant {
@@ -89,9 +90,29 @@ export interface DatasetRotationData {
 
 export class DatasetRotationContractError extends Error {
   constructor(field: string) {
-    super(`数据集轮换接口返回了无效的 ${field}`);
+    super(`数据集轮转接口返回了无效的 ${field}`);
     this.name = "DatasetRotationContractError";
   }
+}
+
+/**
+ * Historical published manifests may be intentionally unverified in the
+ * console snapshot. The dataset download endpoint still performs its own
+ * strict preflight, so those historical rows remain selectable and are
+ * labelled accordingly. A current row must be verified before it is called
+ * available from the current-version view.
+ */
+export function datasetTestDownloadState(storageStatus: RotationStorageStatus, isCurrent: boolean): DatasetTestDownloadState {
+  if (storageStatus === "verified") return "available";
+  if (!isCurrent && storageStatus === "not_checked") return "download_checked";
+  return "unavailable";
+}
+
+export type DatasetTrainDownloadState = "available" | "empty" | "unknown";
+
+export function datasetTrainDownloadState(count: number | null | undefined): DatasetTrainDownloadState {
+  if (count === undefined || count === null || !Number.isFinite(count)) return "unknown";
+  return count > 0 ? "available" : "empty";
 }
 
 type RecordValue = Record<string, unknown>;

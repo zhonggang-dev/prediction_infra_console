@@ -106,6 +106,11 @@ function resolveGet(request: Request, path: string[]): ProxyRequest {
 
 async function resolvePost(request: Request, path: string[]): Promise<ProxyRequest> {
   const url = new URL(request.url);
+  if (path.length === 2 && path[0] === "prediction-batches" && path[1] === "archive") {
+    assertOnlyQuery(url.searchParams, []);
+    const fields = await readBody(request);
+    return resolvePredictionBatch(fields);
+  }
   if (path.length !== 2 || path[0] !== "sandboxes" || !["archives:batch", "archives:range"].includes(path[1])) {
     throw new Error("不支持的下载接口");
   }
@@ -113,6 +118,24 @@ async function resolvePost(request: Request, path: string[]): Promise<ProxyReque
   const fields = await readBody(request);
   if (path[1] === "archives:batch") return resolveBatch(url.searchParams, fields);
   return resolveRange(url.searchParams, fields);
+}
+
+function resolvePredictionBatch(fields: BodyFields): ProxyRequest {
+  assertOnlyFields(fields, ["model_id", "market_source", "prediction_as_of", "max_result_id", "source_kind", "generation_id", "variant"]);
+  const modelID = fieldText(fields.model_id);
+  const marketSource = (fieldText(fields.market_source) || "").toUpperCase();
+  const predictionAsOf = requiredRfc3339(fields.prediction_as_of, "prediction_as_of");
+  const maxResultID = exactPositiveInteger(fields.max_result_id, "max_result_id");
+  const sourceKind = (fieldText(fields.source_kind) || "").toUpperCase();
+  const variant = (fieldText(fields.variant) || "masked").toLowerCase();
+  const generationID = optionalPositiveInteger(fields.generation_id, "generation_id");
+  if (!modelID || modelID.length > 200) throw new Error("model_id 无效");
+  if (!MARKET_SOURCES.has(marketSource)) throw new Error("market_source 仅支持 POLYMARKET 或 KALSHI");
+  if (sourceKind !== "SANDBOX") throw new Error("source_kind 必须是 SANDBOX");
+  if (variant !== "masked") throw new Error("预测批次仅支持 masked Sandbox 下载");
+  const body: Record<string, unknown> = { model_id: modelID, market_source: marketSource, prediction_as_of: predictionAsOf, max_result_id: maxResultID, source_kind: sourceKind, variant };
+  if (generationID !== undefined) body.generation_id = generationID;
+  return { endpoint: "/api/v1/console/v2/prediction-batches/archive", query: new URLSearchParams(), body: JSON.stringify(body) };
 }
 
 function resolveBatch(query: URLSearchParams, fields: BodyFields): ProxyRequest {
@@ -231,9 +254,21 @@ function fieldText(value: unknown): string | undefined {
   return typeof value === "string" && value.trim() ? value.trim() : undefined;
 }
 
+function exactPositiveInteger(value: unknown, field: string): number {
+  const text = fieldText(value);
+  const numeric = typeof value === "number" ? value : text ? Number(text) : NaN;
+  if (!Number.isSafeInteger(numeric) || numeric < 1) throw new Error(`${field} 必须是正整数`);
+  return numeric;
+}
+
+function optionalPositiveInteger(value: unknown, field: string): number | undefined {
+  if (value === undefined || value === null || value === "") return undefined;
+  return exactPositiveInteger(value, field);
+}
+
 function copyDownloadHeaders(source: Headers): Headers {
   const result = new Headers();
-  for (const name of ["content-type", "content-disposition", "content-length", "etag", "retry-after", "www-authenticate", "x-request-id", "x-testset-version", "x-testset-variant", "x-testset-count", "x-testset-roster-sha256", "x-trainset-versions", "x-trainset-variant", "x-trainset-count", "x-trainset-roster-sha256"]) {
+  for (const name of ["content-type", "content-disposition", "content-length", "etag", "retry-after", "www-authenticate", "x-request-id", "x-testset-version", "x-testset-variant", "x-testset-count", "x-testset-roster-sha256", "x-trainset-versions", "x-trainset-variant", "x-trainset-count", "x-trainset-roster-sha256", "x-prediction-batch-model", "x-prediction-batch-as-of", "x-prediction-batch-results", "x-prediction-batch-sandboxes", "x-prediction-batch-max-result-id", "x-prediction-batch-source"]) {
     const value = source.get(name);
     if (value) result.set(name, value);
   }
