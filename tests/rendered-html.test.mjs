@@ -141,17 +141,34 @@ test("服务端可渲染独立的市场页面", async () => {
   assert.doesNotMatch(html, /id="v2-tab-markets-selection"[^>]*aria-selected="true"/);
 });
 
-test("服务端可渲染数据集轮换页面并显示导航入口", async () => {
-  const response = await render("/dataset-rotation");
+test("选盘批次直达链接先展示目标成员列表", async () => {
+  const response = await render("/markets/selection?selection_run_id=477");
   assert.equal(response.status, 200);
   const html = await response.text();
-  assert.match(html, /数据集轮转/);
-  assert.match(html, /数据集轮转/);
+  assert.match(html, /选盘批次(?:\s|<!-- -->)+477/);
+  assert.match(html, /<h2[^>]*>入选成员<\/h2>/);
+  assert.doesNotMatch(html, /<h2[^>]*>选盘批次<\/h2>/);
+  assert.match(html, /返回选盘批次/);
+});
+
+test("数据集轮转的三个兼容入口复用同一类型→版本→用途页面", async () => {
+  for (const path of ["/dataset-rotation", "/datasets", "/assets"]) {
+    const response = await render(path);
+    assert.equal(response.status, 200, path);
+    const html = await response.text();
+    assert.match(html, /<h1>数据集轮转<\/h1>/, path);
+    assert.match(html, /选择资料类型 → 版本 → 用途/, path);
+    assert.match(html, /刷新/, path);
+    assert.doesNotMatch(html, /高级归档工具/, path);
+    assert.doesNotMatch(html, /打开 PM Backtest/, path);
+    assert.doesNotMatch(html, /历史回测导出/, path);
+    assert.equal((html.match(/class="brand"/g) ?? []).length, 1, `${path} should have one ConsoleShell`);
+  }
 });
 
 test("资料工作区把真实版本/变体/用途和轮换嵌入同一业务壳", async () => {
   const datasets = await (await render("/datasets")).text();
-  assert.match(datasets, /当前数据集版本/);
+  assert.match(datasets, /<h1>数据集轮转<\/h1>/);
   assert.match(datasets, /选择资料类型 → 版本 → 用途/);
   assert.match(datasets, /轮换执行、发布历史与规则/);
   assert.equal((datasets.match(/class="brand"/g) ?? []).length, 1, "资料工作区只能有一个 ConsoleShell");

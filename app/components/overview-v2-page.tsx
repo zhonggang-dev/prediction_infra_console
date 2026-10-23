@@ -36,7 +36,7 @@ export function OverviewV2Page() {
     <section className="home-business-grid" aria-label="业务概览">
       <HomeCard title="市场与预测" caption="当前发布成员、预测资格和任务覆盖" links={[{ href: "/markets/running", label: "进入当前市场" }, { href: "/predictions", label: "查看预测" }]}>
         <HomeSourcePanel title="市场" state={overviewState} onRetry={() => setRefreshKey((value) => value + 1)}><HomeFacts values={[{ label: "当前成员", value: generation ? formatV2Number(generation.memberCount, 0) : "—" }, { label: "可预测", value: generation ? formatV2Number(generation.predictionEnabledCount, 0) : "—" }, { label: "状态", value: generation?.status ?? "—" }]}><details className="home-audit"><summary>发布来源</summary><span>批次 {generation?.generationId ?? "—"} · 选盘 {generation?.sourceSelectionRunId ?? "—"}</span></details></HomeFacts></HomeSourcePanel>
-        <HomeSourcePanel title="预测覆盖" state={overviewState} onRetry={() => setRefreshKey((value) => value + 1)}><HomeFacts values={[{ label: "预期任务", value: formatV2Number(overview?.predictionCoverage?.expectedTaskCount, 0) }, { label: "已完成", value: formatV2Number(overview?.predictionCoverage?.completedTaskCount, 0) }, { label: "待完成", value: formatV2Number(overview?.predictionCoverage?.pendingTaskCount, 0) }]}><span className="home-caption">截面 {formatV2Time(overview?.predictionCoverage?.predictionAsOf)}</span></HomeFacts></HomeSourcePanel>
+        <HomeSourcePanel title="Direct 当前维护任务" state={overviewState} onRetry={() => setRefreshKey((value) => value + 1)}><HomeFacts values={[{ label: "预期任务", value: formatV2Number(overview?.predictionCoverage?.expectedTaskCount, 0) }, { label: "已完成", value: formatV2Number(overview?.predictionCoverage?.completedTaskCount, 0) }, { label: "待完成", value: formatV2Number(overview?.predictionCoverage?.pendingTaskCount, 0) }]}><span className="home-caption">仅统计 Direct 当前维护任务；不包含 Sandbox 模型结果。信息时点 {formatV2Time(overview?.predictionCoverage?.predictionAsOf)}</span></HomeFacts></HomeSourcePanel>
       </HomeCard>
       <HomeCard title="数据集轮转" caption="四种资料类型的当前版本与训练集合" links={[{ href: "/dataset-rotation", label: "查看数据集轮转" }, { href: "/sandboxes", label: "查看 Sandbox" }]}>
         <HomeSourcePanel title="数据集版本" state={datasetsState} onRetry={() => setRefreshKey((value) => value + 1)}><DatasetTypeSummary data={datasetsState.data} /><span className="home-caption">固定测试和累计训练下载在数据集轮转中按资料类型选择</span></HomeSourcePanel>
@@ -67,7 +67,7 @@ function DatasetTypeSummary({ data }: { data?: DatasetRotationData }) {
   return <div className="home-dataset-types">{ROTATION_VARIANTS.map((variant) => {
     const current = data?.currentVersions.find((item) => item.variant === variant);
     const train = data?.trainingSets.find((item) => item.variant === variant);
-    return <div className="home-dataset-type" key={variant}><strong>{labels[variant]}</strong><span>{current?.datasetVersion ?? "暂无已发布版本"}</span><small>test {current ? formatV2Number(current.testCount, 0) : "—"} · train {train ? formatV2Number(train.count, 0) : "—"}</small></div>;
+    return <div className="home-dataset-type" key={variant}><strong>{labels[variant]}</strong><span>{current?.datasetVersion ?? "暂无已发布版本"}</span><small>测试 {current ? formatV2Number(current.testCount, 0) : "—"} · 累计训练 {train ? formatV2Number(train.count, 0) : "—"}</small></div>;
   })}</div>;
 }
 

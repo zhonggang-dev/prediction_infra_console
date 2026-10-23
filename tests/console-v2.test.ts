@@ -229,7 +229,7 @@ test("业务工作区复用真实资料轮换与交易视图，不回退到 read
   assert.doesNotMatch(markets, /href: "\/markets\/selection", label: "选盘批次与历史", aliases/);
   assert.match(markets, /本批次预测资格/);
   assert.match(markets, /本批次启用/);
-  assert.match(markets, /来源快照截止/);
+  assert.match(markets, /预计结束时间不等同于结算/);
   assert.match(markets, /实时有效性另查/);
   assert.match(predictions, /activePredictionAsOf/);
   assert.match(predictions, /item\.sourceKind/);
