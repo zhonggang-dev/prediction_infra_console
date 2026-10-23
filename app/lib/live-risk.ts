@@ -20,12 +20,12 @@ export function normalizeLiveRisk(item: RawRisk): LiveRiskMetric {
   };
 }
 
-/** hasExplicitRiskContract 判断响应是否已开始使用新版显式阈值字段。 */
+/** hasExplicitRiskContract 判断响应是否已开始使用显式阈值字段。 */
 function hasExplicitRiskContract(item: RawRisk): boolean {
   return ["warningThreshold", "hardLimit", "usagePercentage", "hardLimitEnforced", "thresholdType"].some((field) => field in item);
 }
 
-/** explicitRiskThresholds 校验并保留新版服务端计算的阈值和状态。 */
+/** explicitRiskThresholds 校验并保留服务端计算的阈值和状态。 */
 function explicitRiskThresholds(item: RawRisk): RiskThresholds {
   const warningThreshold = requiredRiskNumber(item.warningThreshold, "risks.warningThreshold");
   const hardLimit = requiredRiskNumber(item.hardLimit, "risks.hardLimit");
@@ -36,7 +36,7 @@ function explicitRiskThresholds(item: RawRisk): RiskThresholds {
   return { warningThreshold, hardLimit, usagePercentage, hardLimitEnforced, thresholdType, state: riskState(item.state) };
 }
 
-/** validateExplicitThresholds 拒绝负数、缺失占用率或执行语义互相矛盾的新版字段。 */
+/** validateExplicitThresholds 拒绝负数、缺失占用率或执行语义互相矛盾的字段。 */
 function validateExplicitThresholds(values: Omit<RiskThresholds, "state">): void {
   if (values.warningThreshold < 0 || values.hardLimit < 0 || (values.usagePercentage !== undefined && values.usagePercentage < 0)) {
     throw contractError("实盘聚合接口返回了负数风险阈值");
@@ -97,7 +97,7 @@ function riskThresholdType(value: unknown): LiveRiskMetric["thresholdType"] {
   throw contractError("实盘聚合接口返回了未知的风险阈值类型");
 }
 
-/** riskState 解析新版服务端状态，未知值按危险展示。 */
+/** riskState 解析服务端状态，未知值按危险展示。 */
 function riskState(value: unknown): LiveRiskMetric["state"] {
   return value === "safe" || value === "warning" || value === "danger" ? value : "danger";
 }

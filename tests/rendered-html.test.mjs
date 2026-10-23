@@ -71,12 +71,12 @@ test("服务端可渲染 Prediction Console 首页", async () => {
   assert.equal(response.status, 200);
   const html = await response.text();
   assert.match(html, /Prediction Console/);
-  assert.match(html, /新版/);
+  assert.doesNotMatch(html, /新版/);
   assert.match(html, /运行概览/);
   assert.match(html, /业务运行/);
   assert.match(html, /市场工作区/);
   assert.match(html, /预测工作区/);
-  assert.match(html, /资料数据工作区/);
+  assert.match(html, /数据集轮转/);
   assert.match(html, /交易工作区/);
   assert.match(html, /系统运行/);
   assert.match(html, /href="\/system"[^>]*>.*系统工作区/s);
@@ -89,7 +89,7 @@ test("服务端可渲染 Prediction Console 首页", async () => {
 
   const sidebar = html.match(/<aside id="console-sidebar"[\s\S]*?<\/aside>/)?.[0] ?? "";
   assert.ok(sidebar, "sidebar should render");
-  for (const href of ["/markets", "/predictions", "/assets", "/trading"]) {
+  for (const href of ["/markets", "/predictions", "/dataset-rotation", "/sandboxes", "/trading"]) {
     assert.equal((sidebar.match(new RegExp(`<a[^>]*href="${href}"`, "g")) ?? []).length, 1, `sidebar should expose one ${href} entry`);
   }
 });
@@ -145,14 +145,14 @@ test("服务端可渲染数据集轮换页面并显示导航入口", async () =>
   const response = await render("/dataset-rotation");
   assert.equal(response.status, 200);
   const html = await response.text();
-  assert.match(html, /数据集轮换/);
-  assert.match(html, /资料数据工作区/);
+  assert.match(html, /数据集轮转/);
+  assert.match(html, /数据集轮转/);
 });
 
 test("资料工作区把真实版本/变体/用途和轮换嵌入同一业务壳", async () => {
   const datasets = await (await render("/datasets")).text();
-  assert.match(datasets, /各资料类型当前可用版本/);
-  assert.match(datasets, /选择版本 → 资料类型 → 用途/);
+  assert.match(datasets, /当前数据集版本/);
+  assert.match(datasets, /选择资料类型 → 版本 → 用途/);
   assert.match(datasets, /轮换执行、发布历史与规则/);
   assert.equal((datasets.match(/class="brand"/g) ?? []).length, 1, "资料工作区只能有一个 ConsoleShell");
 
@@ -160,6 +160,9 @@ test("资料工作区把真实版本/变体/用途和轮换嵌入同一业务壳
   assert.match(sandboxes, /资料归档/);
   assert.match(sandboxes, /高级归档工具/);
   assert.equal((sandboxes.match(/class="brand"/g) ?? []).length, 1, "资料归档只能有一个 ConsoleShell");
+  assert.doesNotMatch(datasets, /高级归档工具/);
+  assert.doesNotMatch(datasets, /v2-tab-sandboxes/);
+  assert.doesNotMatch(sandboxes, /v2-tab-datasets/);
 });
 
 test("服务端可渲染交易与结算记录页面", async () => {
@@ -363,12 +366,14 @@ test("数据集轮换 BFF 拒绝写请求", async () => {
   assert.equal(response.status, 404);
 });
 
-test("侧栏只有八个业务入口，旧 PM Backtest 只在回测相关页面保留，首页仍不出现 /backtests", async () => {
+test("侧栏分离数据集轮转与 Sandbox，旧 PM Backtest 只在回测相关页面保留", async () => {
   const html = await (await render("/")).text();
   const sidebar = html.match(/<aside id="console-sidebar"[\s\S]*?<\/aside>/)?.[0] ?? "";
   assert.equal((sidebar.match(/<a[^>]*href="\/backtest-platform"/g) ?? []).length, 1);
   assert.match(sidebar, /href="\/backtest-platform"[^>]*>.*回测平台/s);
-  assert.equal((sidebar.match(/<a[^>]*href="\/(?:dataset-rotation|live|trades)"/g) ?? []).length, 0);
+  assert.equal((sidebar.match(/<a[^>]*href="\/(?:live|trades)"/g) ?? []).length, 0);
+  assert.match(sidebar, /href="\/dataset-rotation"[^>]*>.*数据集轮转/s);
+  assert.match(sidebar, /href="\/sandboxes"[^>]*>.*Sandbox/s);
   assert.doesNotMatch(sidebar, /独立页面/);
   assert.doesNotMatch(sidebar, /href="http:\/\/172\.21\.20\.221:8501\/"[^>]*>.*PM Backtest/s);
   assert.doesNotMatch(sidebar, /href="\/backtests"/);

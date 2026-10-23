@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { consoleApi } from "../lib/console-api";
 import { consoleV2, type ConsoleV2OutboxEvent, type ConsoleV2PageJob } from "../lib/console-v2";
-import { formatV2Number, formatV2Time, V2Facts, V2Frame, V2ListPage, V2ContextLinks, V2Tabs, V2WorkspacePanel, useV2Filter, useWorkspaceTabs, v2Bool, v2Status, v2Unknown } from "./console-v2-resource";
+import { formatV2Number, formatV2Time, V2Frame, V2ListPage, V2ContextLinks, V2Tabs, V2WorkspacePanel, useV2Filter, useWorkspaceTabs, v2Bool, v2Status, v2Unknown } from "./console-v2-resource";
 import { ObservabilityV2Page } from "./observability-v2-page";
 
 export function DeliveryV2Page({ embedded = false }: { embedded?: boolean } = {}) {
@@ -16,7 +16,7 @@ export function DeliveryV2Page({ embedded = false }: { embedded?: boolean } = {}
     { label: "最近尝试", render: (item) => formatV2Time(item.lastAttemptAt) },
     { label: "创建时间", render: (item) => formatV2Time(item.createdAt) },
     { label: "发布时间 / 错误", render: (item) => <div className="v2-cell-copy"><span>{formatV2Time(item.publishedAt)}</span><small>{v2Bool(item.hasLastError, "存在错误", "无错误")}</small></div> },
-  ]} renderDetail={(item) => <V2Facts values={[{ label: "消息 ID", value: item.outboxEventId, mono: true }, { label: "对象类型", value: v2Unknown(item.aggregateType) }, { label: "对象 ID", value: v2Unknown(item.aggregateId), mono: true }, { label: "尝试次数", value: formatV2Number(item.attemptCount, 0) }, { label: "最近尝试", value: formatV2Time(item.lastAttemptAt) }, { label: "发布时间", value: formatV2Time(item.publishedAt) }, { label: "最近错误", value: v2Bool(item.hasLastError, "存在", "无") }]} />} emptyDescription="当前没有可查看的消息交付记录；服务监控中可继续查看消息消费状态。" /></V2Frame>;
+  ]} emptyDescription="当前没有可查看的消息交付记录；服务监控中可继续查看消息消费状态。" /></V2Frame>;
 }
 
 export function PageJobsV2Page({ embedded = false }: { embedded?: boolean } = {}) {
@@ -27,7 +27,7 @@ export function PageJobsV2Page({ embedded = false }: { embedded?: boolean } = {}
     { label: "尝试次数", render: (item) => formatV2Number(item.attempts, 0) },
     { label: "发现 / 导入 / 错误", render: (item) => `${formatV2Number(item.discoveredCount, 0)} / ${formatV2Number(item.importedCount, 0)} / ${formatV2Number(item.errorCount, 0)}` },
     { label: "更新时间", render: (item) => formatV2Time(item.updatedAt) },
-  ]} renderDetail={(item) => <V2Facts values={[{ label: "任务 ID", value: item.jobId, mono: true }, { label: "来源", value: v2Unknown(item.source) }, { label: "资料类型", value: v2Unknown(item.variant) }, { label: "尝试次数", value: formatV2Number(item.attempts, 0) }, { label: "发现数", value: formatV2Number(item.discoveredCount, 0) }, { label: "导入数", value: formatV2Number(item.importedCount, 0) }, { label: "错误数", value: formatV2Number(item.errorCount, 0) }, { label: "完成时间", value: formatV2Time(item.completedAt) }]} />} emptyDescription="当前没有可查看的网页库任务记录。" /></V2Frame>;
+  ]} emptyDescription="当前没有可查看的网页库任务记录。" /></V2Frame>;
 }
 
 export function SettingsV2Page({ embedded = false }: { embedded?: boolean } = {}) {
@@ -45,7 +45,7 @@ export function SettingsV2Page({ embedded = false }: { embedded?: boolean } = {}
     }, 0);
     return () => { cancelled = true; window.clearTimeout(timer); };
   }, [refreshKey]);
-  return <V2Frame embedded={embedded} eyebrow="System / Settings" title="系统设置" description="这里只显示脱敏后的服务端能力配置；已配置不等于连接健康，真实健康状态请分别查看服务监控与对应业务页。" onRefresh={() => setRefreshKey((value) => value + 1)} loading={loading}><V2ContextLinks links={[{ href: "/system/settings", label: "连接能力" }, { href: "/system/observability", label: "服务健康" }]} />{error && <div className="notice error"><div><strong>能力接口不可用</strong><p>{error}</p></div></div>}<section className="panel panel-pad v2-capability-list">{capabilities ? <><Capability label="控制台只读" value={capabilities.console_read} /><Capability label="交易只读" value={capabilities.trade_read} /><Capability label="实盘只读" value={capabilities.live_read} /><Capability label="归档下载" value={capabilities.sandbox_download} /></> : <div className="empty"><strong>{loading ? "读取能力…" : "能力未知"}</strong><p>不会以静态绿色图标表示健康。</p></div>}</section><p className="v2-inline-note">令牌、URL、Redis 地址和 webhook 永不下发到浏览器。旧回测创建能力已停用；新版回测页使用真实产品目录。</p></V2Frame>;
+  return <V2Frame embedded={embedded} eyebrow="System / Settings" title="系统设置" description="这里只显示脱敏后的服务端能力配置；已配置不等于连接健康，真实健康状态请分别查看服务监控与对应业务页。" onRefresh={() => setRefreshKey((value) => value + 1)} loading={loading}><V2ContextLinks links={[{ href: "/system/settings", label: "连接能力" }, { href: "/system/observability", label: "服务健康" }]} />{error && <div className="notice error"><div><strong>能力接口不可用</strong><p>{error}</p></div></div>}<section className="panel panel-pad v2-capability-list">{capabilities ? <><Capability label="控制台只读" value={capabilities.console_read} /><Capability label="交易只读" value={capabilities.trade_read} /><Capability label="实盘只读" value={capabilities.live_read} /><Capability label="归档下载" value={capabilities.sandbox_download} /></> : <div className="empty"><strong>{loading ? "读取能力…" : "能力未知"}</strong><p>不会以静态绿色图标表示健康。</p></div>}</section><p className="v2-inline-note">令牌、URL、Redis 地址和 webhook 永不下发到浏览器。</p></V2Frame>;
 }
 
 export function SystemV2Page({ view = "observability" }: { view?: "observability" | "delivery" | "page-jobs" | "settings" }) {

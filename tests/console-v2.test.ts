@@ -43,6 +43,34 @@ test("V2 decoder preserves bounded envelope, identities, nullable fields and ser
   }
 });
 
+test("prediction model catalogue exposes historical Sandbox models separately from current coverage", async () => {
+  const previousFetch = globalThis.fetch;
+  const calls: string[] = [];
+  globalThis.fetch = (async (input) => {
+    calls.push(String(input));
+    return new Response(JSON.stringify({ data: { items: [{ model_id: "v4.1 flash", task_count: 10, result_count: 8, direct_result_count: 0, sandbox_result_count: 8, latest_prediction_as_of: "2026-10-21T16:10:13Z", latest_received_at: "2026-10-21T17:44:52Z" }], total: 1, limit: 100, offset: 0, has_more: false, observed_at: "2026-10-23T00:00:00Z" } }));
+  }) as typeof fetch;
+  try {
+    const result = await consoleV2.infra.predictionModels({ limit: 100 });
+    assert.equal(result.data.items[0].modelId, "v4.1 flash");
+    assert.equal(result.data.items[0].sandboxResultCount, 8);
+    assert.match(calls[0], /prediction-models/);
+  } finally {
+    globalThis.fetch = previousFetch;
+  }
+});
+
+test("prediction batches preserve source counts, original as-of precision and watermarks", async () => {
+  const previousFetch = globalThis.fetch;
+  globalThis.fetch = (async () => new Response(JSON.stringify({ data: { items: [{ model_id: "v4.1 flash", market_source: "POLYMARKET", prediction_as_of: "2026-10-22T01:10:13.833397Z", result_count: 297, sandbox_count: 297, direct_result_count: 0, sandbox_result_count: 297, unknown_result_count: 0, max_result_id: 42, source_kinds: ["SANDBOX"], generation_ids: [324], latest_received_at: "2026-10-22T03:09:57.287707Z" }], total: 1, limit: 20, offset: 0, has_more: false, observed_at: "2026-10-23T00:00:00Z" } }))) as typeof fetch;
+  try {
+    const result = await consoleV2.infra.predictionBatches({ model: "v4.1 flash", source: "POLYMARKET" });
+    assert.equal(result.data.items[0].predictionAsOf, "2026-10-22T01:10:13.833397Z");
+    assert.equal(result.data.items[0].maxResultId, "42");
+    assert.deepEqual(result.data.items[0].generationIds, ["324"]);
+  } finally { globalThis.fetch = previousFetch; }
+});
+
 test("V2 decoder rejects a list without an observation timestamp", async () => {
   const previousFetch = globalThis.fetch;
   globalThis.fetch = (async () => new Response(JSON.stringify({ data: { items: [], limit: 20, offset: 0, has_more: false } }))) as typeof fetch;

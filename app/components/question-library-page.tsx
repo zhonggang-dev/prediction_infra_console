@@ -37,7 +37,6 @@ const answerTypeLabels: Record<string, string> = {
 type QuestionFilters = {
   q: string;
   status: string;
-  phase: string;
   questionType: string;
   domainL1: string;
   domainPath: string;
@@ -46,7 +45,7 @@ type QuestionFilters = {
 };
 
 const emptyFilters: QuestionFilters = {
-  q: "", status: "", phase: "", questionType: "", domainL1: "", domainPath: "", endFrom: "", endTo: "",
+  q: "", status: "", questionType: "", domainL1: "", domainPath: "", endFrom: "", endTo: "",
 };
 
 export function QuestionLibraryPage() {
@@ -90,7 +89,6 @@ export function QuestionLibraryPage() {
       void consoleApi.generatedQAs({
         q: filters.q,
         status: filters.status,
-        phase: filters.phase,
         questionType: filters.questionType,
         domain: filters.domainPath || filters.domainL1,
         endFrom: filters.endFrom,
@@ -164,7 +162,6 @@ export function QuestionLibraryPage() {
       <div className="question-filters">
         <label className="question-search"><span>关键词</span><input className="input" placeholder="题目、QA ID、语义键或事件键" value={draft.q} onChange={(event) => setDraft({ ...draft, q: event.target.value })} onKeyDown={(event) => event.key === "Enter" && search()} /></label>
         <label className="question-status-filter"><span>状态</span><select className="select" value={draft.status} onChange={(event) => setDraft({ ...draft, status: event.target.value })}>{statusOptions.map(([value, label]) => <option key={value} value={value}>{label}</option>)}</select></label>
-        <label className="question-status-filter"><span>阶段</span><select className="select" value={draft.phase} onChange={(event) => setDraft({ ...draft, phase: event.target.value })}><option value="">全部阶段</option><option value="OBSERVING">观察中</option><option value="AWAITING_PUBLICATION">等待发布</option><option value="ANSWERABLE">可调度</option><option value="TERMINAL">已终态</option></select></label>
         <label className="question-type-filter"><span>题型</span><select className="select" value={draft.questionType} onChange={(event) => setDraft({ ...draft, questionType: event.target.value })}><option value="">全部题型</option>{(result?.questionTypeOptions ?? []).map((type) => <option key={type} value={type}>{answerTypeLabel(type)}</option>)}</select></label>
         <label className="question-domain-l1-filter"><span>一级领域</span><select className="select" value={draft.domainL1} onChange={(event) => setDraft({ ...draft, domainL1: event.target.value, domainPath: "" })}><option value="">全部一级领域</option>{primaryDomains.map((domain) => <option key={domain} value={domain}>{domain}</option>)}</select></label>
         <label className="question-domain-l2-filter"><span>二级领域</span><select className="select" value={draft.domainPath} disabled={!draft.domainL1} onChange={(event) => setDraft({ ...draft, domainPath: event.target.value })}><option value="">{draft.domainL1 ? "全部二级领域" : "请先选择一级领域"}</option>{secondaryDomains.map((path) => <option key={path} value={path}>{secondaryDomain(path)}</option>)}</select></label>
@@ -201,13 +198,13 @@ function normalizeQuestionLimit(value: string | number | null | undefined) {
 }
 
 function questionFiltersFromUrl(params: URLSearchParams): QuestionFilters {
-  return { q: params.get("q") ?? "", status: params.get("status") ?? "", phase: params.get("phase") ?? "", questionType: params.get("question_type") ?? "", domainL1: params.get("domain") ?? "", domainPath: params.get("domain_path") ?? "", endFrom: params.get("end_from")?.slice(0, 10) ?? "", endTo: params.get("end_to")?.slice(0, 10) ?? "" };
+  return { q: params.get("q") ?? "", status: params.get("status") ?? "", questionType: params.get("question_type") ?? "", domainL1: params.get("domain") ?? "", domainPath: params.get("domain_path") ?? "", endFrom: params.get("end_from")?.slice(0, 10) ?? "", endTo: params.get("end_to")?.slice(0, 10) ?? "" };
 }
 
 function syncQuestionFiltersUrl(filters: QuestionFilters) {
   if (typeof window === "undefined") return;
   const url = new URL(window.location.href);
-  const values: Record<string, string> = { q: filters.q, status: filters.status, phase: filters.phase, question_type: filters.questionType, domain: filters.domainPath || filters.domainL1, domain_path: filters.domainPath, end_from: filters.endFrom, end_to: filters.endTo };
+  const values: Record<string, string> = { q: filters.q, status: filters.status, question_type: filters.questionType, domain: filters.domainPath || filters.domainL1, domain_path: filters.domainPath, end_from: filters.endFrom, end_to: filters.endTo };
   for (const [key, value] of Object.entries(values)) { if (value) url.searchParams.set(key, value); else url.searchParams.delete(key); }
   window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
 }
@@ -229,7 +226,7 @@ function syncQuestionPaginationUrl(limit: number, offset = 0) {
 }
 
 function QuestionTable({ items, onSelect }: { items: ConsoleGeneratedQA[]; onSelect: (item: ConsoleGeneratedQA, trigger: HTMLElement) => void }) {
-  return <div className="table-scroll"><table className="question-table"><colgroup><col className="question-col" /><col className="status-col" /><col className="domain-col" /><col className="type-col" /><col className="time-col" /><col className="time-col" /></colgroup><thead><tr><th>题目</th><th>状态 / 阶段</th><th>领域</th><th>预测 / 决策</th><th>observation_end</th><th>下次调度 / 原因</th></tr></thead><tbody>{items.map((item) => <tr key={item.generatedQaId} tabIndex={0} role="button" onClick={(event) => onSelect(item, event.currentTarget)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onSelect(item, event.currentTarget); } }}><td className="question-primary"><strong>{item.question}</strong><small>{item.sourceQaId}</small></td><td><Status value={item.status} label={statusDisplayLabel(item)} /><small className="question-phase">{phaseLabel(item.phase)}</small></td><td><div className="domain-path"><strong>{item.domainL1}</strong><span>{item.industryL2}</span></div></td><td><span className="question-type-badge">{item.marketCompatible ? "预测市场" : "决策分析"}</span><small className="question-phase">{answerTypeLabel(item.answerType)}</small></td><td className="mono muted">{formatTime(item.observationEnd)}</td><td><div className="v2-cell-copy"><span>{formatTime(item.nextRunAt)}</span><small>{item.lastReasonCode || "—"}</small></div></td></tr>)}</tbody></table></div>;
+  return <div className="table-scroll"><table className="question-table"><colgroup><col className="question-col" /><col className="status-col" /><col className="domain-col" /><col className="type-col" /><col className="time-col" /><col className="time-col" /></colgroup><thead><tr><th>题目</th><th>状态</th><th>领域</th><th>预测 / 决策</th><th>observation_end</th><th>下次调度 / 原因</th></tr></thead><tbody>{items.map((item) => <tr key={item.generatedQaId} tabIndex={0} role="button" onClick={(event) => onSelect(item, event.currentTarget)} onKeyDown={(event) => { if (event.key === "Enter" || event.key === " ") { event.preventDefault(); onSelect(item, event.currentTarget); } }}><td className="question-primary"><strong>{item.question}</strong><small>{item.sourceQaId}</small></td><td><Status value={item.status} label={statusDisplayLabel(item)} /></td><td><div className="domain-path"><strong>{item.domainL1}</strong><span>{item.industryL2}</span></div></td><td><span className="question-type-badge">{item.marketCompatible ? "预测市场" : "决策分析"}</span><small className="question-phase">{answerTypeLabel(item.answerType)}</small></td><td className="mono muted">{formatTime(item.observationEnd)}</td><td><div className="v2-cell-copy"><span>{formatTime(item.nextRunAt)}</span><small>{item.lastReasonCode || "—"}</small></div></td></tr>)}</tbody></table></div>;
 }
 
 function QuestionDetail({ item, onClose, closeRef }: { item: ConsoleGeneratedQA; onClose: () => void; closeRef: React.RefObject<HTMLButtonElement | null> }) {
@@ -250,7 +247,7 @@ function QuestionDetail({ item, onClose, closeRef }: { item: ConsoleGeneratedQA;
     : undefined;
   return <div className="question-detail">
     <div className="question-detail-head"><div><p className="eyebrow">Question Detail</p><h2 id="question-detail-title" className="section-title">题目详情</h2></div><button ref={closeRef} className="button" onClick={onClose}>关闭</button></div>
-    <div className="question-detail-meta"><Status value={item.status} label={statusDisplayLabel(item)} /><span>{answerTypeLabel(item.answerType)}</span><span>{phaseLabel(item.phase)}</span><span>{item.marketCompatible ? "预测市场题" : "决策分析题"}</span><span>{formatTopicPath(item.topicPath)}</span></div>
+    <div className="question-detail-meta"><Status value={item.status} label={statusDisplayLabel(item)} /><span>{answerTypeLabel(item.answerType)}</span><span>{item.marketCompatible ? "预测市场题" : "决策分析题"}</span><span>{formatTopicPath(item.topicPath)}</span></div>
     <div className="question-detail-tabs" role="tablist" aria-label="题目详情视图">
       {([["definition", "题目定义"], ["timing", "时间与依据"], ["result", "结果与审计"]] as const).map(([value, label]) => <button key={value} type="button" role="tab" aria-selected={activeTab === value} className={activeTab === value ? "active" : ""} onClick={() => setActiveTab(value)}>{label}</button>)}
     </div>
@@ -271,7 +268,7 @@ function DefinitionTab({ item, answerSpec, decisionSpec, ruleSections }: { item:
 
 function TimingTab({ item, temporal, grounding, forecastability }: { item: ConsoleGeneratedQA; temporal: Record<string, unknown>; grounding: Record<string, unknown>; forecastability: Record<string, unknown> }) {
   return <div className="question-detail-tab-panel" role="tabpanel">
-    <DetailSection title="调度与时间合同"><div className="timeline-list"><TimeRow label="信息截止" value={temporal.as_of_at} /><TimeRow label="观察开始" value={temporal.observation_start} /><TimeRow label="observation_end" value={item.observationEnd ?? temporal.observation_end} /><TimeRow label="available_after" value={item.availableAfter} /><TimeRow label="下次调度" value={item.nextRunAt} /><TimeRow label="Hard Stop" value={item.effectiveHardStopAt} /></div><FactGrid values={[["阶段", phaseLabel(item.phase)], ["尝试次数", String(item.attemptCount)], ["最近完成", formatTime(item.lastFinishedAt)], ["原因码", item.lastReasonCode]]} /></DetailSection>
+    <DetailSection title="调度与时间合同"><div className="timeline-list"><TimeRow label="信息截止" value={temporal.as_of_at} /><TimeRow label="观察开始" value={temporal.observation_start} /><TimeRow label="observation_end" value={item.observationEnd ?? temporal.observation_end} /><TimeRow label="available_after" value={item.availableAfter} /><TimeRow label="下次调度" value={item.nextRunAt} /><TimeRow label="Hard Stop" value={item.effectiveHardStopAt} /></div><FactGrid values={[["尝试次数", String(item.attemptCount)], ["最近完成", formatTime(item.lastFinishedAt)], ["原因码", item.lastReasonCode]]} /></DetailSection>
     <DetailSection title="来源与证据"><SourceLinks values={stringList(grounding.source_urls)} /><TextList title="已验证事实" values={stringList(grounding.verified_facts)} /><TextList title="情景假设" values={stringList(grounding.scenario_assumptions)} />{text(grounding.evidence_excerpt) && <div className="evidence-excerpt"><span>题目原始证据摘录</span><p>{text(grounding.evidence_excerpt)}</p></div>}{hasContent(item.latestEvidence) && <JsonBlock title="最近一次冻结证据" value={item.latestEvidence} />}</DetailSection>
     <DetailSection title="可预测性"><FactGrid values={[["当前未知原因", text(forecastability.why_not_known_now)], ["预测依据", text(forecastability.basis)], ["信息价值", text(forecastability.information_value)]]} /><TextList title="不确定因素" values={stringList(forecastability.uncertainty_drivers)} /></DetailSection>
   </div>;
@@ -329,7 +326,6 @@ function TimeRow({ label, value }: { label: string; value: unknown }) {
 
 function DetailValue({ label, value }: { label: string; value: string }) { return <div><div className="detail-key">{label}</div><div className="detail-value">{value}</div></div>; }
 function answerTypeLabel(value: string) { return answerTypeLabels[value] ?? value.replaceAll("_", " "); }
-function phaseLabel(value: string) { return ({ OBSERVING: "观察中", AWAITING_PUBLICATION: "等待发布", ANSWERABLE: "可调度", TERMINAL: "已终态", PRE_END: "结束前", POST_END: "结束后" } as Record<string, string>)[value] ?? value; }
 function resultKindLabel(value?: string) { return value === "factual_answer" ? "事实答案" : value === "decision_reference" ? "事后参考答案" : value || "—"; }
 function statusDisplayLabel(item: ConsoleGeneratedQA) { return item.status === "RESOLVED" && !item.marketCompatible ? "参考答案已生成" : undefined; }
 function primaryDomain(value: string) { const index = value.indexOf("."); return index < 0 ? value : value.slice(0, index); }

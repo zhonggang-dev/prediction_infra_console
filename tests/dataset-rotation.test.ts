@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { DatasetRotationContractError, decodeDatasetRotation } from "../app/lib/dataset-rotation.ts";
+import { DatasetRotationContractError, datasetTestDownloadState, decodeDatasetRotation } from "../app/lib/dataset-rotation.ts";
 
 const variant = (name: string, overrides: Record<string, unknown> = {}) => ({
   variant: name,
@@ -58,6 +58,15 @@ test("解码器保留独立 Syn 行与 0 训练成员", () => {
   assert.equal(data.releases[0].kind, "syn");
   assert.equal(data.releases[0].variants[0].trainCount, 0);
   assert.equal(data.currentVersions[0].datasetVersion, "20260911-20261011");
+});
+
+test("历史已发布但尚未核对的 test 下载交给下载时严格校验", () => {
+  assert.equal(datasetTestDownloadState("verified", true), "available");
+  assert.equal(datasetTestDownloadState("verified", false), "available");
+  assert.equal(datasetTestDownloadState("not_checked", false), "download_checked");
+  assert.equal(datasetTestDownloadState("not_checked", true), "unavailable");
+  assert.equal(datasetTestDownloadState("mismatch", false), "unavailable");
+  assert.equal(datasetTestDownloadState("unavailable", false), "unavailable");
 });
 
 test("解码器拒绝缺字段或未知存储状态，避免页面误报已发布", () => {

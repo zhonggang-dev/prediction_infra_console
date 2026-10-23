@@ -103,3 +103,23 @@ test("下载 BFF 拒绝无效输入、QA masked 和未配置连接，并保留�
     } finally { globalThis.fetch = previousFetch; }
   });
 });
+
+test("预测批次 masked 下载使用独立 Sandbox token、固定水位和流式上游", async () => {
+  await withEnv({ PREDICTION_INFRA_BASE_URL: "http://infra.test", SANDBOX_DOWNLOAD_TOKEN: "download-secret" }, async () => {
+    const previousFetch = globalThis.fetch;
+    const calls: Array<{ url: string; body: string; authorization: string | null }> = [];
+    globalThis.fetch = (async (input, init) => {
+      calls.push({ url: String(input), body: String(init?.body ?? ""), authorization: new Headers(init?.headers).get("authorization") });
+      return new Response("prediction-tar", { status: 200, headers: { "content-type": "application/x-tar", "x-prediction-batch-max-result-id": "42" } });
+    }) as typeof fetch;
+    try {
+      const response = await POST(new Request("http://console.test/api/console/downloads/prediction-batches/archive", { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ model_id: "v4.1 flash", market_source: "POLYMARKET", prediction_as_of: "2026-10-22T01:10:13.833397Z", max_result_id: "42", source_kind: "SANDBOX", generation_id: "324", variant: "masked" }) }), params(["prediction-batches", "archive"]));
+      assert.equal(response.status, 200);
+      assert.equal(await response.text(), "prediction-tar");
+      assert.equal(calls[0].url, "http://infra.test/api/v1/console/v2/prediction-batches/archive");
+      assert.deepEqual(JSON.parse(calls[0].body), { model_id: "v4.1 flash", market_source: "POLYMARKET", prediction_as_of: "2026-10-22T01:10:13.833397Z", max_result_id: 42, source_kind: "SANDBOX", generation_id: 324, variant: "masked" });
+      assert.equal(calls[0].authorization, "Bearer download-secret");
+      assert.equal(response.headers.get("x-prediction-batch-max-result-id"), "42");
+    } finally { globalThis.fetch = previousFetch; }
+  });
+});
