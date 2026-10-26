@@ -2,6 +2,8 @@
 
 import { demoData, demoOverview } from "./demo-data";
 import { demoDailyPnL, demoLedgerActivities, demoTradeHistory } from "./demo-trades";
+import { decodeDatasetRotation, DatasetRotationContractError, type DatasetRotationData } from "./dataset-rotation";
+import { decodeRedisMonitor, type RedisMonitorData } from "./redis-monitor";
 import { normalizeLiveRisk } from "./live-risk";
 import { isOfficialWalletPnlResponse } from "./wallet-pnl";
 import type { ApiMode, ApiResult, BacktestCreateParams, ConsoleGeneratedMarket, ConsoleGeneratedQA, ConsoleList, ConsoleResource, ConsoleRow, DailyPnLPoint, DailyPnLReport, EdgeDistribution, EdgeDistributionBin, EdgeDistributionSeries, GeneratedMarketList, GeneratedQAList, LedgerActivity, LedgerActivityPage, LedgerActivityParams, LedgerActivitySummary, LedgerActivityType, LiveEvent, LiveFunnelStage, LiveHealth, LiveOperationsSnapshot, LiveOrder, LiveOrderStep, LivePosition, LiveRiskMetric, LiveStageState, LiveWalletSummary, LiveWorker, OverviewData, ServiceMetricsOverview, ServiceRuntimeHealth, ServiceRuntimeMetrics, TradeHistoryPage, TradeHistoryParams, TradeHistorySummary, TradeRecord, TradeSide, WalletPnlSeries } from "./types";
@@ -428,6 +430,16 @@ export const consoleApi = {
     const data: ServiceMetricsOverview = { observedAt: optionalTime(result.data.observed_at) ?? new Date().toISOString(), services: records(result.data.services).map(mapServiceMetrics) };
     return { data, mode: result.mode };
   },
+  async redisMonitor() {
+    const result = await request<unknown>("redis-monitor");
+    try {
+      const data: RedisMonitorData = decodeRedisMonitor(result.data);
+      return { data, mode: result.mode };
+    } catch (error) {
+      if (error instanceof Error) throw new ConsoleApiError(error.message, "live");
+      throw error;
+    }
+  },
   async list(resource: ConsoleResource, params: { limit?: number; offset?: number } = {}) {
     const query = new URLSearchParams({ limit: String(params.limit ?? 20), offset: String(params.offset ?? 0) });
     const result = await request<ListPayload>(`${resource}?${query}`);
@@ -524,6 +536,16 @@ export const consoleApi = {
     return { data: mapEdgeDistribution(result.data), mode: result.mode };
   },
   async liveOperations() { const result = await request<RawRecord>("live-operations"); return { data: mapLiveOperations(result.data), mode: result.mode }; },
+  async datasetRotation() {
+    const result = await request<unknown>("dataset-rotation");
+    try {
+      const data: DatasetRotationData = decodeDatasetRotation(result.data);
+      return { data, mode: result.mode };
+    } catch (error) {
+      if (error instanceof DatasetRotationContractError) throw new ConsoleApiError(error.message, "live");
+      throw error;
+    }
+  },
   createBacktest: (params: BacktestCreateParams) => request<RawRecord>("backtest-datasets", { method: "POST", body: JSON.stringify(params), headers: { "Idempotency-Key": crypto.randomUUID() } }),
   demoOverview: (): ApiResult<OverviewData> => ({ data: demoOverview, mode: "demo" }),
   demoTradeHistory: (params: TradeHistoryParams = {}): ApiResult<TradeHistoryPage> => ({ data: demoTradeHistory(params), mode: "demo" }),
@@ -560,7 +582,14 @@ function mapGeneratedQA(item: RawRecord): ConsoleGeneratedQA {
     grounding: jsonValue(item.grounding), forecastability: jsonValue(item.forecastability),
     taskFamily: string(item.task_family), marketCompatible: item.market_compatible === true,
     groundTruthKind: string(item.ground_truth_kind), domainL1: string(item.domain_l1), industryL2: string(item.industry_l2),
-    topicPath: string(item.topic_path), endAt: optionalTime(temporal.observation_end), availableAfter: optionalTime(item.available_after),
+    topicPath: string(item.topic_path), observationEnd: optionalTime(item.observation_end ?? temporal.observation_end), availableAfter: optionalTime(item.available_after ?? temporal.answer_available_after ?? temporal.evaluation_available_after),
+    nextRunAt: optionalTime(item.next_run_at), effectiveHardStopAt: optionalTime(item.effective_hard_stop_at),
+    attemptCount: number(item.attempt_count), lastReasonCode: string(item.last_reason_code, "—"), lastFinishedAt: optionalTime(item.last_finished_at),
+    latestResultKind: optional(item.latest_result_kind), latestResult: jsonValueOrUndefined(item.latest_result),
+    latestFactualAnswer: jsonValueOrUndefined(item.latest_factual_answer), latestDecisionReference: jsonValueOrUndefined(item.latest_decision_reference),
+    resolvedOptionId: optional(item.resolved_option_id),
+    latestEvidence: jsonValueOrUndefined(item.latest_evidence), latestRun: jsonValueOrUndefined(item.latest_run),
+    canonicalAnswer: jsonValueOrUndefined(item.canonical_answer),
     generationRequestId: optional(item.generation_request_id), semanticKey: string(item.semantic_key),
     eventClusterKey: string(item.event_cluster_key), status: string(item.status) as ConsoleGeneratedQA["status"], phase: string(item.phase),
     createdAt: string(item.created_at), updatedAt: string(item.updated_at),
@@ -569,6 +598,10 @@ function mapGeneratedQA(item: RawRecord): ConsoleGeneratedQA {
 
 function jsonValue(value: unknown): unknown {
   return value === undefined || value === null ? {} : value;
+}
+
+function jsonValueOrUndefined(value: unknown): unknown {
+  return value === undefined || value === null ? undefined : value;
 }
 
 function optionalJSON(value: unknown): unknown {
