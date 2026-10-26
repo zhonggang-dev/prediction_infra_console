@@ -1,11 +1,11 @@
 "use client";
 
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { ConsoleShell } from "./console-shell";
 import { Icon } from "./icons";
 import { ConsoleV2ApiError, ConsoleV2ContractError, type ConsoleV2Page, type ConsoleV2Result } from "../lib/console-v2";
-import { appliedFilterFromUrl, mergeSharedQuery, workspaceHrefWithAppliedQuery } from "../lib/console-workspace";
+import { appliedFilterFromUrl, appliedListOffset, mergeSharedQuery, workspaceHrefWithAppliedQuery } from "../lib/console-workspace";
 
 export type V2Params = Record<string, string | number | undefined>;
 /** Keep client URL/page arithmetic aligned with the read-model offset bound. */
@@ -74,12 +74,13 @@ export function useVisitedTabs<T extends string>(initial: T) {
 export function useV2Filter(key: string, fallback = "") {
   const searchParams = useSearchParams();
   const panel = useContext(V2PanelContext);
+  const panelRootHref = panel?.rootHref;
   const panelActive = panel?.active ?? true;
   const read = useCallback((params: URLSearchParams) => normalizeFilterValue(key, params.get(key)?.trim() ?? fallback), [fallback, key]);
   const [value, setValue] = useState(() => panelActive ? read(searchParams) : fallback);
   useEffect(() => {
     const sync = (preserveMissing: boolean) => {
-      if (!panelActive) return;
+      if (!panelActive || (panelRootHref && !workspacePathMatches(panelRootHref, window.location.pathname))) return;
       const next = appliedFilterFromUrl(new URL(window.location.href).searchParams, key, fallback, preserveMissing);
       if (next !== undefined) setValue(next);
     };
@@ -92,7 +93,7 @@ export function useV2Filter(key: string, fallback = "") {
     window.addEventListener("v2-workspace-url-change", onWorkspaceUrlChange);
     window.addEventListener(WORKSPACE_FILTER_CHANGE_EVENT, onPopState);
     return () => { window.removeEventListener("popstate", onPopState); window.removeEventListener("v2-workspace-url-change", onWorkspaceUrlChange); window.removeEventListener(WORKSPACE_FILTER_CHANGE_EVENT, onPopState); };
-  }, [fallback, key, panelActive, read]);
+  }, [fallback, key, panelActive, panelRootHref, read]);
   const update = useCallback((next: string) => {
     setValue(next);
     syncFilterUrl(key, next);
@@ -110,7 +111,7 @@ export function V2ContextLinks({ links }: { links: Array<{ href: string; label: 
 
 type WorkspaceTab = { href: string; label: string; aliases?: readonly string[] };
 type WorkspaceTabOptions = { sharedQueryKeys?: readonly string[] };
-type V2PanelContextValue = { href: string; active: boolean };
+type V2PanelContextValue = { href: string; active: boolean; rootHref: string };
 const V2PanelContext = createContext<V2PanelContextValue | null>(null);
 
 export function useWorkspaceTabs<T extends string>(tabs: ReadonlyArray<WorkspaceTab & { href: T }>, fallback: T, options: WorkspaceTabOptions = {}) {
@@ -173,11 +174,25 @@ export function V2WorkspacePanel({ active, href, visited, children }: { active: 
   }, [active]);
   if (!visited) return null;
   const selected = active === href;
-  return <V2PanelContext.Provider value={{ href, active: (parentPanel?.active ?? true) && selected }}><section id={panelId(href)} className="v2-tab-panel" role="tabpanel" aria-hidden={!selected} hidden={!selected} aria-labelledby={tabId(href)}>{children}</section></V2PanelContext.Provider>;
+  const rootHref = parentPanel?.rootHref ?? href;
+  return <V2PanelContext.Provider value={{ href, active: (parentPanel?.active ?? true) && selected, rootHref }}><section id={panelId(href)} className="v2-tab-panel" role="tabpanel" aria-hidden={!selected} hidden={!selected} aria-labelledby={tabId(href)}>{children}</section></V2PanelContext.Provider>;
 }
 
 function tabId(value: string) { return `v2-tab-${value.replace(/[^A-Za-z0-9_-]+/g, "-").replace(/^-|-$/g, "")}`; }
 function panelId(value: string) { return `v2-panel-${value.replace(/[^A-Za-z0-9_-]+/g, "-").replace(/^-|-$/g, "")}`; }
+
+function workspacePathMatches(rootHref: string, pathname: string) {
+  if (rootHref === pathname) return true;
+  const aliases: Record<string, string[]> = {
+    "/trading/overview": ["/trading", "/live"],
+    "/trading/ledger": ["/trades"],
+    "/markets/running": ["/markets"],
+    "/system/observability": ["/system", "/observability"],
+    "/system/delivery": ["/delivery"],
+    "/system/settings": ["/settings"],
+  };
+  return aliases[rootHref]?.includes(pathname) ?? false;
+}
 
 function readPanelAppliedQuery(panel: HTMLElement | null) {
   if (!panel) return "";
@@ -227,6 +242,8 @@ export function V2ListPage<T>({ title, description, load, columns, rowKey, rende
   children?: React.ReactNode;
 }) {
   const searchParams = useSearchParams();
+  const panel = useContext(V2PanelContext);
+  const panelRootHref = panel?.rootHref;
   const initialQuery = searchParams.get("q")?.trim() ?? "";
   const initialLimit = normalizePageSize(searchParams.get("limit"));
   const initialOffset = normalizePageOffset(searchParams.get("offset"), initialLimit);
@@ -241,6 +258,7 @@ export function V2ListPage<T>({ title, description, load, columns, rowKey, rende
   const listStateRef = useRef<HTMLElement | null>(null);
   const [error, setError] = useState<string>();
   const [loading, setLoading] = useState(true);
+  const detailInstanceId = useId().replace(/[^A-Za-z0-9_-]/g, "");
   const serializedParams = useMemo(() => JSON.stringify(params), [params]);
   const previousParamsRef = useRef(serializedParams);
 
@@ -252,8 +270,14 @@ export function V2ListPage<T>({ title, description, load, columns, rowKey, rende
   useEffect(() => {
     if (previousParamsRef.current === serializedParams) return;
     previousParamsRef.current = serializedParams;
-    setOffset(0);
-  }, [serializedParams]);
+    // A browser back/forward replay can settle panel filters after the URL
+    // already carries this list's committed page. Preserve that page while
+    // params synchronize; an applied filter change removes offset first.
+    const replayOffset = typeof window === "undefined" ? 0 : appliedListOffset(window.location.href, limit);
+    if (replayOffset > 0) return;
+    const timer = window.setTimeout(() => setOffset(0), 0);
+    return () => window.clearTimeout(timer);
+  }, [serializedParams, offset, limit]);
 
   useEffect(() => {
     const dialog = detailDialogRef.current;
@@ -269,6 +293,7 @@ export function V2ListPage<T>({ title, description, load, columns, rowKey, rende
 
   useEffect(() => {
     const syncFromUrl = () => {
+      if (panelRootHref && !workspacePathMatches(panelRootHref, window.location.pathname)) return;
       let ancestor: HTMLElement | null = listStateRef.current;
       while (ancestor) {
         if (ancestor.hidden) return;
@@ -291,7 +316,7 @@ export function V2ListPage<T>({ title, description, load, columns, rowKey, rende
       window.removeEventListener("v2-workspace-url-change", syncFromUrl);
       window.removeEventListener(WORKSPACE_FILTER_CHANGE_EVENT, syncFromUrl);
     };
-  }, []);
+  }, [panelRootHref]);
 
   useEffect(() => {
     const closeWhenWorkspaceChanges = () => {
@@ -353,7 +378,8 @@ export function V2ListPage<T>({ title, description, load, columns, rowKey, rende
     syncListQueryUrl(next, limit, 0);
   };
   const activeItem = selected;
-  const detailTitleId = `v2-detail-title-${title.replace(/[^A-Za-z0-9_-]+/g, "-")}`;
+  const titleSlug = title.replace(/[^A-Za-z0-9_-]+/g, "-").replace(/^-+|-+$/g, "") || "list";
+  const detailTitleId = `v2-detail-title-${titleSlug}-${detailInstanceId}`;
   const detailDialogId = `${detailTitleId}-dialog`;
   const openDetail = (item: T, trigger?: HTMLButtonElement | null) => {
     selectedTriggerRef.current = trigger ?? null;
