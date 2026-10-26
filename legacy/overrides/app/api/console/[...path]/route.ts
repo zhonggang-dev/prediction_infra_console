@@ -1,4 +1,4 @@
-const CONSOLE_RESOURCES = new Set(["overview", "selection-runs", "selected-markets", "sandboxes", "predictions", "orderbook-series", "outbox-events", "generated-markets", "generated-qas"]);
+const CONSOLE_RESOURCES = new Set(["overview", "selection-runs", "selected-markets", "sandboxes", "predictions", "orderbook-series", "outbox-events", "generated-markets", "generated-qas", "dataset-rotation"]);
 const BACKTEST_FILES = new Set(["sandboxes.parquet", "predictions.parquet", "clob_orderbooks.parquet", "settlements.parquet", "manifest.json"]);
 const DATASET_ID_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
 
@@ -168,7 +168,16 @@ function resolveTarget(path: string[], method: string): ProxyTarget | undefined 
       serviceName: "Trading Execution",
     };
   }
-  if (!CONSOLE_RESOURCES.has(first) || path.length !== 1) return undefined;
+  if (first === "redis-monitor" && method === "GET" && path.length === 1) {
+    return {
+      baseUrl: process.env.PREDICTION_INFRA_BASE_URL,
+      token: process.env.CONSOLE_API_TOKEN,
+      endpoint: "/api/v1/console/redis-monitor",
+      stream: false,
+      serviceName: "Prediction Infra",
+    };
+  }
+  if (!CONSOLE_RESOURCES.has(first) || path.length !== 1 || method !== "GET") return undefined;
   return {
     baseUrl: process.env.PREDICTION_INFRA_BASE_URL,
     token: process.env.CONSOLE_API_TOKEN,

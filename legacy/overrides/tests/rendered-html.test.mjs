@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-async function render(pathname = "/") {
+async function render(pathname = "/", init = {}) {
   const workerUrl = new URL("../dist/server/index.js", import.meta.url);
   workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}-${pathname}`);
   const { default: worker } = await import(workerUrl.href);
-  return worker.fetch(new Request(`http://localhost${pathname}`, { headers: { accept: "text/html" } }), { ASSETS: { fetch: async () => new Response("Not found", { status: 404 }) } }, { waitUntil() {}, passThroughOnException() {} });
+  return worker.fetch(new Request(`http://localhost${pathname}`, { headers: { accept: "text/html" }, ...init }), { ASSETS: { fetch: async () => new Response("Not found", { status: 404 }) } }, { waitUntil() {}, passThroughOnException() {} });
 }
 
 async function withoutBackendConfig(run) {
@@ -15,6 +15,24 @@ async function withoutBackendConfig(run) {
   try {
     return await run();
   } finally {
+    for (const name of names) {
+      if (previous[name] === undefined) delete process.env[name];
+      else process.env[name] = previous[name];
+    }
+  }
+}
+
+async function withRedisUpstream(upstreamFetch, run) {
+  const names = ["PREDICTION_INFRA_BASE_URL", "CONSOLE_API_TOKEN"];
+  const previous = Object.fromEntries(names.map((name) => [name, process.env[name]]));
+  const previousFetch = globalThis.fetch;
+  process.env.PREDICTION_INFRA_BASE_URL = "http://prediction-infra.test";
+  process.env.CONSOLE_API_TOKEN = "redis-console-test-token";
+  globalThis.fetch = upstreamFetch;
+  try {
+    return await run();
+  } finally {
+    globalThis.fetch = previousFetch;
     for (const name of names) {
       if (previous[name] === undefined) delete process.env[name];
       else process.env[name] = previous[name];
@@ -38,6 +56,14 @@ test("服务端可渲染独立的市场页面", async () => {
   assert.equal(response.status, 200);
   const html = await response.text();
   assert.match(html, /已选市场/);
+});
+
+test("服务端可渲染数据集轮换页面并显示导航入口", async () => {
+  const response = await render("/dataset-rotation");
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /数据集轮换/);
+  assert.match(html, /href="\/dataset-rotation"[^>]*>.*数据集轮换/s);
 });
 
 test("服务端可渲染交易与结算记录页面", async () => {
@@ -86,6 +112,8 @@ test("服务端可渲染双服务基础监控页面", async () => {
   const html = await response.text();
   assert.match(html, /服务监控/);
   assert.match(html, /Prediction Infra 与 Trading Execution/);
+  assert.match(html, /Redis 队列监控/);
+  assert.match(html, /业务消息与缓存分开统计/);
 });
 
 test("能力接口在未配置令牌时安全关闭写能力", async () => {
@@ -109,6 +137,48 @@ test("服务监控聚合接口允许两个后端独立离线", async () => {
   const payload = await response.json();
   assert.equal(payload.data.services.length, 2);
   assert.deepEqual(payload.data.services.map((service) => service.status), ["unavailable", "unavailable"]);
+});
+
+test("Redis 监控 BFF 未配置后端时安全失败", async () => {
+  const response = await withoutBackendConfig(() => render("/api/console/redis-monitor"));
+  assert.equal(response.status, 503);
+  const payload = await response.json();
+  assert.equal(payload.code, "BACKEND_NOT_CONFIGURED");
+});
+
+test("Redis 监控 BFF 只读转发上游并隐藏服务器令牌", async () => {
+  const calls = [];
+  const response = await withRedisUpstream(async (input, init) => {
+    calls.push({ url: String(input), method: init?.method, authorization: new Headers(init?.headers).get("authorization") });
+    return new Response(JSON.stringify({ code: "CONSOLE_REDIS_MONITOR_FOUND", request_id: "redis-upstream-1", data: { status: "ok", source: "upstream" } }), {
+      status: 200,
+      headers: { "content-type": "application/json", "x-request-id": "redis-upstream-1", "set-cookie": "secret=must-not-forward" },
+    });
+  }, () => render("/api/console/redis-monitor?scope=queue"));
+  assert.equal(response.status, 200);
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].url, "http://prediction-infra.test/api/v1/console/redis-monitor?scope=queue");
+  assert.equal(calls[0].method, "GET");
+  assert.equal(calls[0].authorization, "Bearer redis-console-test-token");
+  assert.equal(response.headers.get("x-request-id"), "redis-upstream-1");
+  assert.equal(response.headers.get("cache-control"), "no-store");
+  assert.equal(response.headers.get("set-cookie"), null);
+  assert.deepEqual(await response.json(), { code: "CONSOLE_REDIS_MONITOR_FOUND", request_id: "redis-upstream-1", data: { status: "ok", source: "upstream" } });
+});
+
+test("Redis 监控 BFF 保留上游 503，不回落为演示数据", async () => {
+  const response = await withRedisUpstream(async () => new Response(JSON.stringify({ code: "CONSOLE_REDIS_MONITOR_UNAVAILABLE", message: "Redis snapshot unavailable" }), {
+    status: 503,
+    headers: { "content-type": "application/json", "x-request-id": "redis-upstream-503" },
+  }), () => render("/api/console/redis-monitor"));
+  assert.equal(response.status, 503);
+  assert.equal(response.headers.get("x-request-id"), "redis-upstream-503");
+  assert.deepEqual(await response.json(), { code: "CONSOLE_REDIS_MONITOR_UNAVAILABLE", message: "Redis snapshot unavailable" });
+});
+
+test("Redis 监控 BFF 拒绝写请求", async () => {
+  const response = await render("/api/console/redis-monitor", { method: "POST" });
+  assert.equal(response.status, 404);
 });
 
 test("交易记录接口未配置执行服务时安全失败", async () => {
@@ -156,4 +226,33 @@ test("Edge 分布接口未配置执行服务时安全失败", async () => {
 test("BFF 拒绝非白名单回测路径", async () => {
   const response = await render("/api/console/backtest-datasets/example/files/secret.txt");
   assert.equal(response.status, 404);
+});
+
+test("数据集轮换 BFF 未配置后端时安全失败", async () => {
+  const response = await withoutBackendConfig(() => render("/api/console/dataset-rotation"));
+  assert.equal(response.status, 503);
+  const payload = await response.json();
+  assert.equal(payload.code, "BACKEND_NOT_CONFIGURED");
+});
+
+test("数据集轮换 BFF 拒绝写请求", async () => {
+  const response = await render("/api/console/dataset-rotation", { method: "POST" });
+  assert.equal(response.status, 404);
+});
+
+test("回测平台旧平台外链是运行时配置：改地址、设为 off 都在请求时生效（不是构建时写死）", async () => {
+  const name = "BACKTEST_LEGACY_PLATFORM_URL";
+  const previous = process.env[name];
+  try {
+    process.env[name] = "https://legacy.example.test/pm/";
+    const custom = await (await render("/backtest-platform/trading")).text();
+    assert.match(custom, /href="https:\/\/legacy\.example\.test\/pm\/"[^>]*>打开旧平台 PM Backtest/);
+    assert.doesNotMatch(custom, /href="http:\/\/172\.21\.20\.221:8501\/"[^>]*>打开旧平台/);
+    process.env[name] = "off";
+    const off = await (await render("/backtest-platform/runs")).text();
+    assert.doesNotMatch(off, /打开旧平台 PM Backtest/);
+  } finally {
+    if (previous === undefined) delete process.env[name];
+    else process.env[name] = previous;
+  }
 });

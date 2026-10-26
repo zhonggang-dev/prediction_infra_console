@@ -5,6 +5,7 @@ import path from "node:path";
 
 const root = process.cwd();
 const manifestPath = path.join(root, "legacy", "manifest.json");
+const productionInventoryPath = path.join(root, "legacy", "production-inventory.json");
 const stagingPath = path.join(root, ".legacy-console");
 
 function fail(message) {
@@ -18,6 +19,11 @@ function safeRelative(value) {
 
 function sha256(filePath) {
   return crypto.createHash("sha256").update(fs.readFileSync(filePath)).digest("hex");
+}
+
+function gitBlobSha1(filePath) {
+  const bytes = fs.readFileSync(filePath);
+  return crypto.createHash("sha1").update(`blob ${bytes.length}\0`).update(bytes).digest("hex");
 }
 
 function assertRegularFile(filePath, label) {
@@ -38,8 +44,25 @@ function assertNoSymlink(filePath, label) {
 function readManifest() {
   assertRegularFile(manifestPath, "manifest");
   const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
-  if (manifest.schemaVersion !== 1 || typeof manifest.sourceCommit !== "string" || !/^[0-9a-f]{40}$/.test(manifest.sourceCommit) || (manifest.baseCommit !== undefined && (typeof manifest.baseCommit !== "string" || !/^[0-9a-f]{7,40}$/.test(manifest.baseCommit))) || !manifest.files || typeof manifest.files !== "object") fail("manifest schema is invalid");
+  const commit = (value) => typeof value === "string" && /^[0-9a-f]{40}$/.test(value);
+  if (manifest.schemaVersion !== 2 || !commit(manifest.sourceCommit) || !commit(manifest.productionBaseCommit) || manifest.baseCommit !== manifest.productionBaseCommit || !manifest.files || typeof manifest.files !== "object" || Array.isArray(manifest.files)) fail("manifest schema is invalid");
+  if (!manifest.overlay || !commit(manifest.overlay.baseCommit) || manifest.overlay.sourceCommit !== manifest.sourceCommit || !Array.isArray(manifest.overlay.paths) || !manifest.overlay.paths.length) fail("overlay provenance is invalid");
+  const paths = manifest.overlay.paths.map(safeRelative);
+  if (new Set(paths).size !== paths.length || paths.some((relativePath) => !manifest.files[relativePath])) fail("overlay paths are invalid");
   return manifest;
+}
+
+function readProductionInventory(manifest) {
+  assertNoSymlink(productionInventoryPath, "production inventory");
+  assertRegularFile(productionInventoryPath, "production inventory");
+  const inventory = JSON.parse(fs.readFileSync(productionInventoryPath, "utf8"));
+  if (inventory.schemaVersion !== 1 || inventory.sourceCommit !== manifest.productionBaseCommit || !/^sha256:[0-9a-f]{64}$/.test(inventory.imageSha256) || !inventory.files || typeof inventory.files !== "object" || Array.isArray(inventory.files) || !Object.keys(inventory.files).length) fail("production inventory is invalid");
+  for (const [relativePath, blob] of Object.entries(inventory.files)) {
+    safeRelative(relativePath);
+    if (typeof blob !== "string" || !/^[0-9a-f]{40}$/.test(blob)) fail(`invalid production blob ${relativePath}`);
+    if (!manifest.files[relativePath]) fail(`production file missing from manifest: ${relativePath}`);
+  }
+  return inventory;
 }
 
 function sourcePath(relativePath, source) {
@@ -50,6 +73,8 @@ function sourcePath(relativePath, source) {
 }
 
 function validateAndCopy(manifest, destination) {
+  const inventory = readProductionInventory(manifest);
+  const overlay = new Set(manifest.overlay.paths);
   const seen = new Set();
   for (const [relativePath, entry] of Object.entries(manifest.files)) {
     const safe = safeRelative(relativePath);
@@ -61,6 +86,7 @@ function validateAndCopy(manifest, destination) {
     assertRegularFile(input, safe);
     const actual = sha256(input);
     if (actual !== entry.sha256) fail(`${safe} hash mismatch: expected ${entry.sha256}, got ${actual}`);
+    if (inventory.files[safe] && !overlay.has(safe) && gitBlobSha1(input) !== inventory.files[safe]) fail(`production baseline changed outside overlay: ${safe}`);
     const output = path.join(destination, safe);
     assertNoSymlink(path.dirname(output), safe);
     if (fs.existsSync(output)) {
@@ -80,7 +106,7 @@ function prepare() {
   fs.mkdirSync(stagingPath, { recursive: true });
   validateAndCopy(manifest, stagingPath);
   fs.writeFileSync(path.join(stagingPath, "LEGACY_SOURCE_MANIFEST.json"), `${JSON.stringify(manifest, null, 2)}\n`, "utf8");
-  process.stdout.write(`legacy profile prepared ${manifest.sourceCommit} at ${path.relative(root, stagingPath)} (${Object.keys(manifest.files).length} files)\n`);
+  process.stdout.write(`legacy profile prepared production ${manifest.productionBaseCommit} + overlay ${manifest.sourceCommit} at ${path.relative(root, stagingPath)} (${Object.keys(manifest.files).length} files)\n`);
 }
 
 function check() {
@@ -92,10 +118,11 @@ function check() {
 }
 
 function test() {
-  const files = [
-    "tests/live-risk.test.ts", "tests/pnl-metrics.test.ts", "tests/wallet-pnl.test.ts",
-    "tests/resolution-rules.test.ts", "tests/topic-paths.test.ts", "tests/rendered-html.test.mjs",
-  ];
+  // Run the complete preserved suite, including dataset rotation, Redis,
+  // question audits, and backtest forms/BFF, rather than a PnL-only subset.
+  const files = fs.readdirSync(path.join(stagingPath, "tests"))
+    .filter((name) => /\.test\.(?:ts|mjs)$/.test(name)).sort().map((name) => `tests/${name}`);
+  if (!files.length) fail("assembled profile contains no tests");
   const result = spawnSync(process.execPath, ["--experimental-strip-types", "--test", ...files], { cwd: stagingPath, stdio: "inherit" });
   if (result.status !== 0) process.exit(result.status ?? 1);
 }
