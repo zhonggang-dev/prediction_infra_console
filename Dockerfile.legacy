@@ -27,11 +27,13 @@ LABEL org.opencontainers.image.source-branch="main" \
 RUN npm install --global "pnpm@${PNPM_VERSION}"
 
 ENV NODE_ENV=production
+# Build-time frozen install owns dependencies; relocation checks may warn but
+# must not trigger an install inside the read-only runtime filesystem.
+ENV pnpm_config_verify_deps_before_run=warn
 WORKDIR /app
 
 # The assembled legacy source owns /app/package.json, lockfile, and matching
-# node_modules.  Keeping this install together prevents pnpm from attempting
-# a read-only runtime install against the V2 dependency tree.
+# node_modules instead of using the V2 dependency tree.
 COPY --from=build --chown=node:node /app/.legacy-console/ /app/
 
 USER node
