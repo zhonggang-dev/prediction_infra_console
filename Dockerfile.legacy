@@ -6,11 +6,10 @@ RUN npm install --global "pnpm@${PNPM_VERSION}"
 
 WORKDIR /app
 
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-RUN pnpm install --frozen-lockfile
-
 COPY . .
-RUN pnpm legacy:build
+RUN node scripts/legacy-profile.mjs prepare
+RUN cd .legacy-console && pnpm install --frozen-lockfile
+RUN cd .legacy-console && INIT_CWD="$PWD" WRANGLER_LOG_PATH=.wrangler/wrangler.log pnpm build
 
 FROM node:24-bookworm-slim AS runtime
 
@@ -30,10 +29,10 @@ RUN npm install --global "pnpm@${PNPM_VERSION}"
 ENV NODE_ENV=production
 WORKDIR /app
 
-# The assembled legacy source owns /app/package.json and its start script;
-# dependencies remain the single root install from the build stage.
+# The assembled legacy source owns /app/package.json, lockfile, and matching
+# node_modules.  Keeping this install together prevents pnpm from attempting
+# a read-only runtime install against the V2 dependency tree.
 COPY --from=build --chown=node:node /app/.legacy-console/ /app/
-COPY --from=build --chown=node:node /app/node_modules/ /app/node_modules/
 
 USER node
 EXPOSE 13000
