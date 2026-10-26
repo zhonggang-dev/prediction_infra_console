@@ -121,7 +121,7 @@ pnpm legacy:build
 (cd .legacy-console && INIT_CWD="$PWD" WRANGLER_LOG_PATH=.wrangler/wrangler.log ../node_modules/.bin/vinext start --hostname 127.0.0.1 --port 13000)
 ```
 
-生产镜像使用独立的 [Dockerfile.legacy](./Dockerfile.legacy)。Docker build 会在 assembled legacy 目录内按其自身锁文件执行一次 `pnpm install --frozen-lockfile`（保留根 `pnpm-workspace.yaml` 的 allowBuilds 安全策略），再构建并把匹配的 `node_modules` 与应用一起扁平复制到 runtime；这样只读容器启动时不会尝试修改 `/app`。新版 `pnpm build:v2`、`pnpm start:v2` 和根目录构建命令保持不变。
+生产镜像使用独立的 [Dockerfile.legacy](./Dockerfile.legacy)。Docker build 会在 assembled legacy 目录内按其自身锁文件执行一次 `pnpm install --frozen-lockfile`（保留根 `pnpm-workspace.yaml` 的 allowBuilds 安全策略），再构建并把匹配的 `node_modules` 与应用一起扁平复制到 runtime。运行阶段固定 `pnpm_config_verify_deps_before_run=warn`：pnpm 的依赖状态检查仅告警，不自动安装依赖，避免目录迁移后的检查尝试写入只读 `/app`；依赖安装与冻结锁文件校验仍在构建阶段完成。新版 `pnpm build:v2`、`pnpm start:v2` 和根目录构建命令保持不变。
 
 服务器上可用下面的只读 smoke check 验证镜像能在旧运行时目录启动；生产 unit 的真实环境变量和安全参数仍由既有部署配置提供：
 
