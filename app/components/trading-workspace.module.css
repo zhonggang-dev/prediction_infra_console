@@ -44,6 +44,21 @@
 :global(.trading-attention-grid) > div { min-height: 74px; padding: 13px; display: grid; align-content: center; gap: 5px; background: var(--surface); }
 :global(.trading-attention-grid) span { color: var(--muted); font-size: 9px; }
 :global(.trading-attention-grid) strong { color: var(--ink); font-size: 15px; }
+:global(.trading-attention-diagnostics) { margin-top: 12px; display: grid; gap: 8px; }
+:global(.trading-attention-detail) { border: 1px solid var(--line); border-radius: 6px; background: #fbfcfa; }
+:global(.trading-attention-detail) > summary { padding: 10px 12px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; gap: 12px; color: var(--ink-soft); font-size: 11px; font-weight: 700; }
+:global(.trading-attention-detail) > summary::marker { color: var(--mint); }
+:global(.trading-attention-detail) > summary small { color: var(--muted); font-size: 9px; font-weight: 500; }
+:global(.trading-attention-detail)[open] > summary { border-bottom: 1px solid var(--line); }
+:global(.trading-diagnostic-list) { display: grid; gap: 0; }
+:global(.trading-diagnostic-row) { padding: 11px 12px; border-bottom: 1px solid var(--line); display: grid; grid-template-columns: minmax(140px, .7fr) minmax(0, 1.3fr); gap: 12px; }
+:global(.trading-diagnostic-row:last-child) { border-bottom: 0; }
+:global(.trading-diagnostic-row) > div { min-width: 0; display: grid; gap: 3px; }
+:global(.trading-diagnostic-row) strong { color: var(--ink); font-size: 11px; }
+:global(.trading-diagnostic-row) span { color: var(--ink-soft); font-size: 10px; }
+:global(.trading-diagnostic-row) small { color: var(--muted); font-size: 9px; line-height: 1.4; }
+:global(.trading-unmanaged-table) { border-top: 0; }
+:global(.trading-unmanaged-table) .v2-table { min-width: 720px; }
 :global(.trading-edge-deferred) { padding: 15px 17px; display: flex; align-items: center; justify-content: space-between; gap: 15px; border: 1px solid var(--line); border-radius: 7px; background: var(--surface); }
 :global(.trading-edge-deferred) > div { min-width: 0; }
 :global(.trading-scope-fields) { display: contents; }
@@ -58,6 +73,7 @@
   :global(.trading-runtime-summary) { gap: 10px 16px; }
   :global(.trading-runtime-summary) > div { min-width: 105px; }
   :global(.trading-attention-grid) { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  :global(.trading-diagnostic-row) { grid-template-columns: 1fr; gap: 7px; }
   :global(.trading-edge-deferred) { align-items: stretch; flex-direction: column; }
   :global(.trading-edge-deferred) :global(.button) { width: 100%; }
   :global(.trading-scope-fields) { display: contents; }
