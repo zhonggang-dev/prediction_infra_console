@@ -1,7 +1,20 @@
+import type { LivePosition } from "./types";
+
 export function summarizeAttention<T>(items: readonly T[], isIssue: (item: T) => boolean, emptyLabel = "未采集", clearLabel = "无") {
   if (!items.length) return emptyLabel;
   const count = items.filter(isIssue).length;
   return count ? `${count} 项` : clearLabel;
+}
+
+/** Keep unmanaged positions separate from the managed holding valuation. */
+export function filterUnmanagedPositions(positions: readonly LivePosition[], executionAccountId = "") {
+  return positions.filter((position) => !position.managed && (!executionAccountId || position.executionAccountId === executionAccountId));
+}
+
+export function formatTradingDisplayValue(value: number | null | undefined, unit: "$" | "%" | "count" | "minutes") {
+  if (value === null || value === undefined || !Number.isFinite(value)) return "未知";
+  const formatted = value.toLocaleString("zh-CN", { maximumFractionDigits: unit === "count" ? 6 : 2 });
+  return unit === "$" ? `$${formatted}` : unit === "%" ? `${formatted}%` : unit === "minutes" ? `${formatted} 分钟` : formatted;
 }
 
 export function normalizeOverviewSources<Runtime, Snapshot>(

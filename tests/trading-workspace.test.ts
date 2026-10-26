@@ -4,7 +4,7 @@ import { readFile } from "node:fs/promises";
 import { decodeTradingHolding, holdingIdentity } from "../app/lib/trading-holdings.ts";
 import { consoleV2 } from "../app/lib/console-v2.ts";
 import { deriveAccountPermission } from "../app/lib/trading-permissions.ts";
-import { normalizeOverviewSources, summarizeAttention } from "../app/lib/trading-display.ts";
+import { filterUnmanagedPositions, formatTradingDisplayValue, normalizeOverviewSources, summarizeAttention } from "../app/lib/trading-display.ts";
 
 const helpers = {
   requiredText(value: unknown, field: string) {
@@ -114,6 +114,20 @@ test("empty risk and quality sources remain unknown instead of looking healthy",
   assert.equal(summarizeAttention([], () => true), "未采集");
   assert.equal(summarizeAttention([{ state: "healthy" }], (item) => item.state !== "healthy"), "无");
   assert.equal(summarizeAttention([{ status: "healthy" }], (item) => item.status !== "healthy", "未采集", "正常"), "正常");
+});
+
+test("risk and quality summaries keep non-empty diagnostics, unmanaged positions stay account-scoped", () => {
+  assert.equal(summarizeAttention([{ state: "danger" }, { state: "safe" }], (item) => item.state !== "safe"), "1 项");
+  assert.equal(summarizeAttention([{ status: "degraded" }], (item) => item.status !== "healthy", "未采集", "正常"), "1 项");
+  const positions = [
+    { positionId: "managed", executionAccountId: "wallet-a", managed: true },
+    { positionId: "external-a", executionAccountId: "wallet-a", managed: false },
+    { positionId: "external-b", executionAccountId: "wallet-b", managed: false },
+  ] as unknown as Parameters<typeof filterUnmanagedPositions>[0];
+  assert.deepEqual(filterUnmanagedPositions(positions, "wallet-a").map((item) => item.positionId), ["external-a"]);
+  assert.deepEqual(filterUnmanagedPositions(positions).map((item) => item.positionId), ["external-a", "external-b"]);
+  assert.equal(formatTradingDisplayValue(0.003, "count"), "0.003");
+  assert.equal(formatTradingDisplayValue(0.000001, "count"), "0.000001");
 });
 
 test("overview source failure clears the failed runtime snapshot instead of retaining running state", () => {
