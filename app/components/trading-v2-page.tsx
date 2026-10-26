@@ -10,7 +10,7 @@ import type { ApiMode, LiveOperationsSnapshot, LiveWalletSummary } from "../lib/
 import { formatV2Number, formatV2Time, V2Facts, V2Frame, V2ListPage, V2Tabs, V2WorkspacePanel, WORKSPACE_FILTER_CHANGE_EVENT, useV2Filter, useWorkspaceTabs, v2Status, v2Unknown } from "./console-v2-resource";
 import { EdgeDistributionPanel } from "./edge-distribution-panel";
 import { TradeRecordsPage } from "./trade-records-page";
-import "./trading-workspace.module.css";
+import "./trading-workspace.css";
 
 type TradingView = "overview" | "cycles" | "orders" | "positions" | "ledger" | "reconciliation" | "redemptions";
 
