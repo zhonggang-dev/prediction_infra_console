@@ -40,3 +40,4 @@ yarn-error.log*
 /.wrangler-v2/
 /outputs/
 /work/
+/.legacy-console/
