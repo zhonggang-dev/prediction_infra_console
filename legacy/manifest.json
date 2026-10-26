@@ -1,0 +1,255 @@
+{
+  "schemaVersion": 1,
+  "sourceCommit": "59f0eb8fa83b237c52f54d705cf54e66ce47566d",
+  "baseCommit": "ed9e34f",
+  "files": {
+    ".openai/hosting.json": {
+      "source": "root",
+      "sha256": "b706ea0a876c4bf0f1cdeabcf55eb301f89b8b2ad69971aac90a79e1f1cd3f2e"
+    },
+    "app/api/console/[...path]/route.ts": {
+      "source": "override",
+      "sha256": "b5e6cd7438274171a1eef32e557bb995683199fe195f6bd10a06c45f5aa55ea6"
+    },
+    "app/backtests/page.tsx": {
+      "source": "override",
+      "sha256": "023fe41771519bfb4de3517f3e90f0751f036915430b7f8545c03315638ee0ac"
+    },
+    "app/components/backtest-panel.tsx": {
+      "source": "root",
+      "sha256": "3cfadc674d3e1b86805073efadaa8e7a28f636e10b821f7057487a2352d58e06"
+    },
+    "app/components/console-page.tsx": {
+      "source": "root",
+      "sha256": "f86173c2888624bb8b5786f7486793d0b127bd828289a8a24f287572a17e60eb"
+    },
+    "app/components/console-shell.tsx": {
+      "source": "override",
+      "sha256": "de2e47873a2463d4810ebbe49852cef2e679322bbb4d692521eb964faefe6628"
+    },
+    "app/components/daily-pnl-dashboard.tsx": {
+      "source": "override",
+      "sha256": "2418b640e50ebaad7c187f50e6612465413b3a85e7043e42537681f5a85a80a5"
+    },
+    "app/components/edge-distribution-panel.tsx": {
+      "source": "override",
+      "sha256": "e0816e1010008a5b3db3a7ebb25ad49253e8bbdd4c356d7bd11e67042ecffcd0"
+    },
+    "app/components/icons.tsx": {
+      "source": "root",
+      "sha256": "67ab1081b0e80b7cb7d5f5b2c09c150f2b43650ac2c1aae1e5c4ecba8d898c85"
+    },
+    "app/components/live-trading-page.tsx": {
+      "source": "override",
+      "sha256": "bcb0ffa36411b7d564b3df61305c24836c10f4815280063df5abd33f5b149347"
+    },
+    "app/components/overview-panel.tsx": {
+      "source": "root",
+      "sha256": "8d414413951780b1eb44d199e211f71d151dc98e9a278b8cb395430379a73567"
+    },
+    "app/components/question-library-page.tsx": {
+      "source": "override",
+      "sha256": "ef60854a2c04dc1bfe87c5cfba89a82512ac964a4e0d8d45630dbabe94c23fde"
+    },
+    "app/components/resource-panel.tsx": {
+      "source": "root",
+      "sha256": "35fc589095af2f8f62a2c498fae735684c8be05bb7e51c000eb0b3e3b26cce2e"
+    },
+    "app/components/service-metrics-dashboard.tsx": {
+      "source": "override",
+      "sha256": "1e789fe7d6fd364dcc0031277d94355cf318064114c1468530b949c34f31149a"
+    },
+    "app/components/settings-panel.tsx": {
+      "source": "root",
+      "sha256": "6349ae01081b6600981a769cb2e43426589359542579c58a844b32ea04e4a553"
+    },
+    "app/components/status.tsx": {
+      "source": "override",
+      "sha256": "696e2980bcca39a8569122ee838be835c84575c1a0713b8d53a6c7914dd38178"
+    },
+    "app/components/trade-records-page.tsx": {
+      "source": "override",
+      "sha256": "ddbf93262c3dfcfdc6e027cd3da5b195d293c4d35ba7963b1336c1a3731ad922"
+    },
+    "app/components/wallet-pnl-chart.tsx": {
+      "source": "override",
+      "sha256": "a2fd88961919a7699f21c48fb7c67ac74046b46a7f9094d3c2f2709fa6f06423"
+    },
+    "app/delivery/page.tsx": {
+      "source": "override",
+      "sha256": "09dc7eef8c425ab4d371772ed2ed34b401d069af1c7217430bbbd4ee0efd2a65"
+    },
+    "app/globals.css": {
+      "source": "override",
+      "sha256": "1d6d15b185bfa36754e8e4387cd5e1bfe7751efd42e1ebcb88f8415a0f4ba344"
+    },
+    "app/layout.tsx": {
+      "source": "override",
+      "sha256": "2564b4b7f8c3a9fe28bdd0f4f869ffeac33ae18278f79c2bac42c3ae2c69fc01"
+    },
+    "app/lib/console-api.ts": {
+      "source": "override",
+      "sha256": "b5359914342a2ede25461ba703301be0bdcd25d52192f3206e0887012a4dfb0c"
+    },
+    "app/lib/demo-data.ts": {
+      "source": "root",
+      "sha256": "d7da84a6d94c09472c2dfdf19ca1f2801141da3e359eb1af79079f8fb18c15f1"
+    },
+    "app/lib/demo-live.ts": {
+      "source": "root",
+      "sha256": "43e64b37cdc225ccbac2374464f2a7ad19c4acbbd42f962c92e4804a83429634"
+    },
+    "app/lib/demo-service-metrics.ts": {
+      "source": "root",
+      "sha256": "2a96afc4596bcf963cc476d10e9b3ee08126f431af94f6c819e4dccdad512d6d"
+    },
+    "app/lib/demo-trades.ts": {
+      "source": "root",
+      "sha256": "247cd4ccb2569849f7e19a843c79bda91f1f6f375a9e523292d52925a22bdd94"
+    },
+    "app/lib/live-risk.ts": {
+      "source": "override",
+      "sha256": "ed80b48f06729eeaed050baaee91b73d57f2625627a03a8680c18c3d3067ed98"
+    },
+    "app/lib/pnl-metrics.ts": {
+      "source": "root",
+      "sha256": "2b755b203b350abe0ac1a66beb995959ef392c47f3ee90dcd31d951fc0cfab15"
+    },
+    "app/lib/resolution-rules.ts": {
+      "source": "root",
+      "sha256": "a002f782e7d60a4c7ad91ccad58f1eecc983cb89873e8cfb9a7e76d700790d0a"
+    },
+    "app/lib/topic-paths.ts": {
+      "source": "root",
+      "sha256": "ddd6e6f85543dc5e38a5bb7f05fa0f98e8662f1ed556c0701b80b92975921009"
+    },
+    "app/lib/types.ts": {
+      "source": "override",
+      "sha256": "a9836b12f5d0dfe7670296fc27bdecf0ecc79096683458ea9c90c20e36e449b9"
+    },
+    "app/lib/wallet-pnl.ts": {
+      "source": "override",
+      "sha256": "f6505fa12458bcb82fac45d6a90507846e56f7fe88a9386b15189304e57b5bcb"
+    },
+    "app/live/page.tsx": {
+      "source": "override",
+      "sha256": "47deac154382aafd8cf812160b610e81fb2d8594c59d07aff45ae90203e34387"
+    },
+    "app/markets/page.tsx": {
+      "source": "override",
+      "sha256": "41c8261017c7f55e17ea9848cc6c0d4c2c07b9bf879bc70c7b16fe39b9d4ee77"
+    },
+    "app/observability/page.tsx": {
+      "source": "override",
+      "sha256": "86eac1397684a8f97f98b1722954d8decd6f9ae3f615ac73dd6b11410298a8a7"
+    },
+    "app/page.tsx": {
+      "source": "override",
+      "sha256": "5185dbd5d1a2c0730c27c514740fa5d225d156748d70ea3c9cef3e00cf24cc2a"
+    },
+    "app/predictions/page.tsx": {
+      "source": "override",
+      "sha256": "8b8182f4402adc3fcf5542b888e08654d99bb7a96b0beddf6c8ee3485d4abdb4"
+    },
+    "app/questions/page.tsx": {
+      "source": "root",
+      "sha256": "a446090f1b3e9a7f7e09c5f90a61dc9706c7d69180ac92b0482849818a779482"
+    },
+    "app/sandboxes/page.tsx": {
+      "source": "override",
+      "sha256": "8b1ce056253c991b42a89d8af83e6616d0b97f96a4609c5c42ee5313bb565ab4"
+    },
+    "app/settings/page.tsx": {
+      "source": "override",
+      "sha256": "1a2cda21156936b4696e675bf46ecb8bf832bf62e395459b38111920b68d3e62"
+    },
+    "app/trades/page.tsx": {
+      "source": "override",
+      "sha256": "5f9f8d4affea5f01306b716d6ed7f9dc613e23052263cd49d9cd9a0155f293a9"
+    },
+    "build/sites-vite-plugin.ts": {
+      "source": "root",
+      "sha256": "81b7cbfaeb970611572256aba0e313425beb3809f6426f63750696c15d9c756b"
+    },
+    "eslint.config.mjs": {
+      "source": "root",
+      "sha256": "6090bd544865638d8c77a3443f037b3b289596a7ec1e1dccc3a13677e6d1ca83"
+    },
+    "next-env.d.ts": {
+      "source": "root",
+      "sha256": "a291a6b60536fec0a3b9d4ffd6d51179b463e9bc20281d7499d756813b4c07d5"
+    },
+    "next.config.ts": {
+      "source": "root",
+      "sha256": "614bce25b089c3f19b1e17a6346c74b858034040154c6621e7d35303004767cc"
+    },
+    "package.json": {
+      "source": "override",
+      "sha256": "483edb835ff7fa50df803bf259d84d350b3b9be40e36b1b288f0cc4742a21c78"
+    },
+    "pnpm-lock.yaml": {
+      "source": "override",
+      "sha256": "91649d0be062c39343cf321f0f9ce52a74628d600e33a668ab87256c756dac82"
+    },
+    "pnpm-workspace.yaml": {
+      "source": "root",
+      "sha256": "368fd9e50a46d5ca8af48e7eb08751063280a5d933be56ed5eed91e304cda90e"
+    },
+    "postcss.config.mjs": {
+      "source": "root",
+      "sha256": "dfac7ac2d86d326a0e5adb024e7943c181393ed17a5fcb8f0315b24c7da6ddde"
+    },
+    "public/favicon.svg": {
+      "source": "root",
+      "sha256": "8d8043f0d4a158afbbc86f4a9f52ea6925f5cd21aaa42129e1aa6e2564846571"
+    },
+    "public/og-live-trading.png": {
+      "source": "root",
+      "sha256": "1dd1ca62f0c3b7672e1c1e135de30d80382e0cde26e6e39cad58b6ba6717455a"
+    },
+    "public/og-observability.png": {
+      "source": "root",
+      "sha256": "4c54dfdcbbbdc4974ffd252fa4a48534cd24425a8891a5f4e3d529833ed2b394"
+    },
+    "public/trade-ledger-social.png": {
+      "source": "root",
+      "sha256": "710ab78e66adb1edb3ccd286f681bd727d3572108964755d750b4ebd92a4d492"
+    },
+    "tests/live-risk.test.ts": {
+      "source": "root",
+      "sha256": "82ed48d32bbddbdbb3ec6a478ad5e5fbb1870e8ba35367a49cc3ed77ac456b8a"
+    },
+    "tests/pnl-metrics.test.ts": {
+      "source": "root",
+      "sha256": "ad38b24bd55532ee04822a4504fc2741aa9780dce332de0c1ad48486902f73ce"
+    },
+    "tests/rendered-html.test.mjs": {
+      "source": "override",
+      "sha256": "54b3b1ede64d34a9938977e1831e826e23217d2eb1e3eb7d244f7fb3c6716887"
+    },
+    "tests/resolution-rules.test.ts": {
+      "source": "root",
+      "sha256": "81fdeecdd1dbac5e448a1b2abf066a2e7216ee6f7faf4a01c7975457dac5d8f4"
+    },
+    "tests/topic-paths.test.ts": {
+      "source": "root",
+      "sha256": "163c0a4fe9525a02339c3d8d0d0c81810bd22b5ee82306240d2b79e166da21d8"
+    },
+    "tests/wallet-pnl.test.ts": {
+      "source": "override",
+      "sha256": "207fc2f6715102763f5c8910481c516fded5d90ded1d2ee14d7b241e2c2e6667"
+    },
+    "tsconfig.json": {
+      "source": "override",
+      "sha256": "470a4b212def0f8f66d07001a1fe990e1d8a6f18ec002e6337915ebbfd17fb6e"
+    },
+    "vite.config.ts": {
+      "source": "root",
+      "sha256": "f7c14b8a38546bb6a7ec93cba22f8e8f131da9fbfe8b39327422ed5bb98d4613"
+    },
+    "worker/index.ts": {
+      "source": "override",
+      "sha256": "1b59cf9dc32204dc0b2ebdf682a0ebb284575814c397684f771713ff380e0ed9"
+    }
+  }
+}

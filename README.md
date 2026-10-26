@@ -108,3 +108,17 @@ pnpm lint
 pnpm build
 pnpm test
 ```
+
+## 旧版 13000 可复现构建
+
+旧版控制台与新版源码在主干上并行。旧版发布使用 `legacy/manifest.json` 固定记录的已审查源提交 `59f0eb8fa83b237c52f54d705cf54e66ce47566d`：与当前主干相同的文件复用根源码，差异文件保存在 `legacy/overrides/`。组装器只写入被忽略的 `.legacy-console/`，会校验路径、拒绝符号链接，并在复制前后校验每个文件的 SHA-256；它不依赖构建机的 Git 历史，也不会修改根源码。
+
+```bash
+pnpm install --frozen-lockfile
+pnpm legacy:prepare
+pnpm legacy:check   # legacy lint + tsc + 39 项测试（包含 build）
+pnpm legacy:build
+(cd .legacy-console && INIT_CWD="$PWD" WRANGLER_LOG_PATH=.wrangler/wrangler.log ../node_modules/.bin/vinext start --hostname 127.0.0.1 --port 13000)
+```
+
+生产镜像使用独立的 [Dockerfile.legacy](./Dockerfile.legacy)，从完整主干源码安装一次依赖后组装旧版应用，并以旧版 `pnpm start -- --hostname ... --port 13000` 启动；新版 `pnpm build:v2`、`pnpm start:v2` 和根目录构建命令保持不变。

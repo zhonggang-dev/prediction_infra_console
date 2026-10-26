@@ -1,0 +1,159 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+
+async function render(pathname = "/") {
+  const workerUrl = new URL("../dist/server/index.js", import.meta.url);
+  workerUrl.searchParams.set("test", `${process.pid}-${Date.now()}-${pathname}`);
+  const { default: worker } = await import(workerUrl.href);
+  return worker.fetch(new Request(`http://localhost${pathname}`, { headers: { accept: "text/html" } }), { ASSETS: { fetch: async () => new Response("Not found", { status: 404 }) } }, { waitUntil() {}, passThroughOnException() {} });
+}
+
+async function withoutBackendConfig(run) {
+  const names = ["PREDICTION_INFRA_BASE_URL", "CONSOLE_API_TOKEN", "BACKTEST_DATASET_TOKEN", "TRADING_EXECUTION_BASE_URL", "TRADING_EXECUTION_API_TOKEN", "TRADING_EXECUTION_LIVE_READ_ONLY_TOKEN"];
+  const previous = Object.fromEntries(names.map((name) => [name, process.env[name]]));
+  for (const name of names) delete process.env[name];
+  try {
+    return await run();
+  } finally {
+    for (const name of names) {
+      if (previous[name] === undefined) delete process.env[name];
+      else process.env[name] = previous[name];
+    }
+  }
+}
+
+test("服务端可渲染 Prediction Console 首页", async () => {
+  const response = await render();
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /Prediction Console/);
+  assert.match(html, /运行概览/);
+  assert.match(html, /href="\/observability"[^>]*>.*服务监控.*href="\/questions"[^>]*>.*题目库/s);
+  assert.match(html, /href="http:\/\/172\.21\.20\.221:8501\/"[^>]*>.*PM Backtest/s);
+  assert.doesNotMatch(html, /Your site is taking shape/);
+});
+
+test("服务端可渲染独立的市场页面", async () => {
+  const response = await render("/markets");
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /已选市场/);
+});
+
+test("服务端可渲染交易与结算记录页面", async () => {
+  const response = await render("/trades");
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /交易与结算记录/);
+  assert.match(html, /已确认并入账的成交与结算/);
+  assert.match(html, /REDEEM · 赎回结算/);
+});
+
+test("服务端可渲染实盘监控页面", async () => {
+  const response = await render("/live");
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /实盘监控/);
+  assert.match(html, /从机会扫描到成交入账/);
+  assert.match(html, /选择钱包/);
+  assert.match(html, /系统管理持仓/);
+  assert.match(html, /当前持仓价值/);
+  assert.match(html, /Peak Cash Used/);
+  assert.match(html, /累计投入成本/);
+  assert.match(html, /Realized PnL/);
+  assert.match(html, /Unrealized PnL/);
+  assert.match(html, /Total PnL/);
+  assert.match(html, /Return/);
+  assert.match(html, /最大回撤/);
+  assert.match(html, /钱包 PnL 对比/);
+  assert.match(html, /多选钱包比较累计已实现 PnL/);
+  assert.match(html, /SELL 平仓 \+ REDEEM 赎回/);
+  assert.match(html, /模型 Edge 分布/);
+  assert.match(html, /模型概率 − 盘口中间价/);
+  assert.match(html, /正在读取真实实盘快照/);
+  assert.match(html, /运行监控/);
+  assert.match(html, /官方盈亏/);
+  assert.match(html, /role="tablist"/);
+  assert.match(html, /role="tabpanel"/);
+  assert.doesNotMatch(html, /官方钱包盈亏/);
+  assert.doesNotMatch(html, /\$12,842\.36/);
+  assert.doesNotMatch(html, />LIVE</);
+});
+
+test("服务端可渲染双服务基础监控页面", async () => {
+  const response = await render("/observability");
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /服务监控/);
+  assert.match(html, /Prediction Infra 与 Trading Execution/);
+});
+
+test("能力接口在未配置令牌时安全关闭写能力", async () => {
+  const response = await withoutBackendConfig(() => render("/api/console/capabilities"));
+  assert.equal(response.status, 200);
+  assert.deepEqual(await response.json(), {
+    data: { console_read: false, trade_read: false, live_read: false, backtest_create: false },
+  });
+});
+
+test("实时接口未配置后端时返回稳定错误", async () => {
+  const response = await withoutBackendConfig(() => render("/api/console/overview"));
+  assert.equal(response.status, 503);
+  const payload = await response.json();
+  assert.equal(payload.code, "BACKEND_NOT_CONFIGURED");
+});
+
+test("服务监控聚合接口允许两个后端独立离线", async () => {
+  const response = await withoutBackendConfig(() => render("/api/console/service-metrics"));
+  assert.equal(response.status, 200);
+  const payload = await response.json();
+  assert.equal(payload.data.services.length, 2);
+  assert.deepEqual(payload.data.services.map((service) => service.status), ["unavailable", "unavailable"]);
+});
+
+test("交易记录接口未配置执行服务时安全失败", async () => {
+  const response = await withoutBackendConfig(() => render("/api/console/trades?limit=20&offset=0"));
+  assert.equal(response.status, 503);
+  const payload = await response.json();
+  assert.equal(payload.code, "BACKEND_NOT_CONFIGURED");
+});
+
+test("账本活动接口未配置执行服务时安全失败", async () => {
+  const response = await withoutBackendConfig(() => render("/api/console/ledger-activities?limit=20&offset=0&activity_type=REDEEM"));
+  assert.equal(response.status, 503);
+  const payload = await response.json();
+  assert.equal(payload.code, "BACKEND_NOT_CONFIGURED");
+});
+
+test("每日盈亏接口未配置执行服务时安全失败", async () => {
+  const response = await withoutBackendConfig(() => render("/api/console/daily-pnl?days=14"));
+  assert.equal(response.status, 503);
+  const payload = await response.json();
+  assert.equal(payload.code, "BACKEND_NOT_CONFIGURED");
+});
+
+test("实盘聚合接口未配置执行服务时安全失败", async () => {
+  const response = await withoutBackendConfig(() => render("/api/console/live-operations"));
+  assert.equal(response.status, 503);
+  const payload = await response.json();
+  assert.equal(payload.code, "BACKEND_NOT_CONFIGURED");
+});
+
+test("官方钱包盈亏接口未配置执行服务时安全失败", async () => {
+  const response = await withoutBackendConfig(() => render("/api/console/wallet-pnl?execution_account_id=main&interval=1w&fidelity=3h"));
+  assert.equal(response.status, 503);
+  const payload = await response.json();
+  assert.equal(payload.code, "BACKEND_NOT_CONFIGURED");
+});
+
+test("Edge 分布接口未配置执行服务时安全失败", async () => {
+  const response = await withoutBackendConfig(() => render("/api/console/edge-distribution"));
+  assert.equal(response.status, 503);
+  const payload = await response.json();
+  assert.equal(payload.code, "BACKEND_NOT_CONFIGURED");
+});
+
+test("BFF 拒绝非白名单回测路径", async () => {
+  const response = await render("/api/console/backtest-datasets/example/files/secret.txt");
+  assert.equal(response.status, 404);
+});
