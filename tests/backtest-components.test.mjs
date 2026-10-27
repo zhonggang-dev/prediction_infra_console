@@ -337,10 +337,15 @@ function catalogData(firstStrategy) {
   };
 }
 const tradingHtml = (firstStrategy) => loader.render(trading.TradingFormInner, { data: catalogData(firstStrategy) });
+const tradingHtmlWith = (...keys) => {
+  const data = catalogData();
+  return loader.render(trading.TradingFormInner, { data, initialStrategyIds: keys.map((key) => data.strategies.find((s) => s.key === key).id) });
+};
 
 test("交易回测表单 · 只选旧策略：看不到逐时点参数；仓位 / 资金联动；选项是中文；策略分组且名字不重复", () => {
   const html = tradingHtml();
-  assert.doesNotMatch(html, /逐时点策略账户规则|盘口深度（档）|逐时点策略参数|整股成交/, "旧策略不显示逐时点参数");
+  assert.doesNotMatch(html, /逐时点策略（pm_sim）|盘口深度（档）|逐时点策略参数|整股成交|下一格成交/, "旧策略不显示逐时点参数");
+  assert.doesNotMatch(html, /只对旧策略生效|仓位由策略自己决定/, "只选旧策略时仓位模式不加注");
   assert.match(html, /口径、仓位与资金/);
   assert.match(html, /仓位模式/);
   for (const text of ["严格交集", "各模型自有全集", "策略自带", "固定股数", "固定金额", "有限资金", "无限资金"]) assert.ok(html.includes(`>${text}</button>`), `选项按钮显示 ${text}`);
@@ -355,27 +360,40 @@ test("交易回测表单 · 只选旧策略：看不到逐时点参数；仓位 
   assert.doesNotMatch(html, /本页面只显示进度与结果|运行在服务器的执行器上进行/, "提交栏不再重复页头里的说明");
 });
 
-test("交易回测表单 · 逐时点策略：出现账户规则分组（说明一次待确认）、策略参数表单；仓位模式按策略声明置灰", () => {
+test("交易回测表单 · 只选逐时点策略：出现 pm_sim 参数分组（说明一次）、策略参数表单；仓位模式整组隐藏并说明；策略卡片显示 pm_sim 版本", () => {
   const html = tradingHtml("edge_filter_stepwise");
-  assert.match(html, /逐时点策略账户规则/);
-  assert.equal(count(html, /待研究侧确认/g), 1, "组标题处说明一次");
-  assert.match(html, /盘口深度（档）/);
-  assert.match(html, />先卖后买<\/button>/);
-  assert.match(html, />按中价估值<\/button>/);
+  assert.match(html, /<legend>逐时点策略（pm_sim）<\/legend>/);
+  assert.equal(count(html, /规则由研究侧的 pm_sim 决定/g), 1, "组标题处说明一次");
+  for (const label of ["下一格成交", "盘口年龄上限（分钟）", "盘口深度（档）", "整股成交", "买入费率（基点）", "卖出费率（基点）"]) assert.ok(html.includes(label), `显示 ${label}`);
+  assert.doesNotMatch(html, /待研究侧确认|先卖后买<\/button>|按中价估值<\/button>|报价容忍|现金不足时部分成交/, "旧账户规则参数不再出现");
   assert.match(html, /逐时点策略参数/);
   assert.match(html, /入场边际阈值/);
   assert.match(html, /最长持有（小时）/);
   assert.doesNotMatch(html, /JSON）/, "不再手填 JSON");
-  assert.match(html, /<button[^>]*disabled=""[^>]*>固定股数<\/button>/, "清单只声明 native / fixed_stake，固定股数置灰");
-  assert.doesNotMatch(html, /<button[^>]*disabled=""[^>]*>固定金额<\/button>/);
+  assert.doesNotMatch(html, /bt-param-label[^>]*>仓位模式/, "只选逐时点策略时不显示仓位模式");
+  assert.doesNotMatch(html, />固定股数<\/button>|>固定金额<\/button>/);
+  assert.match(html, /逐时点策略的仓位由策略自己决定/);
+  assert.match(html, /<legend>口径、仓位与资金<\/legend>/, "口径与资金仍在");
+  assert.match(html, />无限资金<\/button>/);
   assert.match(html, /逐时点策略不做严格交集裁剪/);
-  assert.match(html, /仓位只支持：策略自带 \/ 固定金额/);
+  assert.match(html, /（pm_sim 6\.3\.0）/, "策略卡片显示 pm_sim 版本");
+  assert.doesNotMatch(html, /仓位只支持|决策间隔/);
+});
+
+test("交易回测表单 · 混选旧策略与逐时点策略：仓位模式保留并注明只对旧策略生效", () => {
+  const html = tradingHtmlWith("baseline", "edge_filter_stepwise");
+  assert.match(html, /bt-param-label[^>]*>仓位模式（只对旧策略生效）</);
+  assert.match(html, />固定股数<\/button>/);
+  assert.doesNotMatch(html, /<button[^>]*disabled=""[^>]*>(策略自带|固定股数|固定金额)<\/button>/, "逐时点策略不约束仓位模式");
+  assert.doesNotMatch(html, /逐时点策略的仓位由策略自己决定/);
+  assert.match(html, /<legend>逐时点策略（pm_sim）<\/legend>/);
 });
 
 test("交易回测表单 · 逐时点策略没有参数时不显示参数表单；不读模型时改选盘口数据集、不强制选模型", () => {
   const v3 = tradingHtml("baseline_v3_stepwise");
-  assert.match(v3, /逐时点策略账户规则/);
+  assert.match(v3, /逐时点策略（pm_sim）/);
   assert.doesNotMatch(v3, /逐时点策略参数/);
+  assert.doesNotMatch(v3, /仓位只支持/, "旧接口定义里的仓位模式不再用来限制");
   assert.match(v3, /请至少选择一个模型/, "predictions=required 仍要选模型");
   const none = tradingHtml("mid_reversion_stepwise");
   assert.match(none, /数据集（盘口）/);

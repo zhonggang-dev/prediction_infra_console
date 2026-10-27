@@ -12,6 +12,6 @@ dist
 node_modules
 outputs
 work
-.legacy-console
+legacy-console
 npm-debug.log*
 pnpm-debug.log*

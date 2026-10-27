@@ -1,6 +1,6 @@
 # Prediction Console V2
 
-Prediction Infra 的新版 React 运维控制台基础。它从线上 Console 的已提交版本独立复制，以 `13001` 和 `prediction-console-v2` 运行；旧版 `13000`、`prediction-console` 容器和原 systemd unit 不在本项目的启停范围内。浏览器只请求同源 `/api/console/*`；BFF 在服务端携带令牌请求 Go 服务，因此任何令牌都不会进入浏览器包。
+Prediction Infra 的新版 React 运维控制台基础。它从线上 Console 的已提交版本独立复制，以 `13001` 和 `prediction-console-v2` 运行。旧版 `13000`（`prediction-console` 容器）的源码独立放在 [legacy-console/](./legacy-console/)，见下文「旧版 13000」。浏览器只请求同源 `/api/console/*`；BFF 在服务端携带令牌请求 Go 服务，因此任何令牌都不会进入浏览器包。
 
 新版业务页按市场、预测、题目、资料与数据、交易、系统运行分组，使用 v2 只读 projection、服务端筛选和有界分页。后端资源未配置、依赖 503 或字段不满足契约时，页面会明确显示不可用/未知，不把空结果或累计历史数量当作当前状态。
 
@@ -109,21 +109,28 @@ pnpm build
 pnpm test
 ```
 
-## 旧版 13000 可复现构建
+## 旧版 13000
 
-旧版控制台与新版源码在主干上并行。`legacy/manifest.json` 以线上旧版精确匹配的 `d6e2e20adbe8884f285989025a7cd832fe337d7e` 为 `productionBaseCommit`，保留数据集轮换、Redis、题目审核及回测平台；在此基础上只叠加 `2c1aaebe39a14c59f36bc868a5af2d630f0d821a..59f0eb8fa83b237c52f54d705cf54e66ce47566d` 的 13 个盈亏相关路径。`sourceCommit` 表示该盈亏增量来源，不表示完整旧版基线。
+旧版控制台的完整源码在 [legacy-console/](./legacy-console/)，和根目录的新版（13001）是两份互不引用的代码：各自的 `package.json`、锁文件、Dockerfile 和测试。根目录的 lint、tsc、测试和 Docker 构建都不包含 `legacy-console/`。改 13000 就直接改这个目录，同样经 PR 合进 `main`、从 `main` 发布。
 
-与当前主干相同的文件复用根源码，差异文件保存在 `legacy/overrides/`。组装器只写入被忽略的 `.legacy-console/`，校验路径、拒绝符号链接，并在复制前后校验每个文件的 SHA-256。`legacy/production-inventory.json` 固定线上镜像的 148 个源文件 Git blob：必须全部保留，增量路径之外必须逐字节一致。组装不依赖构建机 Git 历史，也不会修改根源码或复制环境配置。
+2026-10-27 落成目录时，内容与当时线上 13000 镜像（`prediction-console:current`，构建自 `4b043b9`）里的 155 个源码文件逐字节一致。两边都有的页面（例如回测平台）是两份，两边都要改时各改一次。
 
 ```bash
+cd legacy-console
 pnpm install --frozen-lockfile
-pnpm legacy:prepare
-pnpm legacy:check   # legacy lint + tsc + 完整旧版测试及新增盈亏测试（包含 build）
-pnpm legacy:build
-(cd .legacy-console && INIT_CWD="$PWD" WRANGLER_LOG_PATH=.wrangler/wrangler.log ../node_modules/.bin/vinext start --hostname 127.0.0.1 --port 13000)
+pnpm lint
+pnpm test        # 含 build
+pnpm start -- --hostname 127.0.0.1 --port 13000
 ```
 
-生产镜像使用独立的 [Dockerfile.legacy](./Dockerfile.legacy)。Docker build 会在 assembled legacy 目录内按其自身锁文件执行一次 `pnpm install --frozen-lockfile`（保留根 `pnpm-workspace.yaml` 的 allowBuilds 安全策略），再构建并把匹配的 `node_modules` 与应用一起扁平复制到 runtime。运行阶段固定 `pnpm_config_verify_deps_before_run=warn`：pnpm 的依赖状态检查仅告警，不自动安装依赖，避免目录迁移后的检查尝试写入只读 `/app`；依赖安装与冻结锁文件校验仍在构建阶段完成。新版 `pnpm build:v2`、`pnpm start:v2` 和根目录构建命令保持不变。
+生产镜像用 [legacy-console/Dockerfile](./legacy-console/Dockerfile)，构建上下文是 `legacy-console/`：
+
+```bash
+docker build -f legacy-console/Dockerfile -t prediction-console:legacy-candidate \
+  --build-arg RELEASE_MERGE_SHA=<main 的合并提交> legacy-console
+```
+
+构建阶段按锁文件 `pnpm install --frozen-lockfile`（保留 `pnpm-workspace.yaml` 的 allowBuilds）。运行阶段固定 `pnpm_config_verify_deps_before_run=warn`：根目录只读，pnpm 的依赖检查只告警、不自动安装。
 
 服务器上可用下面的只读 smoke check 验证镜像能在旧运行时目录启动；生产 unit 的真实环境变量和安全参数仍由既有部署配置提供：
 

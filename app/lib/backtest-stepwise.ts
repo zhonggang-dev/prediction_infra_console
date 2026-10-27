@@ -1,7 +1,7 @@
 /**
- * 逐时点策略在交易回测表单里的辅助逻辑（纯函数）：
- * 参数表单取交集、仓位模式限制、对模型的需求。规则与执行器一致：
- * 执行器对每个逐时点策略只取它自己声明了的参数（stepwise/handler.py），仓位模式不在策略声明里会直接失败。
+ * 逐时点策略在交易回测表单里的辅助逻辑（纯函数）：参数表单取交集、对模型的需求。规则与执行器一致：
+ * 执行器对每个逐时点策略只取它自己声明了的参数（stepwise/handler.py）。
+ * 仓位不在这里：逐时点策略（pm_sim）下多少由策略自己决定，平台的仓位模式只对旧策略生效（见 `backtest-param-ui.ts`）。
  */
 
 import { paramsDiff, stableJson, type ParamValues } from "./backtest-params.ts";
@@ -40,13 +40,6 @@ export function planStrategyParams(strategies: StrategyInfo[]): StrategyParamPla
 /** 写进 `stepwise.strategy_params` 的 JSON：只含与默认值不同的共有参数，键按字母序；没有改动就是 "{}"。 */
 export function strategyParamsJson(shared: ParamDef[], values: ParamValues): string {
   return stableJson(paramsDiff(shared, values));
-}
-
-/** 选中的逐时点策略共同允许的仓位模式；没有逐时点策略（或都没声明）时不限制（undefined）。 */
-export function allowedSizingModes(strategies: StrategyInfo[]): string[] | undefined {
-  const declared = strategies.filter((s) => s.stepwise && s.sizingModes && s.sizingModes.length > 0).map((s) => s.sizingModes as string[]);
-  if (declared.length === 0) return undefined;
-  return declared.reduce((acc, modes) => acc.filter((mode) => modes.includes(mode)));
 }
 
 export interface ModelNeed {

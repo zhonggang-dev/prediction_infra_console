@@ -1,0 +1,58 @@
+{
+  "data": {
+    "run_id": "btr-20261019-intake001",
+    "batch_id": null,
+    "parent_run_id": null,
+    "origin": "platform",
+    "board": "intake",
+    "item": "prediction",
+    "status": "running",
+    "lost": false,
+    "stage": null,
+    "stage_label": null,
+    "progress": null,
+    "log_tail": null,
+    "heartbeat_at": null,
+    "attempt": 1,
+    "cancel_requested": false,
+    "config_sha256": "ntake001a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4",
+    "config": {
+      "schema_version": "backtest.run_config.v1",
+      "run_id": "btr-20261019-intake001",
+      "batch_id": null,
+      "parent_run_id": null,
+      "board": "intake",
+      "item": "prediction",
+      "engine": "pm-engine-20261019-3b7dbbede090",
+      "dataset": "",
+      "data_generation": "dg-1f3a9c20b7d44e10",
+      "window": null,
+      "domains": null,
+      "objects": {
+        "models": [],
+        "strategies": [],
+        "factors": []
+      },
+      "params": {},
+      "requested_by": "trainer",
+      "created_at": "2026-10-19T14:30:00+08:00",
+      "submission": {
+        "submission_id": "bts-20261019-val00001",
+        "kind": "prediction",
+        "identity": {
+          "model_id": "team_03",
+          "train_version": "v2",
+          "prediction_version": "p3"
+        },
+        "sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "bytes": 48123456,
+        "content_type": "application/octet-stream"
+      }
+    },
+    "rerunnable": true,
+    "requested_by": "trainer",
+    "created_at": "2026-10-19T15:00:00Z",
+    "started_at": "2026-10-19T15:00:00Z",
+    "finished_at": null
+  }
+}

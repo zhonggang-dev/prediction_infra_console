@@ -49,17 +49,25 @@ const legacyStrategies = [
   ["price_v4", "Price V4（纯价格）", "price_probability", null],
 ].map(([key, label, kind, validated]) => ({ kind: "strategy", key, version: "legacy", origin: "legacy", status: "available", metadata: { label, description: label, definition: { kind, validated_domains: validated }, price_only: kind === "price_probability", reads_hourly_factors: key === "wgeo_mult_factor_v2", requires_execution_cache: kind !== "price_probability" } }));
 
-// 逐时点策略（平台提交）：metadata 形状按执行器 stepwise/intake.py（definition 与 metadata 里各有一份 params / inputs / position_sizing）
+// 逐时点策略（平台提交）：metadata 形状按执行器 stepwise/intake.py 与 stepwise/package.py 的 build_definition
+// （pm_sim 接口：definition 里有 api / pm_sim_version / pm_sim_protocol / smoke；没有决策间隔与仓位模式）
 const edgeThreshold = { name: "edge_threshold", type: "number", default: 0.1, min: 0, max: 1, label: "入场边际阈值", help: "预测与盘口价差超过它才入场。" };
-const stepwise = (key, version, label, { predictions, sizing, domains = null, params = [], interval = "1h", seconds = 3600 }) => {
+const stepwise = (key, version, label, { predictions, domains = null, params = [], simVersion = "6.3.0" }) => {
+  const submissionId = `bts-20261027-${key.slice(0, 8).padEnd(8, "x")}`;
+  const smoke = { window: { start: "2026-06-20T00:00:00Z", end: "2026-06-25T00:00:00Z" }, orders: 12, filled_orders: 9, ending_pnl: 1.25, pm_sim_version: simVersion, inputs_digest: "a".repeat(64), feeds: ["markets"] };
+  const definition = { kind: "stepwise", api: "pm_sim", pm_sim_version: simVersion, pm_sim_protocol: "sim-v6", label, description: label, strategy_id: key, version, entry: `${key}.main:Strategy`, inputs: { predictions, factors: [] }, domains, params, code_dependencies: [], resources: {}, uses_models: predictions !== "none", submission_id: submissionId, package_sha256: "f".repeat(64), smoke };
+  return { kind: "strategy", key, version, origin: "platform", status: "available", submission_id: submissionId, metadata: { definition, label, submission_id: submissionId, sha256: "f".repeat(64), api: "pm_sim", pm_sim_version: simVersion, params, inputs: { predictions, factors: [] }, smoke } };
+};
+// 改用 pm_sim 之前的旧接口验收包（上线时目录记录删除；这里保留一条，验证旧定义仍能解码）
+const retiredStepwise = (key, version, label, { predictions, sizing, interval = "1h", seconds = 3600 }) => {
   const submissionId = `bts-20261021-${key.slice(0, 8).padEnd(8, "x")}`;
-  const definition = { kind: "stepwise", api_version: 1, label, strategy_id: key, version, entry: `${key}.main:Strategy`, decision_trigger: "grid", decision_interval: interval, decision_interval_seconds: seconds, inputs: { predictions }, position_sizing: sizing, domains, params, uses_models: predictions !== "none", submission_id: submissionId, package_sha256: "f".repeat(64) };
-  return { kind: "strategy", key, version, origin: "platform", status: "available", submission_id: submissionId, metadata: { definition, label, submission_id: submissionId, sha256: "f".repeat(64), decision_interval: interval, position_sizing: sizing, params, inputs: { predictions }, example_steps: 3 } };
+  const definition = { kind: "stepwise", api_version: 1, label, strategy_id: key, version, entry: `${key}.main:Strategy`, decision_trigger: "grid", decision_interval: interval, decision_interval_seconds: seconds, inputs: { predictions }, position_sizing: sizing, domains: null, params: [], uses_models: predictions !== "none", submission_id: submissionId, package_sha256: "f".repeat(64) };
+  return { kind: "strategy", key, version, origin: "platform", status: "available", submission_id: submissionId, metadata: { definition, label, submission_id: submissionId, sha256: "f".repeat(64), decision_interval: interval, position_sizing: sizing, params: [], inputs: { predictions }, example_steps: 3 } };
 };
 const stepwiseStrategies = [
-  stepwise("baseline_v3_stepwise", "1.0.0", "Baseline V3（逐时点包装）", { predictions: "required", sizing: ["native", "fixed_shares", "fixed_stake"] }),
-  stepwise("edge_filter_stepwise", "0.2.0", "边际过滤（逐时点）", { predictions: "optional", sizing: ["native", "fixed_stake"], interval: "30m", seconds: 1800, params: [edgeThreshold, { name: "hold_hours", type: "integer", default: 6, min: 1, max: 48, label: "最长持有（小时）", help: "" }, { name: "use_depth", type: "bool", default: true, label: "考虑盘口深度", help: "" }, { name: "side_mode", type: "enum", default: "both", choices: ["both", "yes_only"], label: "方向", help: "" }] }),
-  stepwise("mid_reversion_stepwise", "0.1.0", "中价回归（逐时点，不读模型）", { predictions: "none", sizing: ["native"], domains: ["Politics", "Sports"], params: [edgeThreshold, { name: "window_steps", type: "integer", default: 12, min: 2, max: 96, label: "回看步数", help: "" }] }),
+  retiredStepwise("baseline_v3_stepwise", "1.0.0", "Baseline V3（逐时点包装）", { predictions: "required", sizing: ["native", "fixed_shares", "fixed_stake"] }),
+  stepwise("edge_filter_stepwise", "0.2.0", "边际过滤（逐时点）", { predictions: "optional", params: [edgeThreshold, { name: "hold_hours", type: "integer", default: 6, min: 1, max: 48, label: "最长持有（小时）", help: "" }, { name: "use_depth", type: "bool", default: true, label: "考虑盘口深度", help: "" }, { name: "side_mode", type: "enum", default: "both", choices: ["both", "yes_only"], label: "方向", help: "" }] }),
+  stepwise("mid_reversion_stepwise", "0.1.0", "中价回归（逐时点，不读模型）", { predictions: "none", domains: ["Politics", "Sports"], params: [edgeThreshold, { name: "window_steps", type: "integer", default: 12, min: 2, max: 96, label: "回看步数", help: "" }] }),
 ];
 const strategies = [...legacyStrategies, ...stepwiseStrategies];
 save("catalog-strategies.json", page(strategies));

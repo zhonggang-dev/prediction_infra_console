@@ -1,0 +1,427 @@
+{
+  "data": {
+    "items": [
+      {
+        "kind": "strategy",
+        "key": "baseline",
+        "version": "legacy",
+        "origin": "legacy",
+        "status": "available",
+        "metadata": {
+          "label": "Baseline",
+          "description": "Baseline",
+          "definition": {
+            "kind": "baseline",
+            "validated_domains": null
+          },
+          "price_only": false,
+          "reads_hourly_factors": false,
+          "requires_execution_cache": true
+        }
+      },
+      {
+        "kind": "strategy",
+        "key": "baseline_v1_1",
+        "version": "legacy",
+        "origin": "legacy",
+        "status": "available",
+        "metadata": {
+          "label": "Baseline V1.1",
+          "description": "Baseline V1.1",
+          "definition": {
+            "kind": "baseline",
+            "validated_domains": null
+          },
+          "price_only": false,
+          "reads_hourly_factors": false,
+          "requires_execution_cache": true
+        }
+      },
+      {
+        "kind": "strategy",
+        "key": "baseline_v2",
+        "version": "legacy",
+        "origin": "legacy",
+        "status": "available",
+        "metadata": {
+          "label": "Baseline V2",
+          "description": "Baseline V2",
+          "definition": {
+            "kind": "baseline",
+            "validated_domains": null
+          },
+          "price_only": false,
+          "reads_hourly_factors": false,
+          "requires_execution_cache": true
+        }
+      },
+      {
+        "kind": "strategy",
+        "key": "wgeo_mult_factor_v1",
+        "version": "legacy",
+        "origin": "legacy",
+        "status": "available",
+        "metadata": {
+          "label": "MultFactor v1 · W/G only",
+          "description": "MultFactor v1 · W/G only",
+          "definition": {
+            "kind": "wgeo_mult_factor",
+            "validated_domains": [
+              "World",
+              "Geopolitics"
+            ]
+          },
+          "price_only": false,
+          "reads_hourly_factors": false,
+          "requires_execution_cache": true
+        }
+      },
+      {
+        "kind": "strategy",
+        "key": "wgeo_mult_factor_v2",
+        "version": "legacy",
+        "origin": "legacy",
+        "status": "available",
+        "metadata": {
+          "label": "MultFactor v2 · W/G only",
+          "description": "MultFactor v2 · W/G only",
+          "definition": {
+            "kind": "wgeo_mult_factor",
+            "validated_domains": [
+              "World",
+              "Geopolitics"
+            ]
+          },
+          "price_only": false,
+          "reads_hourly_factors": true,
+          "requires_execution_cache": true
+        }
+      },
+      {
+        "kind": "strategy",
+        "key": "price_v4",
+        "version": "legacy",
+        "origin": "legacy",
+        "status": "available",
+        "metadata": {
+          "label": "Price V4（纯价格）",
+          "description": "Price V4（纯价格）",
+          "definition": {
+            "kind": "price_probability",
+            "validated_domains": null
+          },
+          "price_only": true,
+          "reads_hourly_factors": false,
+          "requires_execution_cache": false
+        }
+      },
+      {
+        "kind": "strategy",
+        "key": "baseline_v3_stepwise",
+        "version": "1.0.0",
+        "origin": "platform",
+        "status": "available",
+        "submission_id": "bts-20261021-baseline",
+        "metadata": {
+          "definition": {
+            "kind": "stepwise",
+            "api_version": 1,
+            "label": "Baseline V3（逐时点包装）",
+            "strategy_id": "baseline_v3_stepwise",
+            "version": "1.0.0",
+            "entry": "baseline_v3_stepwise.main:Strategy",
+            "decision_trigger": "grid",
+            "decision_interval": "1h",
+            "decision_interval_seconds": 3600,
+            "inputs": {
+              "predictions": "required"
+            },
+            "position_sizing": [
+              "native",
+              "fixed_shares",
+              "fixed_stake"
+            ],
+            "domains": null,
+            "params": [],
+            "uses_models": true,
+            "submission_id": "bts-20261021-baseline",
+            "package_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+          },
+          "label": "Baseline V3（逐时点包装）",
+          "submission_id": "bts-20261021-baseline",
+          "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "decision_interval": "1h",
+          "position_sizing": [
+            "native",
+            "fixed_shares",
+            "fixed_stake"
+          ],
+          "params": [],
+          "inputs": {
+            "predictions": "required"
+          },
+          "example_steps": 3
+        }
+      },
+      {
+        "kind": "strategy",
+        "key": "edge_filter_stepwise",
+        "version": "0.2.0",
+        "origin": "platform",
+        "status": "available",
+        "submission_id": "bts-20261027-edge_fil",
+        "metadata": {
+          "definition": {
+            "kind": "stepwise",
+            "api": "pm_sim",
+            "pm_sim_version": "6.3.0",
+            "pm_sim_protocol": "sim-v6",
+            "label": "边际过滤（逐时点）",
+            "description": "边际过滤（逐时点）",
+            "strategy_id": "edge_filter_stepwise",
+            "version": "0.2.0",
+            "entry": "edge_filter_stepwise.main:Strategy",
+            "inputs": {
+              "predictions": "optional",
+              "factors": []
+            },
+            "domains": null,
+            "params": [
+              {
+                "name": "edge_threshold",
+                "type": "number",
+                "default": 0.1,
+                "min": 0,
+                "max": 1,
+                "label": "入场边际阈值",
+                "help": "预测与盘口价差超过它才入场。"
+              },
+              {
+                "name": "hold_hours",
+                "type": "integer",
+                "default": 6,
+                "min": 1,
+                "max": 48,
+                "label": "最长持有（小时）",
+                "help": ""
+              },
+              {
+                "name": "use_depth",
+                "type": "bool",
+                "default": true,
+                "label": "考虑盘口深度",
+                "help": ""
+              },
+              {
+                "name": "side_mode",
+                "type": "enum",
+                "default": "both",
+                "choices": [
+                  "both",
+                  "yes_only"
+                ],
+                "label": "方向",
+                "help": ""
+              }
+            ],
+            "code_dependencies": [],
+            "resources": {},
+            "uses_models": true,
+            "submission_id": "bts-20261027-edge_fil",
+            "package_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "smoke": {
+              "window": {
+                "start": "2026-06-20T00:00:00Z",
+                "end": "2026-06-25T00:00:00Z"
+              },
+              "orders": 12,
+              "filled_orders": 9,
+              "ending_pnl": 1.25,
+              "pm_sim_version": "6.3.0",
+              "inputs_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "feeds": [
+                "markets"
+              ]
+            }
+          },
+          "label": "边际过滤（逐时点）",
+          "submission_id": "bts-20261027-edge_fil",
+          "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "api": "pm_sim",
+          "pm_sim_version": "6.3.0",
+          "params": [
+            {
+              "name": "edge_threshold",
+              "type": "number",
+              "default": 0.1,
+              "min": 0,
+              "max": 1,
+              "label": "入场边际阈值",
+              "help": "预测与盘口价差超过它才入场。"
+            },
+            {
+              "name": "hold_hours",
+              "type": "integer",
+              "default": 6,
+              "min": 1,
+              "max": 48,
+              "label": "最长持有（小时）",
+              "help": ""
+            },
+            {
+              "name": "use_depth",
+              "type": "bool",
+              "default": true,
+              "label": "考虑盘口深度",
+              "help": ""
+            },
+            {
+              "name": "side_mode",
+              "type": "enum",
+              "default": "both",
+              "choices": [
+                "both",
+                "yes_only"
+              ],
+              "label": "方向",
+              "help": ""
+            }
+          ],
+          "inputs": {
+            "predictions": "optional",
+            "factors": []
+          },
+          "smoke": {
+            "window": {
+              "start": "2026-06-20T00:00:00Z",
+              "end": "2026-06-25T00:00:00Z"
+            },
+            "orders": 12,
+            "filled_orders": 9,
+            "ending_pnl": 1.25,
+            "pm_sim_version": "6.3.0",
+            "inputs_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "feeds": [
+              "markets"
+            ]
+          }
+        }
+      },
+      {
+        "kind": "strategy",
+        "key": "mid_reversion_stepwise",
+        "version": "0.1.0",
+        "origin": "platform",
+        "status": "available",
+        "submission_id": "bts-20261027-mid_reve",
+        "metadata": {
+          "definition": {
+            "kind": "stepwise",
+            "api": "pm_sim",
+            "pm_sim_version": "6.3.0",
+            "pm_sim_protocol": "sim-v6",
+            "label": "中价回归（逐时点，不读模型）",
+            "description": "中价回归（逐时点，不读模型）",
+            "strategy_id": "mid_reversion_stepwise",
+            "version": "0.1.0",
+            "entry": "mid_reversion_stepwise.main:Strategy",
+            "inputs": {
+              "predictions": "none",
+              "factors": []
+            },
+            "domains": [
+              "Politics",
+              "Sports"
+            ],
+            "params": [
+              {
+                "name": "edge_threshold",
+                "type": "number",
+                "default": 0.1,
+                "min": 0,
+                "max": 1,
+                "label": "入场边际阈值",
+                "help": "预测与盘口价差超过它才入场。"
+              },
+              {
+                "name": "window_steps",
+                "type": "integer",
+                "default": 12,
+                "min": 2,
+                "max": 96,
+                "label": "回看步数",
+                "help": ""
+              }
+            ],
+            "code_dependencies": [],
+            "resources": {},
+            "uses_models": false,
+            "submission_id": "bts-20261027-mid_reve",
+            "package_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "smoke": {
+              "window": {
+                "start": "2026-06-20T00:00:00Z",
+                "end": "2026-06-25T00:00:00Z"
+              },
+              "orders": 12,
+              "filled_orders": 9,
+              "ending_pnl": 1.25,
+              "pm_sim_version": "6.3.0",
+              "inputs_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "feeds": [
+                "markets"
+              ]
+            }
+          },
+          "label": "中价回归（逐时点，不读模型）",
+          "submission_id": "bts-20261027-mid_reve",
+          "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+          "api": "pm_sim",
+          "pm_sim_version": "6.3.0",
+          "params": [
+            {
+              "name": "edge_threshold",
+              "type": "number",
+              "default": 0.1,
+              "min": 0,
+              "max": 1,
+              "label": "入场边际阈值",
+              "help": "预测与盘口价差超过它才入场。"
+            },
+            {
+              "name": "window_steps",
+              "type": "integer",
+              "default": 12,
+              "min": 2,
+              "max": 96,
+              "label": "回看步数",
+              "help": ""
+            }
+          ],
+          "inputs": {
+            "predictions": "none",
+            "factors": []
+          },
+          "smoke": {
+            "window": {
+              "start": "2026-06-20T00:00:00Z",
+              "end": "2026-06-25T00:00:00Z"
+            },
+            "orders": 12,
+            "filled_orders": 9,
+            "ending_pnl": 1.25,
+            "pm_sim_version": "6.3.0",
+            "inputs_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "feeds": [
+              "markets"
+            ]
+          }
+        }
+      }
+    ],
+    "limit": 100,
+    "offset": 0,
+    "has_more": false,
+    "observed_at": "2026-10-19T14:00:00Z"
+  }
+}

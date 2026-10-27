@@ -1,0 +1,64 @@
+{
+  "data": {
+    "run_id": "btr-20261019-cancel01",
+    "batch_id": "btb-20261019-7h2kd9wq",
+    "parent_run_id": null,
+    "origin": "platform",
+    "board": "trading",
+    "item": "strategy_comparison",
+    "status": "cancelled",
+    "lost": false,
+    "stage": null,
+    "stage_label": null,
+    "progress": null,
+    "log_tail": null,
+    "heartbeat_at": null,
+    "attempt": 1,
+    "cancel_requested": false,
+    "config_sha256": "cancel01a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4",
+    "config": {
+      "schema_version": "backtest.run_config.v1",
+      "run_id": "btr-20261019-cancel01",
+      "batch_id": "btb-20261019-7h2kd9wq",
+      "parent_run_id": null,
+      "board": "trading",
+      "item": "strategy_comparison",
+      "engine": "pm-engine-20261019-3b7dbbede090",
+      "dataset": "telonex",
+      "data_generation": "dg-1f3a9c20b7d44e10",
+      "window": {
+        "start": "2026-08-07T21:16:28+08:00",
+        "end_exclusive": "2026-08-31T21:00:35+08:00",
+        "align": "strict_common"
+      },
+      "domains": {
+        "mode": "include",
+        "values": [
+          "all"
+        ]
+      },
+      "objects": {
+        "models": [
+          {
+            "key": "pswarm_v2",
+            "version": "legacy/legacy",
+            "model_name": "pswarm_v2",
+            "sha256": "9f2c0000000000000000000000000000000000000000000000000000000000e1"
+          }
+        ],
+        "strategies": [],
+        "factors": []
+      },
+      "params": {
+        "scope": "strict"
+      },
+      "requested_by": "console:console",
+      "created_at": "2026-10-19T14:30:00+08:00"
+    },
+    "rerunnable": true,
+    "requested_by": "console:console",
+    "created_at": "2026-10-19T14:30:00Z",
+    "started_at": null,
+    "finished_at": "2026-10-19T11:00:00Z"
+  }
+}

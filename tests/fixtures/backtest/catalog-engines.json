@@ -198,15 +198,31 @@
                 "name": "stepwise.strategy_params",
                 "type": "text",
                 "label": "逐时点策略参数（JSON）",
-                "help": "只对逐时点策略生效：覆盖策略清单里声明的参数，例如 {\"edge_threshold\": 0.1}；留空 {} 用策略默认值。同时选多个逐时点策略时，每个策略只取自己声明了的参数；没有任何所选策略声明的参数名会报错。",
+                "help": "只对逐时点策略生效：覆盖策略清单里声明的参数，例如 {\"enter_above\": 0.1}；留空 {} 用策略默认值。同时选多个逐时点策略时，每个策略只取自己声明了的参数；没有任何所选策略声明的参数名会报错。",
                 "default": "{}",
                 "max_length": 2000
               },
               {
-                "name": "stepwise.depth_levels",
+                "name": "stepwise.next_bar_fill",
+                "type": "bool",
+                "label": "下一格成交",
+                "help": "是 = 决策后下一个 10 分钟格成交，只用决策之后观测到的盘口（pm_sim 默认）；否 = 用决策所在那一格的盘口，可能早于决策用到的信号，是乐观口径。",
+                "default": true
+              },
+              {
+                "name": "stepwise.max_book_age_minutes",
+                "type": "integer",
+                "label": "盘口年龄上限（分钟）",
+                "help": "盘口快照的年龄（距真实观测时刻）超过它就当作没有盘口：策略看不到、不能买卖、不能估值（持仓按最后一次有效估值挂着）。",
+                "default": 30,
+                "min": 0,
+                "max": 1440
+              },
+              {
+                "name": "stepwise.levels",
                 "type": "integer",
                 "label": "盘口深度（档）",
-                "help": "逐时点策略成交最多吃几档。旧 V3 引擎只吃第 1 档，TradingEngine 吃 15 档。",
+                "help": "成交最多吃几档。",
                 "default": 15,
                 "min": 1,
                 "max": 15
@@ -215,72 +231,28 @@
                 "name": "stepwise.whole_shares",
                 "type": "bool",
                 "label": "整股成交",
-                "help": "买单股数四舍五入到整股（实盘按整股成交）。",
+                "help": "股数先取整到整股、深度不够整股向下取整（实盘按整股成交）；否 = 允许分数股。",
                 "default": true
               },
               {
-                "name": "stepwise.fee_rate",
+                "name": "stepwise.buy_fee_bps",
                 "type": "number",
-                "label": "费率（占成交额）",
-                "help": "买卖都按成交额 × 费率扣除；历史盘口没有逐单费用，默认 0。",
+                "label": "买入费率（基点）",
+                "help": "按成交额收费，1 基点 = 0.01%。历史盘口没有逐单费用，默认 0。",
                 "default": 0,
                 "min": 0,
-                "max": 0.5,
-                "precision": 6
+                "max": 5000,
+                "precision": 4
               },
               {
-                "name": "stepwise.allow_cash_partial_fill",
-                "type": "bool",
-                "label": "现金不足时部分成交",
-                "help": "有限资金下买单超过可用现金：是 = 按剩余现金成交一部分；否 = 整笔拒绝。",
-                "default": true
-              },
-              {
-                "name": "stepwise.quote_tolerance_minutes",
+                "name": "stepwise.sell_fee_bps",
                 "type": "number",
-                "label": "报价容忍（分钟）",
-                "help": "决策时点往前这么久内的最近快照才能用。",
-                "default": 10,
+                "label": "卖出费率（基点）",
+                "help": "按成交额收费，1 基点 = 0.01%。默认 0。",
+                "default": 0,
                 "min": 0,
-                "max": 120
-              },
-              {
-                "name": "stepwise.max_source_staleness_minutes",
-                "type": "number",
-                "label": "快照最长陈旧（分钟）",
-                "help": "补齐的快照要求真实采集时间距决策时点不超过这么久。",
-                "default": 20,
-                "min": 0,
-                "max": 1440
-              },
-              {
-                "name": "stepwise.bounded_gap_fill",
-                "type": "bool",
-                "label": "补齐盘口缺口",
-                "help": "是 = 用上一份真实快照补齐缺失的 10 分钟格（受上一条限制）；否 = 只用原始快照。",
-                "default": true
-              },
-              {
-                "name": "stepwise.rebalance_order",
-                "type": "enum",
-                "label": "同一时点的执行顺序",
-                "help": "先卖后买 = 先减仓后加仓；按策略顺序 = 按策略返回的顺序执行。",
-                "default": "sells_first",
-                "choices": [
-                  "sells_first",
-                  "as_given"
-                ]
-              },
-              {
-                "name": "stepwise.end_valuation",
-                "type": "enum",
-                "label": "区间结束时未平仓估值",
-                "help": "按中价估值 = 按盘口中价估值（与旧引擎 MTM 一致）；按买价清仓 = 区间末按买价逐档清仓。",
-                "default": "mark_mid",
-                "choices": [
-                  "mark_mid",
-                  "liquidate_bid"
-                ]
+                "max": 5000,
+                "precision": 4
               }
             ]
           }

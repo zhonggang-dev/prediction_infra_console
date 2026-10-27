@@ -1,0 +1,5314 @@
+{
+  "data": {
+    "run_id": "btr-legacy-factor-v7-01",
+    "batch_id": "btb-20261019-7h2kd9wq",
+    "parent_run_id": null,
+    "origin": "legacy",
+    "board": "signal",
+    "item": "factor_batch",
+    "status": "succeeded",
+    "lost": false,
+    "stage": null,
+    "stage_label": null,
+    "progress": null,
+    "log_tail": null,
+    "heartbeat_at": "2026-10-19T14:41:20Z",
+    "attempt": 1,
+    "cancel_requested": false,
+    "config_sha256": "or-v7-01a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4",
+    "config": {
+      "schema_version": "backtest.run_config.v1",
+      "run_id": "btr-legacy-factor-v7-01",
+      "batch_id": "btb-20261019-7h2kd9wq",
+      "parent_run_id": null,
+      "board": "signal",
+      "item": "factor_batch",
+      "engine": "pm-engine-20261019-3b7dbbede090",
+      "dataset": "telonex",
+      "data_generation": "dg-1f3a9c20b7d44e10",
+      "window": {
+        "start": "2026-08-07T21:16:28+08:00",
+        "end_exclusive": "2026-08-31T21:00:35+08:00",
+        "align": "strict_common"
+      },
+      "domains": {
+        "mode": "include",
+        "values": [
+          "all"
+        ]
+      },
+      "objects": {
+        "models": [
+          {
+            "key": "pswarm_v2",
+            "version": "legacy/legacy",
+            "model_name": "pswarm_v2",
+            "sha256": "9f2c0000000000000000000000000000000000000000000000000000000000e1"
+          }
+        ],
+        "strategies": [],
+        "factors": []
+      },
+      "params": {
+        "scope": "strict"
+      },
+      "requested_by": "console:console",
+      "created_at": "2026-10-19T14:30:00+08:00"
+    },
+    "rerunnable": false,
+    "requested_by": "legacy-import",
+    "created_at": "2026-10-19T14:30:00Z",
+    "started_at": "2026-10-19T14:30:05Z",
+    "finished_at": "2026-10-19T14:41:22Z",
+    "result": {
+      "schema_version": "backtest.result.v1",
+      "board": "signal",
+      "item": "factor_batch",
+      "headline": "旧平台批量因子评估 · factor_evaluation_v7（历史）",
+      "scope_card": {
+        "window": {
+          "start": "2026-08-07T21:16:28+08:00",
+          "end_exclusive": "2026-08-31T21:00:35+08:00",
+          "align": "strict_common"
+        },
+        "domains": [
+          "All domains"
+        ],
+        "dataset": "telonex",
+        "engine": "pm-engine-20261019-3b7dbbede090",
+        "protocol": "pearson-dmid-v7",
+        "sample_scope": "pooled",
+        "sample_counts": {
+          "共同样本题数": 842,
+          "pswarm_v2": 842,
+          "market_favorite_telonex": 842
+        },
+        "batch_members": [
+          "rev_momentum_3h",
+          "vol_burst",
+          "resid_edge"
+        ]
+      },
+      "warnings": [
+        {
+          "level": "info",
+          "text": "Holm 校正按本批 3 个对象计算，单独评估结果可能不同。"
+        }
+      ],
+      "sections": [
+        {
+          "id": "status_counts",
+          "type": "metrics",
+          "items": [
+            {
+              "label": "通过初筛",
+              "value": 1,
+              "digits": 0
+            },
+            {
+              "label": "人工复审",
+              "value": 1,
+              "digits": 0
+            },
+            {
+              "label": "暂无证据",
+              "value": 0,
+              "digits": 0
+            },
+            {
+              "label": "样本不足",
+              "value": 1,
+              "digits": 0
+            },
+            {
+              "label": "数据异常",
+              "value": 0,
+              "digits": 0
+            }
+          ]
+        },
+        {
+          "id": "summary",
+          "type": "table",
+          "title": "批次汇总",
+          "filters": [
+            {
+              "key": "status",
+              "label": "状态",
+              "options": [
+                {
+                  "value": "all",
+                  "label": "全部"
+                },
+                {
+                  "value": "通过初筛",
+                  "label": "通过初筛"
+                },
+                {
+                  "value": "人工复审",
+                  "label": "人工复审"
+                },
+                {
+                  "value": "暂无证据",
+                  "label": "暂无证据"
+                },
+                {
+                  "value": "样本不足",
+                  "label": "样本不足"
+                },
+                {
+                  "value": "数据异常",
+                  "label": "数据异常"
+                }
+              ],
+              "default": "all"
+            }
+          ],
+          "columns": [
+            {
+              "key": "factor",
+              "label": "因子",
+              "kind": "text"
+            },
+            {
+              "key": "status",
+              "label": "状态",
+              "kind": "badge"
+            },
+            {
+              "key": "reason",
+              "label": "原因",
+              "kind": "text"
+            },
+            {
+              "key": "ic",
+              "label": "Pearson IC",
+              "kind": "number",
+              "digits": 4
+            },
+            {
+              "key": "icir",
+              "label": "ICIR",
+              "kind": "number",
+              "digits": 3
+            },
+            {
+              "key": "t",
+              "label": "稳健 t",
+              "kind": "number",
+              "digits": 2
+            },
+            {
+              "key": "holm_p",
+              "label": "Holm p",
+              "kind": "number",
+              "digits": 4
+            },
+            {
+              "key": "validation",
+              "label": "样本外验证",
+              "kind": "text"
+            }
+          ],
+          "rows": [
+            {
+              "filters": {
+                "status": [
+                  "通过初筛",
+                  "all"
+                ]
+              },
+              "factor": "rev_momentum_3h",
+              "status": "通过初筛",
+              "reason": "",
+              "ic": 0.041,
+              "icir": 0.62,
+              "t": 3.18,
+              "holm_p": 0.004,
+              "validation": "对照期通过"
+            },
+            {
+              "filters": {
+                "status": [
+                  "人工复审",
+                  "all"
+                ]
+              },
+              "factor": "vol_burst",
+              "status": "人工复审",
+              "reason": "IC 方向与对照期不一致",
+              "ic": 0.029,
+              "icir": 0.42,
+              "t": 2.08,
+              "holm_p": 0.094,
+              "validation": "—"
+            },
+            {
+              "filters": {
+                "status": [
+                  "样本不足",
+                  "all"
+                ]
+              },
+              "factor": "resid_edge",
+              "status": "样本不足",
+              "reason": "有效截面 < 20",
+              "ic": 0.017,
+              "icir": 0.22,
+              "t": 0.98,
+              "holm_p": 0.184,
+              "validation": "—"
+            }
+          ],
+          "default_sort": {
+            "key": "t",
+            "direction": "desc"
+          }
+        },
+        {
+          "id": "factor:rev_momentum_3h:screen",
+          "type": "metrics",
+          "items": [
+            {
+              "label": "初筛状态",
+              "value": "通过初筛"
+            },
+            {
+              "label": "24h Pearson IC",
+              "value": 0.0412,
+              "digits": 6
+            },
+            {
+              "label": "稳健 t",
+              "value": 3.18,
+              "digits": 2
+            },
+            {
+              "label": "Rank IC",
+              "value": 0.0377,
+              "digits": 6
+            },
+            {
+              "label": "24h 截面数",
+              "value": 612,
+              "digits": 0
+            },
+            {
+              "label": "市场数",
+              "value": 842,
+              "digits": 0
+            },
+            {
+              "label": "因子覆盖率",
+              "value": 97.4,
+              "kind": "percent",
+              "digits": 1
+            },
+            {
+              "label": "标签覆盖率",
+              "value": 99.1,
+              "kind": "percent",
+              "digits": 1
+            }
+          ],
+          "caption": "单对象 Holm = 自身 p；覆盖率只标注。",
+          "title": "rev_momentum_3h · 初筛"
+        },
+        {
+          "id": "factor:rev_momentum_3h:horizons",
+          "type": "table",
+          "title": "六周期汇总",
+          "columns": [
+            {
+              "key": "horizon_label",
+              "label": "Horizon",
+              "kind": "text"
+            },
+            {
+              "key": "ic",
+              "label": "Pearson IC",
+              "kind": "number",
+              "digits": 4,
+              "signed": true
+            },
+            {
+              "key": "icir",
+              "label": "ICIR",
+              "kind": "number",
+              "digits": 3
+            },
+            {
+              "key": "t",
+              "label": "稳健 t",
+              "kind": "number",
+              "digits": 2
+            },
+            {
+              "key": "ci",
+              "label": "IC 区间",
+              "kind": "interval",
+              "digits": 4
+            },
+            {
+              "key": "rank_ic",
+              "label": "Rank IC",
+              "kind": "number",
+              "digits": 4
+            },
+            {
+              "key": "spread",
+              "label": "最高桶 − 最低桶 ($/share)",
+              "kind": "number",
+              "digits": 4
+            },
+            {
+              "key": "sections",
+              "label": "截面数",
+              "kind": "number",
+              "digits": 0
+            },
+            {
+              "key": "note",
+              "label": "备注",
+              "kind": "text"
+            }
+          ],
+          "rows": [
+            {
+              "horizon": "1",
+              "horizon_label": "1h",
+              "ic": 0.02,
+              "icir": 0.4,
+              "t": 1.4,
+              "ci": [
+                0.005,
+                0.04
+              ],
+              "rank_ic": 0.018,
+              "spread": 0.004,
+              "sections": 700,
+              "note": ""
+            },
+            {
+              "horizon": "12",
+              "horizon_label": "12h",
+              "ic": 0.022,
+              "icir": 0.45,
+              "t": 1.9,
+              "ci": [
+                0.006,
+                0.044
+              ],
+              "rank_ic": 0.02,
+              "spread": 0.005,
+              "sections": 650,
+              "note": ""
+            },
+            {
+              "horizon": "24",
+              "horizon_label": "24h",
+              "ic": 0.041,
+              "icir": 0.5,
+              "t": 2.4,
+              "ci": [
+                0.007,
+                0.048
+              ],
+              "rank_ic": 0.022,
+              "spread": 0.006,
+              "sections": 600,
+              "note": "主口径"
+            },
+            {
+              "horizon": "48",
+              "horizon_label": "48h",
+              "ic": 0.026,
+              "icir": 0.55,
+              "t": 2.9,
+              "ci": [
+                0.008,
+                0.052
+              ],
+              "rank_ic": 0.024,
+              "spread": 0.007,
+              "sections": 550,
+              "note": ""
+            },
+            {
+              "horizon": "96",
+              "horizon_label": "4d",
+              "ic": 0.028,
+              "icir": 0.6,
+              "t": 3.4,
+              "ci": [
+                0.009,
+                0.056
+              ],
+              "rank_ic": 0.026,
+              "spread": 0.008,
+              "sections": 500,
+              "note": ""
+            },
+            {
+              "horizon": "168",
+              "horizon_label": "7d",
+              "ic": 0.03,
+              "icir": 0.65,
+              "t": 3.9,
+              "ci": [
+                0.01,
+                0.06
+              ],
+              "rank_ic": 0.028,
+              "spread": 0.009,
+              "sections": 450,
+              "note": ""
+            }
+          ]
+        },
+        {
+          "id": "factor:rev_momentum_3h:deciles_1",
+          "type": "image",
+          "title": "1h 分桶 · 平均 Δmid ($/share)",
+          "artifact": "report/rev_momentum_3h/quantiles_compact_v2.png",
+          "alt": "1h 十分位分桶图",
+          "when": {
+            "horizon": "1"
+          }
+        },
+        {
+          "id": "factor:rev_momentum_3h:deciles_12",
+          "type": "image",
+          "title": "12h 分桶 · 平均 Δmid ($/share)",
+          "artifact": "report/rev_momentum_3h/quantiles_compact_v2.png",
+          "alt": "12h 十分位分桶图",
+          "when": {
+            "horizon": "12"
+          }
+        },
+        {
+          "id": "factor:rev_momentum_3h:deciles_24",
+          "type": "image",
+          "title": "24h 分桶 · 平均 Δmid ($/share)",
+          "artifact": "report/rev_momentum_3h/quantiles_compact_v2.png",
+          "alt": "24h 十分位分桶图",
+          "when": {
+            "horizon": "24"
+          }
+        },
+        {
+          "id": "factor:rev_momentum_3h:deciles_48",
+          "type": "image",
+          "title": "48h 分桶 · 平均 Δmid ($/share)",
+          "artifact": "report/rev_momentum_3h/quantiles_compact_v2.png",
+          "alt": "48h 十分位分桶图",
+          "when": {
+            "horizon": "48"
+          }
+        },
+        {
+          "id": "factor:rev_momentum_3h:deciles_96",
+          "type": "image",
+          "title": "4d 分桶 · 平均 Δmid ($/share)",
+          "artifact": "report/rev_momentum_3h/quantiles_compact_v2.png",
+          "alt": "4d 十分位分桶图",
+          "when": {
+            "horizon": "96"
+          }
+        },
+        {
+          "id": "factor:rev_momentum_3h:deciles_168",
+          "type": "image",
+          "title": "7d 分桶 · 平均 Δmid ($/share)",
+          "artifact": "report/rev_momentum_3h/quantiles_compact_v2.png",
+          "alt": "7d 十分位分桶图",
+          "when": {
+            "horizon": "168"
+          }
+        },
+        {
+          "id": "factor:rev_momentum_3h:deciles_table",
+          "type": "table",
+          "tab": "分桶明细",
+          "title": "分桶明细",
+          "columns": [
+            {
+              "key": "bucket",
+              "label": "分位桶",
+              "kind": "text"
+            },
+            {
+              "key": "mean_dmid",
+              "label": "平均 Δmid ($/share)",
+              "kind": "number",
+              "digits": 4,
+              "signed": true
+            },
+            {
+              "key": "n",
+              "label": "样本数",
+              "kind": "number",
+              "digits": 0
+            }
+          ],
+          "rows": [
+            {
+              "filters": {
+                "horizon": "1"
+              },
+              "bucket": "D1",
+              "mean_dmid": -0.005,
+              "n": 6200
+            },
+            {
+              "filters": {
+                "horizon": "1"
+              },
+              "bucket": "D2",
+              "mean_dmid": -0.0039,
+              "n": 6160
+            },
+            {
+              "filters": {
+                "horizon": "1"
+              },
+              "bucket": "D3",
+              "mean_dmid": -0.0028,
+              "n": 6120
+            },
+            {
+              "filters": {
+                "horizon": "1"
+              },
+              "bucket": "D4",
+              "mean_dmid": -0.0016,
+              "n": 6080
+            },
+            {
+              "filters": {
+                "horizon": "1"
+              },
+              "bucket": "D5",
+              "mean_dmid": -0.0006,
+              "n": 6040
+            },
+            {
+              "filters": {
+                "horizon": "1"
+              },
+              "bucket": "D6",
+              "mean_dmid": 0.0006,
+              "n": 6000
+            },
+            {
+              "filters": {
+                "horizon": "1"
+              },
+              "bucket": "D7",
+              "mean_dmid": 0.0016,
+              "n": 5960
+            },
+            {
+              "filters": {
+                "horizon": "1"
+              },
+              "bucket": "D8",
+              "mean_dmid": 0.0028,
+              "n": 5920
+            },
+            {
+              "filters": {
+                "horizon": "1"
+              },
+              "bucket": "D9",
+              "mean_dmid": 0.0039,
+              "n": 5880
+            },
+            {
+              "filters": {
+                "horizon": "1"
+              },
+              "bucket": "D10",
+              "mean_dmid": 0.005,
+              "n": 5840
+            },
+            {
+              "filters": {
+                "horizon": "12"
+              },
+              "bucket": "D1",
+              "mean_dmid": -0.005,
+              "n": 6200
+            },
+            {
+              "filters": {
+                "horizon": "12"
+              },
+              "bucket": "D2",
+              "mean_dmid": -0.0039,
+              "n": 6160
+            },
+            {
+              "filters": {
+                "horizon": "12"
+              },
+              "bucket": "D3",
+              "mean_dmid": -0.0028,
+              "n": 6120
+            },
+            {
+              "filters": {
+                "horizon": "12"
+              },
+              "bucket": "D4",
+              "mean_dmid": -0.0016,
+              "n": 6080
+            },
+            {
+              "filters": {
+                "horizon": "12"
+              },
+              "bucket": "D5",
+              "mean_dmid": -0.0006,
+              "n": 6040
+            },
+            {
+              "filters": {
+                "horizon": "12"
+              },
+              "bucket": "D6",
+              "mean_dmid": 0.0006,
+              "n": 6000
+            },
+            {
+              "filters": {
+                "horizon": "12"
+              },
+              "bucket": "D7",
+              "mean_dmid": 0.0016,
+              "n": 5960
+            },
+            {
+              "filters": {
+                "horizon": "12"
+              },
+              "bucket": "D8",
+              "mean_dmid": 0.0028,
+              "n": 5920
+            },
+            {
+              "filters": {
+                "horizon": "12"
+              },
+              "bucket": "D9",
+              "mean_dmid": 0.0039,
+              "n": 5880
+            },
+            {
+              "filters": {
+                "horizon": "12"
+              },
+              "bucket": "D10",
+              "mean_dmid": 0.005,
+              "n": 5840
+            },
+            {
+              "filters": {
+                "horizon": "24"
+              },
+              "bucket": "D1",
+              "mean_dmid": -0.005,
+              "n": 6200
+            },
+            {
+              "filters": {
+                "horizon": "24"
+              },
+              "bucket": "D2",
+              "mean_dmid": -0.0039,
+              "n": 6160
+            },
+            {
+              "filters": {
+                "horizon": "24"
+              },
+              "bucket": "D3",
+              "mean_dmid": -0.0028,
+              "n": 6120
+            },
+            {
+              "filters": {
+                "horizon": "24"
+              },
+              "bucket": "D4",
+              "mean_dmid": -0.0016,
+              "n": 6080
+            },
+            {
+              "filters": {
+                "horizon": "24"
+              },
+              "bucket": "D5",
+              "mean_dmid": -0.0006,
+              "n": 6040
+            },
+            {
+              "filters": {
+                "horizon": "24"
+              },
+              "bucket": "D6",
+              "mean_dmid": 0.0006,
+              "n": 6000
+            },
+            {
+              "filters": {
+                "horizon": "24"
+              },
+              "bucket": "D7",
+              "mean_dmid": 0.0016,
+              "n": 5960
+            },
+            {
+              "filters": {
+                "horizon": "24"
+              },
+              "bucket": "D8",
+              "mean_dmid": 0.0028,
+              "n": 5920
+            },
+            {
+              "filters": {
+                "horizon": "24"
+              },
+              "bucket": "D9",
+              "mean_dmid": 0.0039,
+              "n": 5880
+            },
+            {
+              "filters": {
+                "horizon": "24"
+              },
+              "bucket": "D10",
+              "mean_dmid": 0.005,
+              "n": 5840
+            },
+            {
+              "filters": {
+                "horizon": "48"
+              },
+              "bucket": "D1",
+              "mean_dmid": -0.005,
+              "n": 6200
+            },
+            {
+              "filters": {
+                "horizon": "48"
+              },
+              "bucket": "D2",
+              "mean_dmid": -0.0039,
+              "n": 6160
+            },
+            {
+              "filters": {
+                "horizon": "48"
+              },
+              "bucket": "D3",
+              "mean_dmid": -0.0028,
+              "n": 6120
+            },
+            {
+              "filters": {
+                "horizon": "48"
+              },
+              "bucket": "D4",
+              "mean_dmid": -0.0016,
+              "n": 6080
+            },
+            {
+              "filters": {
+                "horizon": "48"
+              },
+              "bucket": "D5",
+              "mean_dmid": -0.0006,
+              "n": 6040
+            },
+            {
+              "filters": {
+                "horizon": "48"
+              },
+              "bucket": "D6",
+              "mean_dmid": 0.0006,
+              "n": 6000
+            },
+            {
+              "filters": {
+                "horizon": "48"
+              },
+              "bucket": "D7",
+              "mean_dmid": 0.0016,
+              "n": 5960
+            },
+            {
+              "filters": {
+                "horizon": "48"
+              },
+              "bucket": "D8",
+              "mean_dmid": 0.0028,
+              "n": 5920
+            },
+            {
+              "filters": {
+                "horizon": "48"
+              },
+              "bucket": "D9",
+              "mean_dmid": 0.0039,
+              "n": 5880
+            },
+            {
+              "filters": {
+                "horizon": "48"
+              },
+              "bucket": "D10",
+              "mean_dmid": 0.005,
+              "n": 5840
+            },
+            {
+              "filters": {
+                "horizon": "96"
+              },
+              "bucket": "D1",
+              "mean_dmid": -0.005,
+              "n": 6200
+            },
+            {
+              "filters": {
+                "horizon": "96"
+              },
+              "bucket": "D2",
+              "mean_dmid": -0.0039,
+              "n": 6160
+            },
+            {
+              "filters": {
+                "horizon": "96"
+              },
+              "bucket": "D3",
+              "mean_dmid": -0.0028,
+              "n": 6120
+            },
+            {
+              "filters": {
+                "horizon": "96"
+              },
+              "bucket": "D4",
+              "mean_dmid": -0.0016,
+              "n": 6080
+            },
+            {
+              "filters": {
+                "horizon": "96"
+              },
+              "bucket": "D5",
+              "mean_dmid": -0.0006,
+              "n": 6040
+            },
+            {
+              "filters": {
+                "horizon": "96"
+              },
+              "bucket": "D6",
+              "mean_dmid": 0.0006,
+              "n": 6000
+            },
+            {
+              "filters": {
+                "horizon": "96"
+              },
+              "bucket": "D7",
+              "mean_dmid": 0.0016,
+              "n": 5960
+            },
+            {
+              "filters": {
+                "horizon": "96"
+              },
+              "bucket": "D8",
+              "mean_dmid": 0.0028,
+              "n": 5920
+            },
+            {
+              "filters": {
+                "horizon": "96"
+              },
+              "bucket": "D9",
+              "mean_dmid": 0.0039,
+              "n": 5880
+            },
+            {
+              "filters": {
+                "horizon": "96"
+              },
+              "bucket": "D10",
+              "mean_dmid": 0.005,
+              "n": 5840
+            },
+            {
+              "filters": {
+                "horizon": "168"
+              },
+              "bucket": "D1",
+              "mean_dmid": -0.005,
+              "n": 6200
+            },
+            {
+              "filters": {
+                "horizon": "168"
+              },
+              "bucket": "D2",
+              "mean_dmid": -0.0039,
+              "n": 6160
+            },
+            {
+              "filters": {
+                "horizon": "168"
+              },
+              "bucket": "D3",
+              "mean_dmid": -0.0028,
+              "n": 6120
+            },
+            {
+              "filters": {
+                "horizon": "168"
+              },
+              "bucket": "D4",
+              "mean_dmid": -0.0016,
+              "n": 6080
+            },
+            {
+              "filters": {
+                "horizon": "168"
+              },
+              "bucket": "D5",
+              "mean_dmid": -0.0006,
+              "n": 6040
+            },
+            {
+              "filters": {
+                "horizon": "168"
+              },
+              "bucket": "D6",
+              "mean_dmid": 0.0006,
+              "n": 6000
+            },
+            {
+              "filters": {
+                "horizon": "168"
+              },
+              "bucket": "D7",
+              "mean_dmid": 0.0016,
+              "n": 5960
+            },
+            {
+              "filters": {
+                "horizon": "168"
+              },
+              "bucket": "D8",
+              "mean_dmid": 0.0028,
+              "n": 5920
+            },
+            {
+              "filters": {
+                "horizon": "168"
+              },
+              "bucket": "D9",
+              "mean_dmid": 0.0039,
+              "n": 5880
+            },
+            {
+              "filters": {
+                "horizon": "168"
+              },
+              "bucket": "D10",
+              "mean_dmid": 0.005,
+              "n": 5840
+            }
+          ],
+          "notes": [
+            "最高桶 − 最低桶 95% CI：[0.0041, 0.0102]"
+          ]
+        },
+        {
+          "id": "factor:rev_momentum_3h:ic_series",
+          "type": "series",
+          "tab": "IC 时序",
+          "title": "IC 时序",
+          "x": "time",
+          "y_label": "IC",
+          "series": [
+            {
+              "name": "pearson",
+              "points": [
+                [
+                  "2026-08-07T13:16:28.000Z",
+                  0.03
+                ],
+                [
+                  "2026-08-07T16:28:28.000Z",
+                  0.03
+                ],
+                [
+                  "2026-08-07T19:40:28.000Z",
+                  0.029
+                ],
+                [
+                  "2026-08-07T22:52:28.000Z",
+                  0.0295
+                ],
+                [
+                  "2026-08-08T02:04:28.000Z",
+                  0.0295
+                ],
+                [
+                  "2026-08-08T05:16:28.000Z",
+                  0.0285
+                ],
+                [
+                  "2026-08-08T08:28:28.000Z",
+                  0.0275
+                ],
+                [
+                  "2026-08-08T11:40:28.000Z",
+                  0.0275
+                ],
+                [
+                  "2026-08-08T14:52:28.000Z",
+                  0.028
+                ],
+                [
+                  "2026-08-08T18:04:28.000Z",
+                  0.0285
+                ],
+                [
+                  "2026-08-08T21:16:28.000Z",
+                  0.029
+                ],
+                [
+                  "2026-08-09T00:28:28.000Z",
+                  0.0295
+                ],
+                [
+                  "2026-08-09T03:40:28.000Z",
+                  0.03
+                ],
+                [
+                  "2026-08-09T06:52:28.000Z",
+                  0.029
+                ],
+                [
+                  "2026-08-09T10:04:28.000Z",
+                  0.0285
+                ],
+                [
+                  "2026-08-09T13:16:28.000Z",
+                  0.0275
+                ],
+                [
+                  "2026-08-09T16:28:28.000Z",
+                  0.028
+                ],
+                [
+                  "2026-08-09T19:40:28.000Z",
+                  0.029
+                ],
+                [
+                  "2026-08-09T22:52:28.000Z",
+                  0.0295
+                ],
+                [
+                  "2026-08-10T02:04:28.000Z",
+                  0.029
+                ],
+                [
+                  "2026-08-10T05:16:28.000Z",
+                  0.028
+                ],
+                [
+                  "2026-08-10T08:28:28.000Z",
+                  0.029
+                ],
+                [
+                  "2026-08-10T11:40:28.000Z",
+                  0.0285
+                ],
+                [
+                  "2026-08-10T14:52:28.000Z",
+                  0.028
+                ],
+                [
+                  "2026-08-10T18:04:28.000Z",
+                  0.027
+                ],
+                [
+                  "2026-08-10T21:16:28.000Z",
+                  0.0265
+                ],
+                [
+                  "2026-08-11T00:28:28.000Z",
+                  0.0275
+                ],
+                [
+                  "2026-08-11T03:40:28.000Z",
+                  0.0275
+                ],
+                [
+                  "2026-08-11T06:52:28.000Z",
+                  0.028
+                ],
+                [
+                  "2026-08-11T10:04:28.000Z",
+                  0.0285
+                ],
+                [
+                  "2026-08-11T13:16:28.000Z",
+                  0.0285
+                ],
+                [
+                  "2026-08-11T16:28:28.000Z",
+                  0.0295
+                ],
+                [
+                  "2026-08-11T19:40:28.000Z",
+                  0.03
+                ],
+                [
+                  "2026-08-11T22:52:28.000Z",
+                  0.031
+                ],
+                [
+                  "2026-08-12T02:04:28.000Z",
+                  0.0305
+                ],
+                [
+                  "2026-08-12T05:16:28.000Z",
+                  0.03
+                ],
+                [
+                  "2026-08-12T08:28:28.000Z",
+                  0.0295
+                ],
+                [
+                  "2026-08-12T11:40:28.000Z",
+                  0.0295
+                ],
+                [
+                  "2026-08-12T14:52:28.000Z",
+                  0.0305
+                ],
+                [
+                  "2026-08-12T18:04:28.000Z",
+                  0.0295
+                ],
+                [
+                  "2026-08-12T21:16:28.000Z",
+                  0.029
+                ],
+                [
+                  "2026-08-13T00:28:28.000Z",
+                  0.028
+                ],
+                [
+                  "2026-08-13T03:40:28.000Z",
+                  0.028
+                ],
+                [
+                  "2026-08-13T06:52:28.000Z",
+                  0.029
+                ],
+                [
+                  "2026-08-13T10:04:28.000Z",
+                  0.028
+                ],
+                [
+                  "2026-08-13T13:16:28.000Z",
+                  0.0285
+                ],
+                [
+                  "2026-08-13T16:28:28.000Z",
+                  0.028
+                ],
+                [
+                  "2026-08-13T19:40:28.000Z",
+                  0.0285
+                ],
+                [
+                  "2026-08-13T22:52:28.000Z",
+                  0.0275
+                ],
+                [
+                  "2026-08-14T02:04:28.000Z",
+                  0.027
+                ],
+                [
+                  "2026-08-14T05:16:28.000Z",
+                  0.028
+                ],
+                [
+                  "2026-08-14T08:28:28.000Z",
+                  0.0275
+                ],
+                [
+                  "2026-08-14T11:40:28.000Z",
+                  0.0285
+                ],
+                [
+                  "2026-08-14T14:52:28.000Z",
+                  0.0285
+                ],
+                [
+                  "2026-08-14T18:04:28.000Z",
+                  0.0295
+                ],
+                [
+                  "2026-08-14T21:16:28.000Z",
+                  0.03
+                ],
+                [
+                  "2026-08-15T00:28:28.000Z",
+                  0.0305
+                ],
+                [
+                  "2026-08-15T03:40:28.000Z",
+                  0.0305
+                ],
+                [
+                  "2026-08-15T06:52:28.000Z",
+                  0.0295
+                ],
+                [
+                  "2026-08-15T10:04:28.000Z",
+                  0.029
+                ]
+              ]
+            },
+            {
+              "name": "rank",
+              "points": [
+                [
+                  "2026-08-07T13:16:28.000Z",
+                  0.0305
+                ],
+                [
+                  "2026-08-07T16:28:28.000Z",
+                  0.031
+                ],
+                [
+                  "2026-08-07T19:40:28.000Z",
+                  0.031
+                ],
+                [
+                  "2026-08-07T22:52:28.000Z",
+                  0.032
+                ],
+                [
+                  "2026-08-08T02:04:28.000Z",
+                  0.0315
+                ],
+                [
+                  "2026-08-08T05:16:28.000Z",
+                  0.0305
+                ],
+                [
+                  "2026-08-08T08:28:28.000Z",
+                  0.0315
+                ],
+                [
+                  "2026-08-08T11:40:28.000Z",
+                  0.0305
+                ],
+                [
+                  "2026-08-08T14:52:28.000Z",
+                  0.03
+                ],
+                [
+                  "2026-08-08T18:04:28.000Z",
+                  0.031
+                ],
+                [
+                  "2026-08-08T21:16:28.000Z",
+                  0.0315
+                ],
+                [
+                  "2026-08-09T00:28:28.000Z",
+                  0.031
+                ],
+                [
+                  "2026-08-09T03:40:28.000Z",
+                  0.031
+                ],
+                [
+                  "2026-08-09T06:52:28.000Z",
+                  0.032
+                ],
+                [
+                  "2026-08-09T10:04:28.000Z",
+                  0.0325
+                ],
+                [
+                  "2026-08-09T13:16:28.000Z",
+                  0.0335
+                ],
+                [
+                  "2026-08-09T16:28:28.000Z",
+                  0.0345
+                ],
+                [
+                  "2026-08-09T19:40:28.000Z",
+                  0.035
+                ],
+                [
+                  "2026-08-09T22:52:28.000Z",
+                  0.0355
+                ],
+                [
+                  "2026-08-10T02:04:28.000Z",
+                  0.035
+                ],
+                [
+                  "2026-08-10T05:16:28.000Z",
+                  0.036
+                ],
+                [
+                  "2026-08-10T08:28:28.000Z",
+                  0.035
+                ],
+                [
+                  "2026-08-10T11:40:28.000Z",
+                  0.034
+                ],
+                [
+                  "2026-08-10T14:52:28.000Z",
+                  0.033
+                ],
+                [
+                  "2026-08-10T18:04:28.000Z",
+                  0.034
+                ],
+                [
+                  "2026-08-10T21:16:28.000Z",
+                  0.0345
+                ],
+                [
+                  "2026-08-11T00:28:28.000Z",
+                  0.0355
+                ],
+                [
+                  "2026-08-11T03:40:28.000Z",
+                  0.0365
+                ],
+                [
+                  "2026-08-11T06:52:28.000Z",
+                  0.037
+                ],
+                [
+                  "2026-08-11T10:04:28.000Z",
+                  0.037
+                ],
+                [
+                  "2026-08-11T13:16:28.000Z",
+                  0.038
+                ],
+                [
+                  "2026-08-11T16:28:28.000Z",
+                  0.038
+                ],
+                [
+                  "2026-08-11T19:40:28.000Z",
+                  0.038
+                ],
+                [
+                  "2026-08-11T22:52:28.000Z",
+                  0.039
+                ],
+                [
+                  "2026-08-12T02:04:28.000Z",
+                  0.0385
+                ],
+                [
+                  "2026-08-12T05:16:28.000Z",
+                  0.0385
+                ],
+                [
+                  "2026-08-12T08:28:28.000Z",
+                  0.0385
+                ],
+                [
+                  "2026-08-12T11:40:28.000Z",
+                  0.0395
+                ],
+                [
+                  "2026-08-12T14:52:28.000Z",
+                  0.039
+                ],
+                [
+                  "2026-08-12T18:04:28.000Z",
+                  0.04
+                ],
+                [
+                  "2026-08-12T21:16:28.000Z",
+                  0.041
+                ],
+                [
+                  "2026-08-13T00:28:28.000Z",
+                  0.042
+                ],
+                [
+                  "2026-08-13T03:40:28.000Z",
+                  0.0415
+                ],
+                [
+                  "2026-08-13T06:52:28.000Z",
+                  0.042
+                ],
+                [
+                  "2026-08-13T10:04:28.000Z",
+                  0.043
+                ],
+                [
+                  "2026-08-13T13:16:28.000Z",
+                  0.044
+                ],
+                [
+                  "2026-08-13T16:28:28.000Z",
+                  0.0445
+                ],
+                [
+                  "2026-08-13T19:40:28.000Z",
+                  0.0435
+                ],
+                [
+                  "2026-08-13T22:52:28.000Z",
+                  0.0445
+                ],
+                [
+                  "2026-08-14T02:04:28.000Z",
+                  0.0445
+                ],
+                [
+                  "2026-08-14T05:16:28.000Z",
+                  0.045
+                ],
+                [
+                  "2026-08-14T08:28:28.000Z",
+                  0.046
+                ],
+                [
+                  "2026-08-14T11:40:28.000Z",
+                  0.047
+                ],
+                [
+                  "2026-08-14T14:52:28.000Z",
+                  0.047
+                ],
+                [
+                  "2026-08-14T18:04:28.000Z",
+                  0.0465
+                ],
+                [
+                  "2026-08-14T21:16:28.000Z",
+                  0.0455
+                ],
+                [
+                  "2026-08-15T00:28:28.000Z",
+                  0.046
+                ],
+                [
+                  "2026-08-15T03:40:28.000Z",
+                  0.046
+                ],
+                [
+                  "2026-08-15T06:52:28.000Z",
+                  0.047
+                ],
+                [
+                  "2026-08-15T10:04:28.000Z",
+                  0.048
+                ]
+              ]
+            },
+            {
+              "name": "mid_pearson",
+              "points": [
+                [
+                  "2026-08-07T13:16:28.000Z",
+                  0.029
+                ],
+                [
+                  "2026-08-07T16:28:28.000Z",
+                  0.0285
+                ],
+                [
+                  "2026-08-07T19:40:28.000Z",
+                  0.028
+                ],
+                [
+                  "2026-08-07T22:52:28.000Z",
+                  0.027
+                ],
+                [
+                  "2026-08-08T02:04:28.000Z",
+                  0.026
+                ],
+                [
+                  "2026-08-08T05:16:28.000Z",
+                  0.0275
+                ],
+                [
+                  "2026-08-08T08:28:28.000Z",
+                  0.0265
+                ],
+                [
+                  "2026-08-08T11:40:28.000Z",
+                  0.027
+                ],
+                [
+                  "2026-08-08T14:52:28.000Z",
+                  0.026
+                ],
+                [
+                  "2026-08-08T18:04:28.000Z",
+                  0.025
+                ],
+                [
+                  "2026-08-08T21:16:28.000Z",
+                  0.0255
+                ],
+                [
+                  "2026-08-09T00:28:28.000Z",
+                  0.0265
+                ],
+                [
+                  "2026-08-09T03:40:28.000Z",
+                  0.026
+                ],
+                [
+                  "2026-08-09T06:52:28.000Z",
+                  0.025
+                ],
+                [
+                  "2026-08-09T10:04:28.000Z",
+                  0.026
+                ],
+                [
+                  "2026-08-09T13:16:28.000Z",
+                  0.027
+                ],
+                [
+                  "2026-08-09T16:28:28.000Z",
+                  0.0265
+                ],
+                [
+                  "2026-08-09T19:40:28.000Z",
+                  0.026
+                ],
+                [
+                  "2026-08-09T22:52:28.000Z",
+                  0.027
+                ],
+                [
+                  "2026-08-10T02:04:28.000Z",
+                  0.0265
+                ],
+                [
+                  "2026-08-10T05:16:28.000Z",
+                  0.026
+                ],
+                [
+                  "2026-08-10T08:28:28.000Z",
+                  0.027
+                ],
+                [
+                  "2026-08-10T11:40:28.000Z",
+                  0.027
+                ],
+                [
+                  "2026-08-10T14:52:28.000Z",
+                  0.0265
+                ],
+                [
+                  "2026-08-10T18:04:28.000Z",
+                  0.026
+                ],
+                [
+                  "2026-08-10T21:16:28.000Z",
+                  0.0255
+                ],
+                [
+                  "2026-08-11T00:28:28.000Z",
+                  0.0265
+                ],
+                [
+                  "2026-08-11T03:40:28.000Z",
+                  0.0275
+                ],
+                [
+                  "2026-08-11T06:52:28.000Z",
+                  0.026
+                ],
+                [
+                  "2026-08-11T10:04:28.000Z",
+                  0.0255
+                ],
+                [
+                  "2026-08-11T13:16:28.000Z",
+                  0.027
+                ],
+                [
+                  "2026-08-11T16:28:28.000Z",
+                  0.026
+                ],
+                [
+                  "2026-08-11T19:40:28.000Z",
+                  0.026
+                ],
+                [
+                  "2026-08-11T22:52:28.000Z",
+                  0.0275
+                ],
+                [
+                  "2026-08-12T02:04:28.000Z",
+                  0.028
+                ],
+                [
+                  "2026-08-12T05:16:28.000Z",
+                  0.029
+                ],
+                [
+                  "2026-08-12T08:28:28.000Z",
+                  0.0285
+                ],
+                [
+                  "2026-08-12T11:40:28.000Z",
+                  0.03
+                ],
+                [
+                  "2026-08-12T14:52:28.000Z",
+                  0.03
+                ],
+                [
+                  "2026-08-12T18:04:28.000Z",
+                  0.0295
+                ],
+                [
+                  "2026-08-12T21:16:28.000Z",
+                  0.029
+                ],
+                [
+                  "2026-08-13T00:28:28.000Z",
+                  0.029
+                ],
+                [
+                  "2026-08-13T03:40:28.000Z",
+                  0.03
+                ],
+                [
+                  "2026-08-13T06:52:28.000Z",
+                  0.0315
+                ],
+                [
+                  "2026-08-13T10:04:28.000Z",
+                  0.031
+                ],
+                [
+                  "2026-08-13T13:16:28.000Z",
+                  0.031
+                ],
+                [
+                  "2026-08-13T16:28:28.000Z",
+                  0.031
+                ],
+                [
+                  "2026-08-13T19:40:28.000Z",
+                  0.031
+                ],
+                [
+                  "2026-08-13T22:52:28.000Z",
+                  0.0305
+                ],
+                [
+                  "2026-08-14T02:04:28.000Z",
+                  0.0305
+                ],
+                [
+                  "2026-08-14T05:16:28.000Z",
+                  0.031
+                ],
+                [
+                  "2026-08-14T08:28:28.000Z",
+                  0.0315
+                ],
+                [
+                  "2026-08-14T11:40:28.000Z",
+                  0.0305
+                ],
+                [
+                  "2026-08-14T14:52:28.000Z",
+                  0.0295
+                ],
+                [
+                  "2026-08-14T18:04:28.000Z",
+                  0.0305
+                ],
+                [
+                  "2026-08-14T21:16:28.000Z",
+                  0.029
+                ],
+                [
+                  "2026-08-15T00:28:28.000Z",
+                  0.0305
+                ],
+                [
+                  "2026-08-15T03:40:28.000Z",
+                  0.031
+                ],
+                [
+                  "2026-08-15T06:52:28.000Z",
+                  0.032
+                ],
+                [
+                  "2026-08-15T10:04:28.000Z",
+                  0.0315
+                ]
+              ]
+            }
+          ],
+          "reference_lines": [
+            {
+              "axis": "y",
+              "value": 0
+            }
+          ]
+        },
+        {
+          "id": "factor:rev_momentum_3h:price_strata",
+          "type": "table",
+          "tab": "价格分层",
+          "title": "价格分层",
+          "columns": [
+            {
+              "key": "stratum",
+              "label": "价格层",
+              "kind": "text"
+            },
+            {
+              "key": "ic",
+              "label": "Pearson IC",
+              "kind": "number",
+              "digits": 4
+            },
+            {
+              "key": "n",
+              "label": "样本数",
+              "kind": "number",
+              "digits": 0
+            }
+          ],
+          "rows": [
+            {
+              "stratum": "0–20%",
+              "ic": 0.031,
+              "n": 21000
+            },
+            {
+              "stratum": "20–50%",
+              "ic": 0.044,
+              "n": 48000
+            },
+            {
+              "stratum": "50–80%",
+              "ic": 0.039,
+              "n": 47000
+            },
+            {
+              "stratum": "80–100%",
+              "ic": 0.018,
+              "n": 15000
+            }
+          ]
+        },
+        {
+          "id": "factor:rev_momentum_3h:by_domain",
+          "type": "table",
+          "tab": "分 Domain",
+          "title": "分 Domain",
+          "columns": [
+            {
+              "key": "domain",
+              "label": "Domain",
+              "kind": "text"
+            },
+            {
+              "key": "ic",
+              "label": "Pearson IC",
+              "kind": "number",
+              "digits": 4
+            },
+            {
+              "key": "markets",
+              "label": "市场数",
+              "kind": "number",
+              "digits": 0
+            },
+            {
+              "key": "status",
+              "label": "状态",
+              "kind": "badge"
+            }
+          ],
+          "rows": [
+            {
+              "domain": "Crypto",
+              "ic": 0.051,
+              "markets": 210,
+              "status": "已排名"
+            },
+            {
+              "domain": "Politics",
+              "ic": 0.043,
+              "markets": 188,
+              "status": "已排名"
+            },
+            {
+              "domain": "Sports",
+              "ic": 0.012,
+              "markets": 31,
+              "status": "截面不足，不排名"
+            }
+          ],
+          "caption": "诊断，不做多重检验。"
+        },
+        {
+          "id": "factor:rev_momentum_3h:by_period",
+          "type": "table",
+          "tab": "分期对照",
+          "title": "分期对照",
+          "columns": [
+            {
+              "key": "period",
+              "label": "时期",
+              "kind": "text"
+            },
+            {
+              "key": "ic",
+              "label": "24h Pearson IC",
+              "kind": "number",
+              "digits": 4
+            },
+            {
+              "key": "t",
+              "label": "稳健 t",
+              "kind": "number",
+              "digits": 2
+            }
+          ],
+          "rows": [
+            {
+              "period": "研究期 2026-08-06 → 08-25",
+              "ic": 0.0451,
+              "t": 3.4
+            },
+            {
+              "period": "对照期 2026-08-25 → 09-04",
+              "ic": 0.0322,
+              "t": 1.9
+            }
+          ]
+        },
+        {
+          "id": "factor:rev_momentum_3h:files",
+          "type": "text",
+          "tab": "文件",
+          "title": "文件",
+          "format": "markdown",
+          "text": "- 因子报告 JSON：`report/rev_momentum_3h/factor.json`\n- 分桶 CSV：`report/rev_momentum_3h/deciles.csv`"
+        },
+        {
+          "id": "factor:vol_burst:screen",
+          "type": "metrics",
+          "items": [
+            {
+              "label": "初筛状态",
+              "value": "通过初筛"
+            },
+            {
+              "label": "24h Pearson IC",
+              "value": 0.0412,
+              "digits": 6
+            },
+            {
+              "label": "稳健 t",
+              "value": 3.18,
+              "digits": 2
+            },
+            {
+              "label": "Rank IC",
+              "value": 0.0377,
+              "digits": 6
+            },
+            {
+              "label": "24h 截面数",
+              "value": 612,
+              "digits": 0
+            },
+            {
+              "label": "市场数",
+              "value": 842,
+              "digits": 0
+            },
+            {
+              "label": "因子覆盖率",
+              "value": 97.4,
+              "kind": "percent",
+              "digits": 1
+            },
+            {
+              "label": "标签覆盖率",
+              "value": 99.1,
+              "kind": "percent",
+              "digits": 1
+            }
+          ],
+          "caption": "单对象 Holm = 自身 p；覆盖率只标注。",
+          "title": "vol_burst · 初筛"
+        },
+        {
+          "id": "factor:vol_burst:horizons",
+          "type": "table",
+          "title": "六周期汇总",
+          "columns": [
+            {
+              "key": "horizon_label",
+              "label": "Horizon",
+              "kind": "text"
+            },
+            {
+              "key": "ic",
+              "label": "Pearson IC",
+              "kind": "number",
+              "digits": 4,
+              "signed": true
+            },
+            {
+              "key": "icir",
+              "label": "ICIR",
+              "kind": "number",
+              "digits": 3
+            },
+            {
+              "key": "t",
+              "label": "稳健 t",
+              "kind": "number",
+              "digits": 2
+            },
+            {
+              "key": "ci",
+              "label": "IC 区间",
+              "kind": "interval",
+              "digits": 4
+            },
+            {
+              "key": "rank_ic",
+              "label": "Rank IC",
+              "kind": "number",
+              "digits": 4
+            },
+            {
+              "key": "spread",
+              "label": "最高桶 − 最低桶 ($/share)",
+              "kind": "number",
+              "digits": 4
+            },
+            {
+              "key": "sections",
+              "label": "截面数",
+              "kind": "number",
+              "digits": 0
+            },
+            {
+              "key": "note",
+              "label": "备注",
+              "kind": "text"
+            }
+          ],
+          "rows": [
+            {
+              "horizon": "1",
+              "horizon_label": "1h",
+              "ic": 0.02,
+              "icir": 0.4,
+              "t": 1.4,
+              "ci": [
+                0.005,
+                0.04
+              ],
+              "rank_ic": 0.018,
+              "spread": 0.004,
+              "sections": 700,
+              "note": ""
+            },
+            {
+              "horizon": "12",
+              "horizon_label": "12h",
+              "ic": 0.022,
+              "icir": 0.45,
+              "t": 1.9,
+              "ci": [
+                0.006,
+                0.044
+              ],
+              "rank_ic": 0.02,
+              "spread": 0.005,
+              "sections": 650,
+              "note": ""
+            },
+            {
+              "horizon": "24",
+              "horizon_label": "24h",
+              "ic": 0.041,
+              "icir": 0.5,
+              "t": 2.4,
+              "ci": [
+                0.007,
+                0.048
+              ],
+              "rank_ic": 0.022,
+              "spread": 0.006,
+              "sections": 600,
+              "note": "主口径"
+            },
+            {
+              "horizon": "48",
+              "horizon_label": "48h",
+              "ic": 0.026,
+              "icir": 0.55,
+              "t": 2.9,
+              "ci": [
+                0.008,
+                0.052
+              ],
+              "rank_ic": 0.024,
+              "spread": 0.007,
+              "sections": 550,
+              "note": ""
+            },
+            {
+              "horizon": "96",
+              "horizon_label": "4d",
+              "ic": 0.028,
+              "icir": 0.6,
+              "t": 3.4,
+              "ci": [
+                0.009,
+                0.056
+              ],
+              "rank_ic": 0.026,
+              "spread": 0.008,
+              "sections": 500,
+              "note": ""
+            },
+            {
+              "horizon": "168",
+              "horizon_label": "7d",
+              "ic": 0.03,
+              "icir": 0.65,
+              "t": 3.9,
+              "ci": [
+                0.01,
+                0.06
+              ],
+              "rank_ic": 0.028,
+              "spread": 0.009,
+              "sections": 450,
+              "note": ""
+            }
+          ]
+        },
+        {
+          "id": "factor:vol_burst:deciles_1",
+          "type": "image",
+          "title": "1h 分桶 · 平均 Δmid ($/share)",
+          "artifact": "report/rev_momentum_3h/quantiles_compact_v2.png",
+          "alt": "1h 十分位分桶图",
+          "when": {
+            "horizon": "1"
+          }
+        },
+        {
+          "id": "factor:vol_burst:deciles_12",
+          "type": "image",
+          "title": "12h 分桶 · 平均 Δmid ($/share)",
+          "artifact": "report/rev_momentum_3h/quantiles_compact_v2.png",
+          "alt": "12h 十分位分桶图",
+          "when": {
+            "horizon": "12"
+          }
+        },
+        {
+          "id": "factor:vol_burst:deciles_24",
+          "type": "image",
+          "title": "24h 分桶 · 平均 Δmid ($/share)",
+          "artifact": "report/rev_momentum_3h/quantiles_compact_v2.png",
+          "alt": "24h 十分位分桶图",
+          "when": {
+            "horizon": "24"
+          }
+        },
+        {
+          "id": "factor:vol_burst:deciles_48",
+          "type": "image",
+          "title": "48h 分桶 · 平均 Δmid ($/share)",
+          "artifact": "report/rev_momentum_3h/quantiles_compact_v2.png",
+          "alt": "48h 十分位分桶图",
+          "when": {
+            "horizon": "48"
+          }
+        },
+        {
+          "id": "factor:vol_burst:deciles_96",
+          "type": "image",
+          "title": "4d 分桶 · 平均 Δmid ($/share)",
+          "artifact": "report/rev_momentum_3h/quantiles_compact_v2.png",
+          "alt": "4d 十分位分桶图",
+          "when": {
+            "horizon": "96"
+          }
+        },
+        {
+          "id": "factor:vol_burst:deciles_168",
+          "type": "image",
+          "title": "7d 分桶 · 平均 Δmid ($/share)",
+          "artifact": "report/rev_momentum_3h/quantiles_compact_v2.png",
+          "alt": "7d 十分位分桶图",
+          "when": {
+            "horizon": "168"
+          }
+        },
+        {
+          "id": "factor:vol_burst:deciles_table",
+          "type": "table",
+          "tab": "分桶明细",
+          "title": "分桶明细",
+          "columns": [
+            {
+              "key": "bucket",
+              "label": "分位桶",
+              "kind": "text"
+            },
+            {
+              "key": "mean_dmid",
+              "label": "平均 Δmid ($/share)",
+              "kind": "number",
+              "digits": 4,
+              "signed": true
+            },
+            {
+              "key": "n",
+              "label": "样本数",
+              "kind": "number",
+              "digits": 0
+            }
+          ],
+          "rows": [
+            {
+              "filters": {
+                "horizon": "1"
+              },
+              "bucket": "D1",
+              "mean_dmid": -0.005,
+              "n": 6200
+            },
+            {
+              "filters": {
+                "horizon": "1"
+              },
+              "bucket": "D2",
+              "mean_dmid": -0.0039,
+              "n": 6160
+            },
+            {
+              "filters": {
+                "horizon": "1"
+              },
+              "bucket": "D3",
+              "mean_dmid": -0.0028,
+              "n": 6120
+            },
+            {
+              "filters": {
+                "horizon": "1"
+              },
+              "bucket": "D4",
+              "mean_dmid": -0.0016,
+              "n": 6080
+            },
+            {
+              "filters": {
+                "horizon": "1"
+              },
+              "bucket": "D5",
+              "mean_dmid": -0.0006,
+              "n": 6040
+            },
+            {
+              "filters": {
+                "horizon": "1"
+              },
+              "bucket": "D6",
+              "mean_dmid": 0.0006,
+              "n": 6000
+            },
+            {
+              "filters": {
+                "horizon": "1"
+              },
+              "bucket": "D7",
+              "mean_dmid": 0.0016,
+              "n": 5960
+            },
+            {
+              "filters": {
+                "horizon": "1"
+              },
+              "bucket": "D8",
+              "mean_dmid": 0.0028,
+              "n": 5920
+            },
+            {
+              "filters": {
+                "horizon": "1"
+              },
+              "bucket": "D9",
+              "mean_dmid": 0.0039,
+              "n": 5880
+            },
+            {
+              "filters": {
+                "horizon": "1"
+              },
+              "bucket": "D10",
+              "mean_dmid": 0.005,
+              "n": 5840
+            },
+            {
+              "filters": {
+                "horizon": "12"
+              },
+              "bucket": "D1",
+              "mean_dmid": -0.005,
+              "n": 6200
+            },
+            {
+              "filters": {
+                "horizon": "12"
+              },
+              "bucket": "D2",
+              "mean_dmid": -0.0039,
+              "n": 6160
+            },
+            {
+              "filters": {
+                "horizon": "12"
+              },
+              "bucket": "D3",
+              "mean_dmid": -0.0028,
+              "n": 6120
+            },
+            {
+              "filters": {
+                "horizon": "12"
+              },
+              "bucket": "D4",
+              "mean_dmid": -0.0016,
+              "n": 6080
+            },
+            {
+              "filters": {
+                "horizon": "12"
+              },
+              "bucket": "D5",
+              "mean_dmid": -0.0006,
+              "n": 6040
+            },
+            {
+              "filters": {
+                "horizon": "12"
+              },
+              "bucket": "D6",
+              "mean_dmid": 0.0006,
+              "n": 6000
+            },
+            {
+              "filters": {
+                "horizon": "12"
+              },
+              "bucket": "D7",
+              "mean_dmid": 0.0016,
+              "n": 5960
+            },
+            {
+              "filters": {
+                "horizon": "12"
+              },
+              "bucket": "D8",
+              "mean_dmid": 0.0028,
+              "n": 5920
+            },
+            {
+              "filters": {
+                "horizon": "12"
+              },
+              "bucket": "D9",
+              "mean_dmid": 0.0039,
+              "n": 5880
+            },
+            {
+              "filters": {
+                "horizon": "12"
+              },
+              "bucket": "D10",
+              "mean_dmid": 0.005,
+              "n": 5840
+            },
+            {
+              "filters": {
+                "horizon": "24"
+              },
+              "bucket": "D1",
+              "mean_dmid": -0.005,
+              "n": 6200
+            },
+            {
+              "filters": {
+                "horizon": "24"
+              },
+              "bucket": "D2",
+              "mean_dmid": -0.0039,
+              "n": 6160
+            },
+            {
+              "filters": {
+                "horizon": "24"
+              },
+              "bucket": "D3",
+              "mean_dmid": -0.0028,
+              "n": 6120
+            },
+            {
+              "filters": {
+                "horizon": "24"
+              },
+              "bucket": "D4",
+              "mean_dmid": -0.0016,
+              "n": 6080
+            },
+            {
+              "filters": {
+                "horizon": "24"
+              },
+              "bucket": "D5",
+              "mean_dmid": -0.0006,
+              "n": 6040
+            },
+            {
+              "filters": {
+                "horizon": "24"
+              },
+              "bucket": "D6",
+              "mean_dmid": 0.0006,
+              "n": 6000
+            },
+            {
+              "filters": {
+                "horizon": "24"
+              },
+              "bucket": "D7",
+              "mean_dmid": 0.0016,
+              "n": 5960
+            },
+            {
+              "filters": {
+                "horizon": "24"
+              },
+              "bucket": "D8",
+              "mean_dmid": 0.0028,
+              "n": 5920
+            },
+            {
+              "filters": {
+                "horizon": "24"
+              },
+              "bucket": "D9",
+              "mean_dmid": 0.0039,
+              "n": 5880
+            },
+            {
+              "filters": {
+                "horizon": "24"
+              },
+              "bucket": "D10",
+              "mean_dmid": 0.005,
+              "n": 5840
+            },
+            {
+              "filters": {
+                "horizon": "48"
+              },
+              "bucket": "D1",
+              "mean_dmid": -0.005,
+              "n": 6200
+            },
+            {
+              "filters": {
+                "horizon": "48"
+              },
+              "bucket": "D2",
+              "mean_dmid": -0.0039,
+              "n": 6160
+            },
+            {
+              "filters": {
+                "horizon": "48"
+              },
+              "bucket": "D3",
+              "mean_dmid": -0.0028,
+              "n": 6120
+            },
+            {
+              "filters": {
+                "horizon": "48"
+              },
+              "bucket": "D4",
+              "mean_dmid": -0.0016,
+              "n": 6080
+            },
+            {
+              "filters": {
+                "horizon": "48"
+              },
+              "bucket": "D5",
+              "mean_dmid": -0.0006,
+              "n": 6040
+            },
+            {
+              "filters": {
+                "horizon": "48"
+              },
+              "bucket": "D6",
+              "mean_dmid": 0.0006,
+              "n": 6000
+            },
+            {
+              "filters": {
+                "horizon": "48"
+              },
+              "bucket": "D7",
+              "mean_dmid": 0.0016,
+              "n": 5960
+            },
+            {
+              "filters": {
+                "horizon": "48"
+              },
+              "bucket": "D8",
+              "mean_dmid": 0.0028,
+              "n": 5920
+            },
+            {
+              "filters": {
+                "horizon": "48"
+              },
+              "bucket": "D9",
+              "mean_dmid": 0.0039,
+              "n": 5880
+            },
+            {
+              "filters": {
+                "horizon": "48"
+              },
+              "bucket": "D10",
+              "mean_dmid": 0.005,
+              "n": 5840
+            },
+            {
+              "filters": {
+                "horizon": "96"
+              },
+              "bucket": "D1",
+              "mean_dmid": -0.005,
+              "n": 6200
+            },
+            {
+              "filters": {
+                "horizon": "96"
+              },
+              "bucket": "D2",
+              "mean_dmid": -0.0039,
+              "n": 6160
+            },
+            {
+              "filters": {
+                "horizon": "96"
+              },
+              "bucket": "D3",
+              "mean_dmid": -0.0028,
+              "n": 6120
+            },
+            {
+              "filters": {
+                "horizon": "96"
+              },
+              "bucket": "D4",
+              "mean_dmid": -0.0016,
+              "n": 6080
+            },
+            {
+              "filters": {
+                "horizon": "96"
+              },
+              "bucket": "D5",
+              "mean_dmid": -0.0006,
+              "n": 6040
+            },
+            {
+              "filters": {
+                "horizon": "96"
+              },
+              "bucket": "D6",
+              "mean_dmid": 0.0006,
+              "n": 6000
+            },
+            {
+              "filters": {
+                "horizon": "96"
+              },
+              "bucket": "D7",
+              "mean_dmid": 0.0016,
+              "n": 5960
+            },
+            {
+              "filters": {
+                "horizon": "96"
+              },
+              "bucket": "D8",
+              "mean_dmid": 0.0028,
+              "n": 5920
+            },
+            {
+              "filters": {
+                "horizon": "96"
+              },
+              "bucket": "D9",
+              "mean_dmid": 0.0039,
+              "n": 5880
+            },
+            {
+              "filters": {
+                "horizon": "96"
+              },
+              "bucket": "D10",
+              "mean_dmid": 0.005,
+              "n": 5840
+            },
+            {
+              "filters": {
+                "horizon": "168"
+              },
+              "bucket": "D1",
+              "mean_dmid": -0.005,
+              "n": 6200
+            },
+            {
+              "filters": {
+                "horizon": "168"
+              },
+              "bucket": "D2",
+              "mean_dmid": -0.0039,
+              "n": 6160
+            },
+            {
+              "filters": {
+                "horizon": "168"
+              },
+              "bucket": "D3",
+              "mean_dmid": -0.0028,
+              "n": 6120
+            },
+            {
+              "filters": {
+                "horizon": "168"
+              },
+              "bucket": "D4",
+              "mean_dmid": -0.0016,
+              "n": 6080
+            },
+            {
+              "filters": {
+                "horizon": "168"
+              },
+              "bucket": "D5",
+              "mean_dmid": -0.0006,
+              "n": 6040
+            },
+            {
+              "filters": {
+                "horizon": "168"
+              },
+              "bucket": "D6",
+              "mean_dmid": 0.0006,
+              "n": 6000
+            },
+            {
+              "filters": {
+                "horizon": "168"
+              },
+              "bucket": "D7",
+              "mean_dmid": 0.0016,
+              "n": 5960
+            },
+            {
+              "filters": {
+                "horizon": "168"
+              },
+              "bucket": "D8",
+              "mean_dmid": 0.0028,
+              "n": 5920
+            },
+            {
+              "filters": {
+                "horizon": "168"
+              },
+              "bucket": "D9",
+              "mean_dmid": 0.0039,
+              "n": 5880
+            },
+            {
+              "filters": {
+                "horizon": "168"
+              },
+              "bucket": "D10",
+              "mean_dmid": 0.005,
+              "n": 5840
+            }
+          ],
+          "notes": [
+            "最高桶 − 最低桶 95% CI：[0.0041, 0.0102]"
+          ]
+        },
+        {
+          "id": "factor:vol_burst:ic_series",
+          "type": "series",
+          "tab": "IC 时序",
+          "title": "IC 时序",
+          "x": "time",
+          "y_label": "IC",
+          "series": [
+            {
+              "name": "pearson",
+              "points": [
+                [
+                  "2026-08-07T13:16:28.000Z",
+                  0.0305
+                ],
+                [
+                  "2026-08-07T16:28:28.000Z",
+                  0.0295
+                ],
+                [
+                  "2026-08-07T19:40:28.000Z",
+                  0.029
+                ],
+                [
+                  "2026-08-07T22:52:28.000Z",
+                  0.029
+                ],
+                [
+                  "2026-08-08T02:04:28.000Z",
+                  0.0295
+                ],
+                [
+                  "2026-08-08T05:16:28.000Z",
+                  0.0295
+                ],
+                [
+                  "2026-08-08T08:28:28.000Z",
+                  0.03
+                ],
+                [
+                  "2026-08-08T11:40:28.000Z",
+                  0.03
+                ],
+                [
+                  "2026-08-08T14:52:28.000Z",
+                  0.029
+                ],
+                [
+                  "2026-08-08T18:04:28.000Z",
+                  0.028
+                ],
+                [
+                  "2026-08-08T21:16:28.000Z",
+                  0.0275
+                ],
+                [
+                  "2026-08-09T00:28:28.000Z",
+                  0.028
+                ],
+                [
+                  "2026-08-09T03:40:28.000Z",
+                  0.028
+                ],
+                [
+                  "2026-08-09T06:52:28.000Z",
+                  0.0285
+                ],
+                [
+                  "2026-08-09T10:04:28.000Z",
+                  0.0295
+                ],
+                [
+                  "2026-08-09T13:16:28.000Z",
+                  0.0295
+                ],
+                [
+                  "2026-08-09T16:28:28.000Z",
+                  0.029
+                ],
+                [
+                  "2026-08-09T19:40:28.000Z",
+                  0.029
+                ],
+                [
+                  "2026-08-09T22:52:28.000Z",
+                  0.0295
+                ],
+                [
+                  "2026-08-10T02:04:28.000Z",
+                  0.0295
+                ],
+                [
+                  "2026-08-10T05:16:28.000Z",
+                  0.03
+                ],
+                [
+                  "2026-08-10T08:28:28.000Z",
+                  0.03
+                ],
+                [
+                  "2026-08-10T11:40:28.000Z",
+                  0.0295
+                ],
+                [
+                  "2026-08-10T14:52:28.000Z",
+                  0.029
+                ],
+                [
+                  "2026-08-10T18:04:28.000Z",
+                  0.029
+                ],
+                [
+                  "2026-08-10T21:16:28.000Z",
+                  0.03
+                ],
+                [
+                  "2026-08-11T00:28:28.000Z",
+                  0.0295
+                ],
+                [
+                  "2026-08-11T03:40:28.000Z",
+                  0.0305
+                ],
+                [
+                  "2026-08-11T06:52:28.000Z",
+                  0.03
+                ],
+                [
+                  "2026-08-11T10:04:28.000Z",
+                  0.03
+                ],
+                [
+                  "2026-08-11T13:16:28.000Z",
+                  0.0295
+                ],
+                [
+                  "2026-08-11T16:28:28.000Z",
+                  0.03
+                ],
+                [
+                  "2026-08-11T19:40:28.000Z",
+                  0.031
+                ],
+                [
+                  "2026-08-11T22:52:28.000Z",
+                  0.031
+                ],
+                [
+                  "2026-08-12T02:04:28.000Z",
+                  0.031
+                ],
+                [
+                  "2026-08-12T05:16:28.000Z",
+                  0.0305
+                ],
+                [
+                  "2026-08-12T08:28:28.000Z",
+                  0.0295
+                ],
+                [
+                  "2026-08-12T11:40:28.000Z",
+                  0.03
+                ],
+                [
+                  "2026-08-12T14:52:28.000Z",
+                  0.0295
+                ],
+                [
+                  "2026-08-12T18:04:28.000Z",
+                  0.0285
+                ],
+                [
+                  "2026-08-12T21:16:28.000Z",
+                  0.0295
+                ],
+                [
+                  "2026-08-13T00:28:28.000Z",
+                  0.0295
+                ],
+                [
+                  "2026-08-13T03:40:28.000Z",
+                  0.03
+                ],
+                [
+                  "2026-08-13T06:52:28.000Z",
+                  0.03
+                ],
+                [
+                  "2026-08-13T10:04:28.000Z",
+                  0.03
+                ],
+                [
+                  "2026-08-13T13:16:28.000Z",
+                  0.029
+                ],
+                [
+                  "2026-08-13T16:28:28.000Z",
+                  0.028
+                ],
+                [
+                  "2026-08-13T19:40:28.000Z",
+                  0.029
+                ],
+                [
+                  "2026-08-13T22:52:28.000Z",
+                  0.0285
+                ],
+                [
+                  "2026-08-14T02:04:28.000Z",
+                  0.028
+                ],
+                [
+                  "2026-08-14T05:16:28.000Z",
+                  0.028
+                ],
+                [
+                  "2026-08-14T08:28:28.000Z",
+                  0.0275
+                ],
+                [
+                  "2026-08-14T11:40:28.000Z",
+                  0.0275
+                ],
+                [
+                  "2026-08-14T14:52:28.000Z",
+                  0.0265
+                ],
+                [
+                  "2026-08-14T18:04:28.000Z",
+                  0.026
+                ],
+                [
+                  "2026-08-14T21:16:28.000Z",
+                  0.026
+                ],
+                [
+                  "2026-08-15T00:28:28.000Z",
+                  0.0265
+                ],
+                [
+                  "2026-08-15T03:40:28.000Z",
+                  0.0275
+                ],
+                [
+                  "2026-08-15T06:52:28.000Z",
+                  0.028
+                ],
+                [
+                  "2026-08-15T10:04:28.000Z",
+                  0.0285
+                ]
+              ]
+            },
+            {
+              "name": "rank",
+              "points": [
+                [
+                  "2026-08-07T13:16:28.000Z",
+                  0.0295
+                ],
+                [
+                  "2026-08-07T16:28:28.000Z",
+                  0.03
+                ],
+                [
+                  "2026-08-07T19:40:28.000Z",
+                  0.0315
+                ],
+                [
+                  "2026-08-07T22:52:28.000Z",
+                  0.031
+                ],
+                [
+                  "2026-08-08T02:04:28.000Z",
+                  0.032
+                ],
+                [
+                  "2026-08-08T05:16:28.000Z",
+                  0.0325
+                ],
+                [
+                  "2026-08-08T08:28:28.000Z",
+                  0.033
+                ],
+                [
+                  "2026-08-08T11:40:28.000Z",
+                  0.034
+                ],
+                [
+                  "2026-08-08T14:52:28.000Z",
+                  0.0325
+                ],
+                [
+                  "2026-08-08T18:04:28.000Z",
+                  0.0335
+                ],
+                [
+                  "2026-08-08T21:16:28.000Z",
+                  0.0345
+                ],
+                [
+                  "2026-08-09T00:28:28.000Z",
+                  0.0345
+                ],
+                [
+                  "2026-08-09T03:40:28.000Z",
+                  0.0355
+                ],
+                [
+                  "2026-08-09T06:52:28.000Z",
+                  0.0345
+                ],
+                [
+                  "2026-08-09T10:04:28.000Z",
+                  0.0335
+                ],
+                [
+                  "2026-08-09T13:16:28.000Z",
+                  0.0345
+                ],
+                [
+                  "2026-08-09T16:28:28.000Z",
+                  0.035
+                ],
+                [
+                  "2026-08-09T19:40:28.000Z",
+                  0.035
+                ],
+                [
+                  "2026-08-09T22:52:28.000Z",
+                  0.035
+                ],
+                [
+                  "2026-08-10T02:04:28.000Z",
+                  0.0345
+                ],
+                [
+                  "2026-08-10T05:16:28.000Z",
+                  0.035
+                ],
+                [
+                  "2026-08-10T08:28:28.000Z",
+                  0.0355
+                ],
+                [
+                  "2026-08-10T11:40:28.000Z",
+                  0.0355
+                ],
+                [
+                  "2026-08-10T14:52:28.000Z",
+                  0.0345
+                ],
+                [
+                  "2026-08-10T18:04:28.000Z",
+                  0.0335
+                ],
+                [
+                  "2026-08-10T21:16:28.000Z",
+                  0.034
+                ],
+                [
+                  "2026-08-11T00:28:28.000Z",
+                  0.035
+                ],
+                [
+                  "2026-08-11T03:40:28.000Z",
+                  0.035
+                ],
+                [
+                  "2026-08-11T06:52:28.000Z",
+                  0.036
+                ],
+                [
+                  "2026-08-11T10:04:28.000Z",
+                  0.035
+                ],
+                [
+                  "2026-08-11T13:16:28.000Z",
+                  0.0355
+                ],
+                [
+                  "2026-08-11T16:28:28.000Z",
+                  0.035
+                ],
+                [
+                  "2026-08-11T19:40:28.000Z",
+                  0.035
+                ],
+                [
+                  "2026-08-11T22:52:28.000Z",
+                  0.035
+                ],
+                [
+                  "2026-08-12T02:04:28.000Z",
+                  0.0355
+                ],
+                [
+                  "2026-08-12T05:16:28.000Z",
+                  0.034
+                ],
+                [
+                  "2026-08-12T08:28:28.000Z",
+                  0.033
+                ],
+                [
+                  "2026-08-12T11:40:28.000Z",
+                  0.034
+                ],
+                [
+                  "2026-08-12T14:52:28.000Z",
+                  0.035
+                ],
+                [
+                  "2026-08-12T18:04:28.000Z",
+                  0.036
+                ],
+                [
+                  "2026-08-12T21:16:28.000Z",
+                  0.037
+                ],
+                [
+                  "2026-08-13T00:28:28.000Z",
+                  0.0375
+                ],
+                [
+                  "2026-08-13T03:40:28.000Z",
+                  0.037
+                ],
+                [
+                  "2026-08-13T06:52:28.000Z",
+                  0.036
+                ],
+                [
+                  "2026-08-13T10:04:28.000Z",
+                  0.037
+                ],
+                [
+                  "2026-08-13T13:16:28.000Z",
+                  0.0375
+                ],
+                [
+                  "2026-08-13T16:28:28.000Z",
+                  0.0365
+                ],
+                [
+                  "2026-08-13T19:40:28.000Z",
+                  0.037
+                ],
+                [
+                  "2026-08-13T22:52:28.000Z",
+                  0.0375
+                ],
+                [
+                  "2026-08-14T02:04:28.000Z",
+                  0.0375
+                ],
+                [
+                  "2026-08-14T05:16:28.000Z",
+                  0.0385
+                ],
+                [
+                  "2026-08-14T08:28:28.000Z",
+                  0.0375
+                ],
+                [
+                  "2026-08-14T11:40:28.000Z",
+                  0.038
+                ],
+                [
+                  "2026-08-14T14:52:28.000Z",
+                  0.038
+                ],
+                [
+                  "2026-08-14T18:04:28.000Z",
+                  0.0365
+                ],
+                [
+                  "2026-08-14T21:16:28.000Z",
+                  0.0365
+                ],
+                [
+                  "2026-08-15T00:28:28.000Z",
+                  0.0365
+                ],
+                [
+                  "2026-08-15T03:40:28.000Z",
+                  0.0375
+                ],
+                [
+                  "2026-08-15T06:52:28.000Z",
+                  0.0365
+                ],
+                [
+                  "2026-08-15T10:04:28.000Z",
+                  0.038
+                ]
+              ]
+            },
+            {
+              "name": "mid_pearson",
+              "points": [
+                [
+                  "2026-08-07T13:16:28.000Z",
+                  0.031
+                ],
+                [
+                  "2026-08-07T16:28:28.000Z",
+                  0.0315
+                ],
+                [
+                  "2026-08-07T19:40:28.000Z",
+                  0.0325
+                ],
+                [
+                  "2026-08-07T22:52:28.000Z",
+                  0.031
+                ],
+                [
+                  "2026-08-08T02:04:28.000Z",
+                  0.03
+                ],
+                [
+                  "2026-08-08T05:16:28.000Z",
+                  0.03
+                ],
+                [
+                  "2026-08-08T08:28:28.000Z",
+                  0.0285
+                ],
+                [
+                  "2026-08-08T11:40:28.000Z",
+                  0.029
+                ],
+                [
+                  "2026-08-08T14:52:28.000Z",
+                  0.028
+                ],
+                [
+                  "2026-08-08T18:04:28.000Z",
+                  0.029
+                ],
+                [
+                  "2026-08-08T21:16:28.000Z",
+                  0.0295
+                ],
+                [
+                  "2026-08-09T00:28:28.000Z",
+                  0.0305
+                ],
+                [
+                  "2026-08-09T03:40:28.000Z",
+                  0.03
+                ],
+                [
+                  "2026-08-09T06:52:28.000Z",
+                  0.0315
+                ],
+                [
+                  "2026-08-09T10:04:28.000Z",
+                  0.032
+                ],
+                [
+                  "2026-08-09T13:16:28.000Z",
+                  0.0335
+                ],
+                [
+                  "2026-08-09T16:28:28.000Z",
+                  0.0345
+                ],
+                [
+                  "2026-08-09T19:40:28.000Z",
+                  0.0355
+                ],
+                [
+                  "2026-08-09T22:52:28.000Z",
+                  0.0345
+                ],
+                [
+                  "2026-08-10T02:04:28.000Z",
+                  0.0335
+                ],
+                [
+                  "2026-08-10T05:16:28.000Z",
+                  0.0345
+                ],
+                [
+                  "2026-08-10T08:28:28.000Z",
+                  0.034
+                ],
+                [
+                  "2026-08-10T11:40:28.000Z",
+                  0.0335
+                ],
+                [
+                  "2026-08-10T14:52:28.000Z",
+                  0.0325
+                ],
+                [
+                  "2026-08-10T18:04:28.000Z",
+                  0.0325
+                ],
+                [
+                  "2026-08-10T21:16:28.000Z",
+                  0.031
+                ],
+                [
+                  "2026-08-11T00:28:28.000Z",
+                  0.031
+                ],
+                [
+                  "2026-08-11T03:40:28.000Z",
+                  0.0305
+                ],
+                [
+                  "2026-08-11T06:52:28.000Z",
+                  0.03
+                ],
+                [
+                  "2026-08-11T10:04:28.000Z",
+                  0.03
+                ],
+                [
+                  "2026-08-11T13:16:28.000Z",
+                  0.03
+                ],
+                [
+                  "2026-08-11T16:28:28.000Z",
+                  0.0285
+                ],
+                [
+                  "2026-08-11T19:40:28.000Z",
+                  0.027
+                ],
+                [
+                  "2026-08-11T22:52:28.000Z",
+                  0.028
+                ],
+                [
+                  "2026-08-12T02:04:28.000Z",
+                  0.0285
+                ],
+                [
+                  "2026-08-12T05:16:28.000Z",
+                  0.028
+                ],
+                [
+                  "2026-08-12T08:28:28.000Z",
+                  0.027
+                ],
+                [
+                  "2026-08-12T11:40:28.000Z",
+                  0.0255
+                ],
+                [
+                  "2026-08-12T14:52:28.000Z",
+                  0.026
+                ],
+                [
+                  "2026-08-12T18:04:28.000Z",
+                  0.0255
+                ],
+                [
+                  "2026-08-12T21:16:28.000Z",
+                  0.0265
+                ],
+                [
+                  "2026-08-13T00:28:28.000Z",
+                  0.025
+                ],
+                [
+                  "2026-08-13T03:40:28.000Z",
+                  0.024
+                ],
+                [
+                  "2026-08-13T06:52:28.000Z",
+                  0.025
+                ],
+                [
+                  "2026-08-13T10:04:28.000Z",
+                  0.0245
+                ],
+                [
+                  "2026-08-13T13:16:28.000Z",
+                  0.024
+                ],
+                [
+                  "2026-08-13T16:28:28.000Z",
+                  0.0245
+                ],
+                [
+                  "2026-08-13T19:40:28.000Z",
+                  0.024
+                ],
+                [
+                  "2026-08-13T22:52:28.000Z",
+                  0.025
+                ],
+                [
+                  "2026-08-14T02:04:28.000Z",
+                  0.0235
+                ],
+                [
+                  "2026-08-14T05:16:28.000Z",
+                  0.023
+                ],
+                [
+                  "2026-08-14T08:28:28.000Z",
+                  0.0215
+                ],
+                [
+                  "2026-08-14T11:40:28.000Z",
+                  0.022
+                ],
+                [
+                  "2026-08-14T14:52:28.000Z",
+                  0.022
+                ],
+                [
+                  "2026-08-14T18:04:28.000Z",
+                  0.022
+                ],
+                [
+                  "2026-08-14T21:16:28.000Z",
+                  0.0225
+                ],
+                [
+                  "2026-08-15T00:28:28.000Z",
+                  0.0215
+                ],
+                [
+                  "2026-08-15T03:40:28.000Z",
+                  0.021
+                ],
+                [
+                  "2026-08-15T06:52:28.000Z",
+                  0.0225
+                ],
+                [
+                  "2026-08-15T10:04:28.000Z",
+                  0.022
+                ]
+              ]
+            }
+          ],
+          "reference_lines": [
+            {
+              "axis": "y",
+              "value": 0
+            }
+          ]
+        },
+        {
+          "id": "factor:vol_burst:price_strata",
+          "type": "table",
+          "tab": "价格分层",
+          "title": "价格分层",
+          "columns": [
+            {
+              "key": "stratum",
+              "label": "价格层",
+              "kind": "text"
+            },
+            {
+              "key": "ic",
+              "label": "Pearson IC",
+              "kind": "number",
+              "digits": 4
+            },
+            {
+              "key": "n",
+              "label": "样本数",
+              "kind": "number",
+              "digits": 0
+            }
+          ],
+          "rows": [
+            {
+              "stratum": "0–20%",
+              "ic": 0.031,
+              "n": 21000
+            },
+            {
+              "stratum": "20–50%",
+              "ic": 0.044,
+              "n": 48000
+            },
+            {
+              "stratum": "50–80%",
+              "ic": 0.039,
+              "n": 47000
+            },
+            {
+              "stratum": "80–100%",
+              "ic": 0.018,
+              "n": 15000
+            }
+          ]
+        },
+        {
+          "id": "factor:vol_burst:by_domain",
+          "type": "table",
+          "tab": "分 Domain",
+          "title": "分 Domain",
+          "columns": [
+            {
+              "key": "domain",
+              "label": "Domain",
+              "kind": "text"
+            },
+            {
+              "key": "ic",
+              "label": "Pearson IC",
+              "kind": "number",
+              "digits": 4
+            },
+            {
+              "key": "markets",
+              "label": "市场数",
+              "kind": "number",
+              "digits": 0
+            },
+            {
+              "key": "status",
+              "label": "状态",
+              "kind": "badge"
+            }
+          ],
+          "rows": [
+            {
+              "domain": "Crypto",
+              "ic": 0.051,
+              "markets": 210,
+              "status": "已排名"
+            },
+            {
+              "domain": "Politics",
+              "ic": 0.043,
+              "markets": 188,
+              "status": "已排名"
+            },
+            {
+              "domain": "Sports",
+              "ic": 0.012,
+              "markets": 31,
+              "status": "截面不足，不排名"
+            }
+          ],
+          "caption": "诊断，不做多重检验。"
+        },
+        {
+          "id": "factor:vol_burst:by_period",
+          "type": "table",
+          "tab": "分期对照",
+          "title": "分期对照",
+          "columns": [
+            {
+              "key": "period",
+              "label": "时期",
+              "kind": "text"
+            },
+            {
+              "key": "ic",
+              "label": "24h Pearson IC",
+              "kind": "number",
+              "digits": 4
+            },
+            {
+              "key": "t",
+              "label": "稳健 t",
+              "kind": "number",
+              "digits": 2
+            }
+          ],
+          "rows": [
+            {
+              "period": "研究期 2026-08-06 → 08-25",
+              "ic": 0.0451,
+              "t": 3.4
+            },
+            {
+              "period": "对照期 2026-08-25 → 09-04",
+              "ic": 0.0322,
+              "t": 1.9
+            }
+          ]
+        },
+        {
+          "id": "factor:vol_burst:files",
+          "type": "text",
+          "tab": "文件",
+          "title": "文件",
+          "format": "markdown",
+          "text": "- 因子报告 JSON：`report/rev_momentum_3h/factor.json`\n- 分桶 CSV：`report/rev_momentum_3h/deciles.csv`"
+        },
+        {
+          "id": "factor:resid_edge:screen",
+          "type": "metrics",
+          "items": [
+            {
+              "label": "初筛状态",
+              "value": "通过初筛"
+            },
+            {
+              "label": "24h Pearson IC",
+              "value": 0.0412,
+              "digits": 6
+            },
+            {
+              "label": "稳健 t",
+              "value": 3.18,
+              "digits": 2
+            },
+            {
+              "label": "Rank IC",
+              "value": 0.0377,
+              "digits": 6
+            },
+            {
+              "label": "24h 截面数",
+              "value": 612,
+              "digits": 0
+            },
+            {
+              "label": "市场数",
+              "value": 842,
+              "digits": 0
+            },
+            {
+              "label": "因子覆盖率",
+              "value": 97.4,
+              "kind": "percent",
+              "digits": 1
+            },
+            {
+              "label": "标签覆盖率",
+              "value": 99.1,
+              "kind": "percent",
+              "digits": 1
+            }
+          ],
+          "caption": "单对象 Holm = 自身 p；覆盖率只标注。",
+          "title": "resid_edge · 初筛"
+        },
+        {
+          "id": "factor:resid_edge:horizons",
+          "type": "table",
+          "title": "六周期汇总",
+          "columns": [
+            {
+              "key": "horizon_label",
+              "label": "Horizon",
+              "kind": "text"
+            },
+            {
+              "key": "ic",
+              "label": "Pearson IC",
+              "kind": "number",
+              "digits": 4,
+              "signed": true
+            },
+            {
+              "key": "icir",
+              "label": "ICIR",
+              "kind": "number",
+              "digits": 3
+            },
+            {
+              "key": "t",
+              "label": "稳健 t",
+              "kind": "number",
+              "digits": 2
+            },
+            {
+              "key": "ci",
+              "label": "IC 区间",
+              "kind": "interval",
+              "digits": 4
+            },
+            {
+              "key": "rank_ic",
+              "label": "Rank IC",
+              "kind": "number",
+              "digits": 4
+            },
+            {
+              "key": "spread",
+              "label": "最高桶 − 最低桶 ($/share)",
+              "kind": "number",
+              "digits": 4
+            },
+            {
+              "key": "sections",
+              "label": "截面数",
+              "kind": "number",
+              "digits": 0
+            },
+            {
+              "key": "note",
+              "label": "备注",
+              "kind": "text"
+            }
+          ],
+          "rows": [
+            {
+              "horizon": "1",
+              "horizon_label": "1h",
+              "ic": 0.02,
+              "icir": 0.4,
+              "t": 1.4,
+              "ci": [
+                0.005,
+                0.04
+              ],
+              "rank_ic": 0.018,
+              "spread": 0.004,
+              "sections": 700,
+              "note": ""
+            },
+            {
+              "horizon": "12",
+              "horizon_label": "12h",
+              "ic": 0.022,
+              "icir": 0.45,
+              "t": 1.9,
+              "ci": [
+                0.006,
+                0.044
+              ],
+              "rank_ic": 0.02,
+              "spread": 0.005,
+              "sections": 650,
+              "note": ""
+            },
+            {
+              "horizon": "24",
+              "horizon_label": "24h",
+              "ic": 0.041,
+              "icir": 0.5,
+              "t": 2.4,
+              "ci": [
+                0.007,
+                0.048
+              ],
+              "rank_ic": 0.022,
+              "spread": 0.006,
+              "sections": 600,
+              "note": "主口径"
+            },
+            {
+              "horizon": "48",
+              "horizon_label": "48h",
+              "ic": 0.026,
+              "icir": 0.55,
+              "t": 2.9,
+              "ci": [
+                0.008,
+                0.052
+              ],
+              "rank_ic": 0.024,
+              "spread": 0.007,
+              "sections": 550,
+              "note": ""
+            },
+            {
+              "horizon": "96",
+              "horizon_label": "4d",
+              "ic": 0.028,
+              "icir": 0.6,
+              "t": 3.4,
+              "ci": [
+                0.009,
+                0.056
+              ],
+              "rank_ic": 0.026,
+              "spread": 0.008,
+              "sections": 500,
+              "note": ""
+            },
+            {
+              "horizon": "168",
+              "horizon_label": "7d",
+              "ic": 0.03,
+              "icir": 0.65,
+              "t": 3.9,
+              "ci": [
+                0.01,
+                0.06
+              ],
+              "rank_ic": 0.028,
+              "spread": 0.009,
+              "sections": 450,
+              "note": ""
+            }
+          ]
+        },
+        {
+          "id": "factor:resid_edge:deciles_1",
+          "type": "image",
+          "title": "1h 分桶 · 平均 Δmid ($/share)",
+          "artifact": "report/rev_momentum_3h/quantiles_compact_v2.png",
+          "alt": "1h 十分位分桶图",
+          "when": {
+            "horizon": "1"
+          }
+        },
+        {
+          "id": "factor:resid_edge:deciles_12",
+          "type": "image",
+          "title": "12h 分桶 · 平均 Δmid ($/share)",
+          "artifact": "report/rev_momentum_3h/quantiles_compact_v2.png",
+          "alt": "12h 十分位分桶图",
+          "when": {
+            "horizon": "12"
+          }
+        },
+        {
+          "id": "factor:resid_edge:deciles_24",
+          "type": "image",
+          "title": "24h 分桶 · 平均 Δmid ($/share)",
+          "artifact": "report/rev_momentum_3h/quantiles_compact_v2.png",
+          "alt": "24h 十分位分桶图",
+          "when": {
+            "horizon": "24"
+          }
+        },
+        {
+          "id": "factor:resid_edge:deciles_48",
+          "type": "image",
+          "title": "48h 分桶 · 平均 Δmid ($/share)",
+          "artifact": "report/rev_momentum_3h/quantiles_compact_v2.png",
+          "alt": "48h 十分位分桶图",
+          "when": {
+            "horizon": "48"
+          }
+        },
+        {
+          "id": "factor:resid_edge:deciles_96",
+          "type": "image",
+          "title": "4d 分桶 · 平均 Δmid ($/share)",
+          "artifact": "report/rev_momentum_3h/quantiles_compact_v2.png",
+          "alt": "4d 十分位分桶图",
+          "when": {
+            "horizon": "96"
+          }
+        },
+        {
+          "id": "factor:resid_edge:deciles_168",
+          "type": "image",
+          "title": "7d 分桶 · 平均 Δmid ($/share)",
+          "artifact": "report/rev_momentum_3h/quantiles_compact_v2.png",
+          "alt": "7d 十分位分桶图",
+          "when": {
+            "horizon": "168"
+          }
+        },
+        {
+          "id": "factor:resid_edge:deciles_table",
+          "type": "table",
+          "tab": "分桶明细",
+          "title": "分桶明细",
+          "columns": [
+            {
+              "key": "bucket",
+              "label": "分位桶",
+              "kind": "text"
+            },
+            {
+              "key": "mean_dmid",
+              "label": "平均 Δmid ($/share)",
+              "kind": "number",
+              "digits": 4,
+              "signed": true
+            },
+            {
+              "key": "n",
+              "label": "样本数",
+              "kind": "number",
+              "digits": 0
+            }
+          ],
+          "rows": [
+            {
+              "filters": {
+                "horizon": "1"
+              },
+              "bucket": "D1",
+              "mean_dmid": -0.005,
+              "n": 6200
+            },
+            {
+              "filters": {
+                "horizon": "1"
+              },
+              "bucket": "D2",
+              "mean_dmid": -0.0039,
+              "n": 6160
+            },
+            {
+              "filters": {
+                "horizon": "1"
+              },
+              "bucket": "D3",
+              "mean_dmid": -0.0028,
+              "n": 6120
+            },
+            {
+              "filters": {
+                "horizon": "1"
+              },
+              "bucket": "D4",
+              "mean_dmid": -0.0016,
+              "n": 6080
+            },
+            {
+              "filters": {
+                "horizon": "1"
+              },
+              "bucket": "D5",
+              "mean_dmid": -0.0006,
+              "n": 6040
+            },
+            {
+              "filters": {
+                "horizon": "1"
+              },
+              "bucket": "D6",
+              "mean_dmid": 0.0006,
+              "n": 6000
+            },
+            {
+              "filters": {
+                "horizon": "1"
+              },
+              "bucket": "D7",
+              "mean_dmid": 0.0016,
+              "n": 5960
+            },
+            {
+              "filters": {
+                "horizon": "1"
+              },
+              "bucket": "D8",
+              "mean_dmid": 0.0028,
+              "n": 5920
+            },
+            {
+              "filters": {
+                "horizon": "1"
+              },
+              "bucket": "D9",
+              "mean_dmid": 0.0039,
+              "n": 5880
+            },
+            {
+              "filters": {
+                "horizon": "1"
+              },
+              "bucket": "D10",
+              "mean_dmid": 0.005,
+              "n": 5840
+            },
+            {
+              "filters": {
+                "horizon": "12"
+              },
+              "bucket": "D1",
+              "mean_dmid": -0.005,
+              "n": 6200
+            },
+            {
+              "filters": {
+                "horizon": "12"
+              },
+              "bucket": "D2",
+              "mean_dmid": -0.0039,
+              "n": 6160
+            },
+            {
+              "filters": {
+                "horizon": "12"
+              },
+              "bucket": "D3",
+              "mean_dmid": -0.0028,
+              "n": 6120
+            },
+            {
+              "filters": {
+                "horizon": "12"
+              },
+              "bucket": "D4",
+              "mean_dmid": -0.0016,
+              "n": 6080
+            },
+            {
+              "filters": {
+                "horizon": "12"
+              },
+              "bucket": "D5",
+              "mean_dmid": -0.0006,
+              "n": 6040
+            },
+            {
+              "filters": {
+                "horizon": "12"
+              },
+              "bucket": "D6",
+              "mean_dmid": 0.0006,
+              "n": 6000
+            },
+            {
+              "filters": {
+                "horizon": "12"
+              },
+              "bucket": "D7",
+              "mean_dmid": 0.0016,
+              "n": 5960
+            },
+            {
+              "filters": {
+                "horizon": "12"
+              },
+              "bucket": "D8",
+              "mean_dmid": 0.0028,
+              "n": 5920
+            },
+            {
+              "filters": {
+                "horizon": "12"
+              },
+              "bucket": "D9",
+              "mean_dmid": 0.0039,
+              "n": 5880
+            },
+            {
+              "filters": {
+                "horizon": "12"
+              },
+              "bucket": "D10",
+              "mean_dmid": 0.005,
+              "n": 5840
+            },
+            {
+              "filters": {
+                "horizon": "24"
+              },
+              "bucket": "D1",
+              "mean_dmid": -0.005,
+              "n": 6200
+            },
+            {
+              "filters": {
+                "horizon": "24"
+              },
+              "bucket": "D2",
+              "mean_dmid": -0.0039,
+              "n": 6160
+            },
+            {
+              "filters": {
+                "horizon": "24"
+              },
+              "bucket": "D3",
+              "mean_dmid": -0.0028,
+              "n": 6120
+            },
+            {
+              "filters": {
+                "horizon": "24"
+              },
+              "bucket": "D4",
+              "mean_dmid": -0.0016,
+              "n": 6080
+            },
+            {
+              "filters": {
+                "horizon": "24"
+              },
+              "bucket": "D5",
+              "mean_dmid": -0.0006,
+              "n": 6040
+            },
+            {
+              "filters": {
+                "horizon": "24"
+              },
+              "bucket": "D6",
+              "mean_dmid": 0.0006,
+              "n": 6000
+            },
+            {
+              "filters": {
+                "horizon": "24"
+              },
+              "bucket": "D7",
+              "mean_dmid": 0.0016,
+              "n": 5960
+            },
+            {
+              "filters": {
+                "horizon": "24"
+              },
+              "bucket": "D8",
+              "mean_dmid": 0.0028,
+              "n": 5920
+            },
+            {
+              "filters": {
+                "horizon": "24"
+              },
+              "bucket": "D9",
+              "mean_dmid": 0.0039,
+              "n": 5880
+            },
+            {
+              "filters": {
+                "horizon": "24"
+              },
+              "bucket": "D10",
+              "mean_dmid": 0.005,
+              "n": 5840
+            },
+            {
+              "filters": {
+                "horizon": "48"
+              },
+              "bucket": "D1",
+              "mean_dmid": -0.005,
+              "n": 6200
+            },
+            {
+              "filters": {
+                "horizon": "48"
+              },
+              "bucket": "D2",
+              "mean_dmid": -0.0039,
+              "n": 6160
+            },
+            {
+              "filters": {
+                "horizon": "48"
+              },
+              "bucket": "D3",
+              "mean_dmid": -0.0028,
+              "n": 6120
+            },
+            {
+              "filters": {
+                "horizon": "48"
+              },
+              "bucket": "D4",
+              "mean_dmid": -0.0016,
+              "n": 6080
+            },
+            {
+              "filters": {
+                "horizon": "48"
+              },
+              "bucket": "D5",
+              "mean_dmid": -0.0006,
+              "n": 6040
+            },
+            {
+              "filters": {
+                "horizon": "48"
+              },
+              "bucket": "D6",
+              "mean_dmid": 0.0006,
+              "n": 6000
+            },
+            {
+              "filters": {
+                "horizon": "48"
+              },
+              "bucket": "D7",
+              "mean_dmid": 0.0016,
+              "n": 5960
+            },
+            {
+              "filters": {
+                "horizon": "48"
+              },
+              "bucket": "D8",
+              "mean_dmid": 0.0028,
+              "n": 5920
+            },
+            {
+              "filters": {
+                "horizon": "48"
+              },
+              "bucket": "D9",
+              "mean_dmid": 0.0039,
+              "n": 5880
+            },
+            {
+              "filters": {
+                "horizon": "48"
+              },
+              "bucket": "D10",
+              "mean_dmid": 0.005,
+              "n": 5840
+            },
+            {
+              "filters": {
+                "horizon": "96"
+              },
+              "bucket": "D1",
+              "mean_dmid": -0.005,
+              "n": 6200
+            },
+            {
+              "filters": {
+                "horizon": "96"
+              },
+              "bucket": "D2",
+              "mean_dmid": -0.0039,
+              "n": 6160
+            },
+            {
+              "filters": {
+                "horizon": "96"
+              },
+              "bucket": "D3",
+              "mean_dmid": -0.0028,
+              "n": 6120
+            },
+            {
+              "filters": {
+                "horizon": "96"
+              },
+              "bucket": "D4",
+              "mean_dmid": -0.0016,
+              "n": 6080
+            },
+            {
+              "filters": {
+                "horizon": "96"
+              },
+              "bucket": "D5",
+              "mean_dmid": -0.0006,
+              "n": 6040
+            },
+            {
+              "filters": {
+                "horizon": "96"
+              },
+              "bucket": "D6",
+              "mean_dmid": 0.0006,
+              "n": 6000
+            },
+            {
+              "filters": {
+                "horizon": "96"
+              },
+              "bucket": "D7",
+              "mean_dmid": 0.0016,
+              "n": 5960
+            },
+            {
+              "filters": {
+                "horizon": "96"
+              },
+              "bucket": "D8",
+              "mean_dmid": 0.0028,
+              "n": 5920
+            },
+            {
+              "filters": {
+                "horizon": "96"
+              },
+              "bucket": "D9",
+              "mean_dmid": 0.0039,
+              "n": 5880
+            },
+            {
+              "filters": {
+                "horizon": "96"
+              },
+              "bucket": "D10",
+              "mean_dmid": 0.005,
+              "n": 5840
+            },
+            {
+              "filters": {
+                "horizon": "168"
+              },
+              "bucket": "D1",
+              "mean_dmid": -0.005,
+              "n": 6200
+            },
+            {
+              "filters": {
+                "horizon": "168"
+              },
+              "bucket": "D2",
+              "mean_dmid": -0.0039,
+              "n": 6160
+            },
+            {
+              "filters": {
+                "horizon": "168"
+              },
+              "bucket": "D3",
+              "mean_dmid": -0.0028,
+              "n": 6120
+            },
+            {
+              "filters": {
+                "horizon": "168"
+              },
+              "bucket": "D4",
+              "mean_dmid": -0.0016,
+              "n": 6080
+            },
+            {
+              "filters": {
+                "horizon": "168"
+              },
+              "bucket": "D5",
+              "mean_dmid": -0.0006,
+              "n": 6040
+            },
+            {
+              "filters": {
+                "horizon": "168"
+              },
+              "bucket": "D6",
+              "mean_dmid": 0.0006,
+              "n": 6000
+            },
+            {
+              "filters": {
+                "horizon": "168"
+              },
+              "bucket": "D7",
+              "mean_dmid": 0.0016,
+              "n": 5960
+            },
+            {
+              "filters": {
+                "horizon": "168"
+              },
+              "bucket": "D8",
+              "mean_dmid": 0.0028,
+              "n": 5920
+            },
+            {
+              "filters": {
+                "horizon": "168"
+              },
+              "bucket": "D9",
+              "mean_dmid": 0.0039,
+              "n": 5880
+            },
+            {
+              "filters": {
+                "horizon": "168"
+              },
+              "bucket": "D10",
+              "mean_dmid": 0.005,
+              "n": 5840
+            }
+          ],
+          "notes": [
+            "最高桶 − 最低桶 95% CI：[0.0041, 0.0102]"
+          ]
+        },
+        {
+          "id": "factor:resid_edge:ic_series",
+          "type": "series",
+          "tab": "IC 时序",
+          "title": "IC 时序",
+          "x": "time",
+          "y_label": "IC",
+          "series": [
+            {
+              "name": "pearson",
+              "points": [
+                [
+                  "2026-08-07T13:16:28.000Z",
+                  0.031
+                ],
+                [
+                  "2026-08-07T16:28:28.000Z",
+                  0.0315
+                ],
+                [
+                  "2026-08-07T19:40:28.000Z",
+                  0.032
+                ],
+                [
+                  "2026-08-07T22:52:28.000Z",
+                  0.032
+                ],
+                [
+                  "2026-08-08T02:04:28.000Z",
+                  0.032
+                ],
+                [
+                  "2026-08-08T05:16:28.000Z",
+                  0.0315
+                ],
+                [
+                  "2026-08-08T08:28:28.000Z",
+                  0.031
+                ],
+                [
+                  "2026-08-08T11:40:28.000Z",
+                  0.0305
+                ],
+                [
+                  "2026-08-08T14:52:28.000Z",
+                  0.0305
+                ],
+                [
+                  "2026-08-08T18:04:28.000Z",
+                  0.0305
+                ],
+                [
+                  "2026-08-08T21:16:28.000Z",
+                  0.03
+                ],
+                [
+                  "2026-08-09T00:28:28.000Z",
+                  0.029
+                ],
+                [
+                  "2026-08-09T03:40:28.000Z",
+                  0.0285
+                ],
+                [
+                  "2026-08-09T06:52:28.000Z",
+                  0.0285
+                ],
+                [
+                  "2026-08-09T10:04:28.000Z",
+                  0.0275
+                ],
+                [
+                  "2026-08-09T13:16:28.000Z",
+                  0.028
+                ],
+                [
+                  "2026-08-09T16:28:28.000Z",
+                  0.0275
+                ],
+                [
+                  "2026-08-09T19:40:28.000Z",
+                  0.027
+                ],
+                [
+                  "2026-08-09T22:52:28.000Z",
+                  0.0265
+                ],
+                [
+                  "2026-08-10T02:04:28.000Z",
+                  0.0265
+                ],
+                [
+                  "2026-08-10T05:16:28.000Z",
+                  0.0265
+                ],
+                [
+                  "2026-08-10T08:28:28.000Z",
+                  0.027
+                ],
+                [
+                  "2026-08-10T11:40:28.000Z",
+                  0.028
+                ],
+                [
+                  "2026-08-10T14:52:28.000Z",
+                  0.0285
+                ],
+                [
+                  "2026-08-10T18:04:28.000Z",
+                  0.0275
+                ],
+                [
+                  "2026-08-10T21:16:28.000Z",
+                  0.0275
+                ],
+                [
+                  "2026-08-11T00:28:28.000Z",
+                  0.0265
+                ],
+                [
+                  "2026-08-11T03:40:28.000Z",
+                  0.0275
+                ],
+                [
+                  "2026-08-11T06:52:28.000Z",
+                  0.0265
+                ],
+                [
+                  "2026-08-11T10:04:28.000Z",
+                  0.0265
+                ],
+                [
+                  "2026-08-11T13:16:28.000Z",
+                  0.0255
+                ],
+                [
+                  "2026-08-11T16:28:28.000Z",
+                  0.0255
+                ],
+                [
+                  "2026-08-11T19:40:28.000Z",
+                  0.025
+                ],
+                [
+                  "2026-08-11T22:52:28.000Z",
+                  0.0245
+                ],
+                [
+                  "2026-08-12T02:04:28.000Z",
+                  0.024
+                ],
+                [
+                  "2026-08-12T05:16:28.000Z",
+                  0.025
+                ],
+                [
+                  "2026-08-12T08:28:28.000Z",
+                  0.025
+                ],
+                [
+                  "2026-08-12T11:40:28.000Z",
+                  0.025
+                ],
+                [
+                  "2026-08-12T14:52:28.000Z",
+                  0.025
+                ],
+                [
+                  "2026-08-12T18:04:28.000Z",
+                  0.025
+                ],
+                [
+                  "2026-08-12T21:16:28.000Z",
+                  0.026
+                ],
+                [
+                  "2026-08-13T00:28:28.000Z",
+                  0.026
+                ],
+                [
+                  "2026-08-13T03:40:28.000Z",
+                  0.026
+                ],
+                [
+                  "2026-08-13T06:52:28.000Z",
+                  0.0255
+                ],
+                [
+                  "2026-08-13T10:04:28.000Z",
+                  0.0255
+                ],
+                [
+                  "2026-08-13T13:16:28.000Z",
+                  0.0255
+                ],
+                [
+                  "2026-08-13T16:28:28.000Z",
+                  0.0245
+                ],
+                [
+                  "2026-08-13T19:40:28.000Z",
+                  0.025
+                ],
+                [
+                  "2026-08-13T22:52:28.000Z",
+                  0.0245
+                ],
+                [
+                  "2026-08-14T02:04:28.000Z",
+                  0.0245
+                ],
+                [
+                  "2026-08-14T05:16:28.000Z",
+                  0.024
+                ],
+                [
+                  "2026-08-14T08:28:28.000Z",
+                  0.0235
+                ],
+                [
+                  "2026-08-14T11:40:28.000Z",
+                  0.024
+                ],
+                [
+                  "2026-08-14T14:52:28.000Z",
+                  0.0245
+                ],
+                [
+                  "2026-08-14T18:04:28.000Z",
+                  0.025
+                ],
+                [
+                  "2026-08-14T21:16:28.000Z",
+                  0.025
+                ],
+                [
+                  "2026-08-15T00:28:28.000Z",
+                  0.025
+                ],
+                [
+                  "2026-08-15T03:40:28.000Z",
+                  0.0255
+                ],
+                [
+                  "2026-08-15T06:52:28.000Z",
+                  0.025
+                ],
+                [
+                  "2026-08-15T10:04:28.000Z",
+                  0.026
+                ]
+              ]
+            },
+            {
+              "name": "rank",
+              "points": [
+                [
+                  "2026-08-07T13:16:28.000Z",
+                  0.03
+                ],
+                [
+                  "2026-08-07T16:28:28.000Z",
+                  0.0295
+                ],
+                [
+                  "2026-08-07T19:40:28.000Z",
+                  0.0305
+                ],
+                [
+                  "2026-08-07T22:52:28.000Z",
+                  0.03
+                ],
+                [
+                  "2026-08-08T02:04:28.000Z",
+                  0.029
+                ],
+                [
+                  "2026-08-08T05:16:28.000Z",
+                  0.03
+                ],
+                [
+                  "2026-08-08T08:28:28.000Z",
+                  0.0295
+                ],
+                [
+                  "2026-08-08T11:40:28.000Z",
+                  0.031
+                ],
+                [
+                  "2026-08-08T14:52:28.000Z",
+                  0.0305
+                ],
+                [
+                  "2026-08-08T18:04:28.000Z",
+                  0.031
+                ],
+                [
+                  "2026-08-08T21:16:28.000Z",
+                  0.0305
+                ],
+                [
+                  "2026-08-09T00:28:28.000Z",
+                  0.031
+                ],
+                [
+                  "2026-08-09T03:40:28.000Z",
+                  0.0315
+                ],
+                [
+                  "2026-08-09T06:52:28.000Z",
+                  0.0305
+                ],
+                [
+                  "2026-08-09T10:04:28.000Z",
+                  0.0315
+                ],
+                [
+                  "2026-08-09T13:16:28.000Z",
+                  0.031
+                ],
+                [
+                  "2026-08-09T16:28:28.000Z",
+                  0.032
+                ],
+                [
+                  "2026-08-09T19:40:28.000Z",
+                  0.033
+                ],
+                [
+                  "2026-08-09T22:52:28.000Z",
+                  0.0345
+                ],
+                [
+                  "2026-08-10T02:04:28.000Z",
+                  0.034
+                ],
+                [
+                  "2026-08-10T05:16:28.000Z",
+                  0.0335
+                ],
+                [
+                  "2026-08-10T08:28:28.000Z",
+                  0.0325
+                ],
+                [
+                  "2026-08-10T11:40:28.000Z",
+                  0.033
+                ],
+                [
+                  "2026-08-10T14:52:28.000Z",
+                  0.033
+                ],
+                [
+                  "2026-08-10T18:04:28.000Z",
+                  0.034
+                ],
+                [
+                  "2026-08-10T21:16:28.000Z",
+                  0.0335
+                ],
+                [
+                  "2026-08-11T00:28:28.000Z",
+                  0.033
+                ],
+                [
+                  "2026-08-11T03:40:28.000Z",
+                  0.0335
+                ],
+                [
+                  "2026-08-11T06:52:28.000Z",
+                  0.034
+                ],
+                [
+                  "2026-08-11T10:04:28.000Z",
+                  0.0325
+                ],
+                [
+                  "2026-08-11T13:16:28.000Z",
+                  0.032
+                ],
+                [
+                  "2026-08-11T16:28:28.000Z",
+                  0.033
+                ],
+                [
+                  "2026-08-11T19:40:28.000Z",
+                  0.0335
+                ],
+                [
+                  "2026-08-11T22:52:28.000Z",
+                  0.034
+                ],
+                [
+                  "2026-08-12T02:04:28.000Z",
+                  0.0345
+                ],
+                [
+                  "2026-08-12T05:16:28.000Z",
+                  0.0335
+                ],
+                [
+                  "2026-08-12T08:28:28.000Z",
+                  0.0325
+                ],
+                [
+                  "2026-08-12T11:40:28.000Z",
+                  0.0315
+                ],
+                [
+                  "2026-08-12T14:52:28.000Z",
+                  0.032
+                ],
+                [
+                  "2026-08-12T18:04:28.000Z",
+                  0.032
+                ],
+                [
+                  "2026-08-12T21:16:28.000Z",
+                  0.0305
+                ],
+                [
+                  "2026-08-13T00:28:28.000Z",
+                  0.03
+                ],
+                [
+                  "2026-08-13T03:40:28.000Z",
+                  0.0295
+                ],
+                [
+                  "2026-08-13T06:52:28.000Z",
+                  0.0295
+                ],
+                [
+                  "2026-08-13T10:04:28.000Z",
+                  0.03
+                ],
+                [
+                  "2026-08-13T13:16:28.000Z",
+                  0.0305
+                ],
+                [
+                  "2026-08-13T16:28:28.000Z",
+                  0.0315
+                ],
+                [
+                  "2026-08-13T19:40:28.000Z",
+                  0.031
+                ],
+                [
+                  "2026-08-13T22:52:28.000Z",
+                  0.032
+                ],
+                [
+                  "2026-08-14T02:04:28.000Z",
+                  0.032
+                ],
+                [
+                  "2026-08-14T05:16:28.000Z",
+                  0.033
+                ],
+                [
+                  "2026-08-14T08:28:28.000Z",
+                  0.032
+                ],
+                [
+                  "2026-08-14T11:40:28.000Z",
+                  0.0315
+                ],
+                [
+                  "2026-08-14T14:52:28.000Z",
+                  0.0305
+                ],
+                [
+                  "2026-08-14T18:04:28.000Z",
+                  0.03
+                ],
+                [
+                  "2026-08-14T21:16:28.000Z",
+                  0.03
+                ],
+                [
+                  "2026-08-15T00:28:28.000Z",
+                  0.0305
+                ],
+                [
+                  "2026-08-15T03:40:28.000Z",
+                  0.031
+                ],
+                [
+                  "2026-08-15T06:52:28.000Z",
+                  0.031
+                ],
+                [
+                  "2026-08-15T10:04:28.000Z",
+                  0.0315
+                ]
+              ]
+            },
+            {
+              "name": "mid_pearson",
+              "points": [
+                [
+                  "2026-08-07T13:16:28.000Z",
+                  0.0305
+                ],
+                [
+                  "2026-08-07T16:28:28.000Z",
+                  0.029
+                ],
+                [
+                  "2026-08-07T19:40:28.000Z",
+                  0.0295
+                ],
+                [
+                  "2026-08-07T22:52:28.000Z",
+                  0.03
+                ],
+                [
+                  "2026-08-08T02:04:28.000Z",
+                  0.0285
+                ],
+                [
+                  "2026-08-08T05:16:28.000Z",
+                  0.0275
+                ],
+                [
+                  "2026-08-08T08:28:28.000Z",
+                  0.0275
+                ],
+                [
+                  "2026-08-08T11:40:28.000Z",
+                  0.028
+                ],
+                [
+                  "2026-08-08T14:52:28.000Z",
+                  0.0265
+                ],
+                [
+                  "2026-08-08T18:04:28.000Z",
+                  0.028
+                ],
+                [
+                  "2026-08-08T21:16:28.000Z",
+                  0.027
+                ],
+                [
+                  "2026-08-09T00:28:28.000Z",
+                  0.0265
+                ],
+                [
+                  "2026-08-09T03:40:28.000Z",
+                  0.025
+                ],
+                [
+                  "2026-08-09T06:52:28.000Z",
+                  0.026
+                ],
+                [
+                  "2026-08-09T10:04:28.000Z",
+                  0.027
+                ],
+                [
+                  "2026-08-09T13:16:28.000Z",
+                  0.0255
+                ],
+                [
+                  "2026-08-09T16:28:28.000Z",
+                  0.0245
+                ],
+                [
+                  "2026-08-09T19:40:28.000Z",
+                  0.024
+                ],
+                [
+                  "2026-08-09T22:52:28.000Z",
+                  0.023
+                ],
+                [
+                  "2026-08-10T02:04:28.000Z",
+                  0.0235
+                ],
+                [
+                  "2026-08-10T05:16:28.000Z",
+                  0.0245
+                ],
+                [
+                  "2026-08-10T08:28:28.000Z",
+                  0.024
+                ],
+                [
+                  "2026-08-10T11:40:28.000Z",
+                  0.0245
+                ],
+                [
+                  "2026-08-10T14:52:28.000Z",
+                  0.024
+                ],
+                [
+                  "2026-08-10T18:04:28.000Z",
+                  0.024
+                ],
+                [
+                  "2026-08-10T21:16:28.000Z",
+                  0.0235
+                ],
+                [
+                  "2026-08-11T00:28:28.000Z",
+                  0.0245
+                ],
+                [
+                  "2026-08-11T03:40:28.000Z",
+                  0.026
+                ],
+                [
+                  "2026-08-11T06:52:28.000Z",
+                  0.0255
+                ],
+                [
+                  "2026-08-11T10:04:28.000Z",
+                  0.025
+                ],
+                [
+                  "2026-08-11T13:16:28.000Z",
+                  0.025
+                ],
+                [
+                  "2026-08-11T16:28:28.000Z",
+                  0.0255
+                ],
+                [
+                  "2026-08-11T19:40:28.000Z",
+                  0.027
+                ],
+                [
+                  "2026-08-11T22:52:28.000Z",
+                  0.028
+                ],
+                [
+                  "2026-08-12T02:04:28.000Z",
+                  0.029
+                ],
+                [
+                  "2026-08-12T05:16:28.000Z",
+                  0.0285
+                ],
+                [
+                  "2026-08-12T08:28:28.000Z",
+                  0.03
+                ],
+                [
+                  "2026-08-12T11:40:28.000Z",
+                  0.029
+                ],
+                [
+                  "2026-08-12T14:52:28.000Z",
+                  0.028
+                ],
+                [
+                  "2026-08-12T18:04:28.000Z",
+                  0.029
+                ],
+                [
+                  "2026-08-12T21:16:28.000Z",
+                  0.0285
+                ],
+                [
+                  "2026-08-13T00:28:28.000Z",
+                  0.0295
+                ],
+                [
+                  "2026-08-13T03:40:28.000Z",
+                  0.029
+                ],
+                [
+                  "2026-08-13T06:52:28.000Z",
+                  0.029
+                ],
+                [
+                  "2026-08-13T10:04:28.000Z",
+                  0.0285
+                ],
+                [
+                  "2026-08-13T13:16:28.000Z",
+                  0.0295
+                ],
+                [
+                  "2026-08-13T16:28:28.000Z",
+                  0.0285
+                ],
+                [
+                  "2026-08-13T19:40:28.000Z",
+                  0.0275
+                ],
+                [
+                  "2026-08-13T22:52:28.000Z",
+                  0.0275
+                ],
+                [
+                  "2026-08-14T02:04:28.000Z",
+                  0.027
+                ],
+                [
+                  "2026-08-14T05:16:28.000Z",
+                  0.0275
+                ],
+                [
+                  "2026-08-14T08:28:28.000Z",
+                  0.0265
+                ],
+                [
+                  "2026-08-14T11:40:28.000Z",
+                  0.0275
+                ],
+                [
+                  "2026-08-14T14:52:28.000Z",
+                  0.0285
+                ],
+                [
+                  "2026-08-14T18:04:28.000Z",
+                  0.0295
+                ],
+                [
+                  "2026-08-14T21:16:28.000Z",
+                  0.0295
+                ],
+                [
+                  "2026-08-15T00:28:28.000Z",
+                  0.029
+                ],
+                [
+                  "2026-08-15T03:40:28.000Z",
+                  0.0295
+                ],
+                [
+                  "2026-08-15T06:52:28.000Z",
+                  0.0285
+                ],
+                [
+                  "2026-08-15T10:04:28.000Z",
+                  0.029
+                ]
+              ]
+            }
+          ],
+          "reference_lines": [
+            {
+              "axis": "y",
+              "value": 0
+            }
+          ]
+        },
+        {
+          "id": "factor:resid_edge:price_strata",
+          "type": "table",
+          "tab": "价格分层",
+          "title": "价格分层",
+          "columns": [
+            {
+              "key": "stratum",
+              "label": "价格层",
+              "kind": "text"
+            },
+            {
+              "key": "ic",
+              "label": "Pearson IC",
+              "kind": "number",
+              "digits": 4
+            },
+            {
+              "key": "n",
+              "label": "样本数",
+              "kind": "number",
+              "digits": 0
+            }
+          ],
+          "rows": [
+            {
+              "stratum": "0–20%",
+              "ic": 0.031,
+              "n": 21000
+            },
+            {
+              "stratum": "20–50%",
+              "ic": 0.044,
+              "n": 48000
+            },
+            {
+              "stratum": "50–80%",
+              "ic": 0.039,
+              "n": 47000
+            },
+            {
+              "stratum": "80–100%",
+              "ic": 0.018,
+              "n": 15000
+            }
+          ]
+        },
+        {
+          "id": "factor:resid_edge:by_domain",
+          "type": "table",
+          "tab": "分 Domain",
+          "title": "分 Domain",
+          "columns": [
+            {
+              "key": "domain",
+              "label": "Domain",
+              "kind": "text"
+            },
+            {
+              "key": "ic",
+              "label": "Pearson IC",
+              "kind": "number",
+              "digits": 4
+            },
+            {
+              "key": "markets",
+              "label": "市场数",
+              "kind": "number",
+              "digits": 0
+            },
+            {
+              "key": "status",
+              "label": "状态",
+              "kind": "badge"
+            }
+          ],
+          "rows": [
+            {
+              "domain": "Crypto",
+              "ic": 0.051,
+              "markets": 210,
+              "status": "已排名"
+            },
+            {
+              "domain": "Politics",
+              "ic": 0.043,
+              "markets": 188,
+              "status": "已排名"
+            },
+            {
+              "domain": "Sports",
+              "ic": 0.012,
+              "markets": 31,
+              "status": "截面不足，不排名"
+            }
+          ],
+          "caption": "诊断，不做多重检验。"
+        },
+        {
+          "id": "factor:resid_edge:by_period",
+          "type": "table",
+          "tab": "分期对照",
+          "title": "分期对照",
+          "columns": [
+            {
+              "key": "period",
+              "label": "时期",
+              "kind": "text"
+            },
+            {
+              "key": "ic",
+              "label": "24h Pearson IC",
+              "kind": "number",
+              "digits": 4
+            },
+            {
+              "key": "t",
+              "label": "稳健 t",
+              "kind": "number",
+              "digits": 2
+            }
+          ],
+          "rows": [
+            {
+              "period": "研究期 2026-08-06 → 08-25",
+              "ic": 0.0451,
+              "t": 3.4
+            },
+            {
+              "period": "对照期 2026-08-25 → 09-04",
+              "ic": 0.0322,
+              "t": 1.9
+            }
+          ]
+        },
+        {
+          "id": "factor:resid_edge:files",
+          "type": "text",
+          "tab": "文件",
+          "title": "文件",
+          "format": "markdown",
+          "text": "- 因子报告 JSON：`report/rev_momentum_3h/factor.json`\n- 分桶 CSV：`report/rev_momentum_3h/deciles.csv`"
+        }
+      ],
+      "artifacts": [
+        {
+          "name": "summary.csv",
+          "path": "report/summary.csv",
+          "bytes": 1204
+        }
+      ],
+      "filters": [
+        {
+          "key": "horizon",
+          "label": "明细周期",
+          "options": [
+            {
+              "value": "1",
+              "label": "1h"
+            },
+            {
+              "value": "12",
+              "label": "12h"
+            },
+            {
+              "value": "24",
+              "label": "24h"
+            },
+            {
+              "value": "48",
+              "label": "48h"
+            },
+            {
+              "value": "96",
+              "label": "4d"
+            },
+            {
+              "value": "168",
+              "label": "7d"
+            }
+          ],
+          "default": "24"
+        }
+      ]
+    },
+    "reproduce": null,
+    "input_fingerprints": null,
+    "restored_inputs": [],
+    "artifacts_url": "/api/v1/backtest/runs/btr-legacy-factor-v7-01/artifacts",
+    "artifacts_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}
