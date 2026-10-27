@@ -2,11 +2,11 @@ import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import test from "node:test";
 import { decodeCatalogItem, decodeEngine, decodeRun, type BacktestPage, type BacktestRun, type CatalogItem, type ParamDef } from "../app/lib/backtest-platform.ts";
-import { groupParamDefs, decorateParamDefs, STRATEGY_PARAMS_NAME } from "../app/lib/backtest-param-ui.ts";
+import { CHOICE_LABELS, groupParamDefs, decorateParamDefs, STRATEGY_PARAMS_NAME } from "../app/lib/backtest-param-ui.ts";
 import { initialParamValues, isVisible, paramsPayload, validateParams, type ParamContext, type ParamValues } from "../app/lib/backtest-params.ts";
 import { strategyDescription, strategyInfo } from "../app/lib/backtest-selection.ts";
-import { allowedSizingModes, modelNeed, planStrategyParams, strategyParamsJson } from "../app/lib/backtest-stepwise.ts";
-import { prettyHeadline, requesterLabel, runSummary, sampleScopeLabel } from "../app/lib/backtest-labels.ts";
+import { modelNeed, planStrategyParams, strategyParamsJson } from "../app/lib/backtest-stepwise.ts";
+import { DROP_REASON_LABELS, LEGACY_STEPWISE_REASON_LABELS, PM_SIM_REASON_LABELS, prettyHeadline, requesterLabel, runSummary, sampleScopeLabel } from "../app/lib/backtest-labels.ts";
 import { collectRuns, submissionHistory } from "../app/lib/backtest-runs.ts";
 import { evaluateHref, factorChange, factorGroups, factorNames, factorTableVersion } from "../app/lib/backtest-factors.ts";
 import { normalizeDropReasons } from "../app/lib/backtest-table.ts";
@@ -59,7 +59,7 @@ const newPayload = (values: ParamValues, context: ParamContext, strategyParams?:
 
 test("只选旧策略：不提交逐时点参数，infra 补默认值后的参数与改前完全一致（配置摘要不变）", () => {
   const values = initialParamValues(raw);
-  const next = newPayload(values, { stepwise: false, models: true });
+  const next = newPayload(values, { stepwise: false, models: true, legacy: true });
   assert.equal("stepwise" in next, false, "旧策略不提交 stepwise.*");
   assert.deepEqual(resolveParams(raw, next), resolveParams(raw, oldPayload(values)));
   assert.deepEqual(next.position_sizing, { mode: "native" }, "仓位模式为策略自带时，每笔股数 / 金额隐藏、不提交");
@@ -68,7 +68,7 @@ test("只选旧策略：不提交逐时点参数，infra 补默认值后的参�
 });
 
 test("条件显示：每笔股数只在固定股数、每笔金额只在固定金额、初始资金只在有限资金时提交；归一化后与改前一致", () => {
-  const context = { stepwise: false, models: true };
+  const context = { stepwise: false, models: true, legacy: true };
   const find = (name: string) => decorated.find((d) => d.name === name)!;
   const base = initialParamValues(decorated);
   assert.equal(isVisible(find("position_sizing.shares"), base, context), false);
@@ -90,18 +90,36 @@ test("条件显示：每笔股数只在固定股数、每笔金额只在固定�
   for (const values of [shares, stake, finite]) assert.deepEqual(resolveParams(raw, newPayload(values, context)), resolveParams(raw, oldPayload(values)));
 });
 
-test("选逐时点策略且不改参数：strategy_params 提交 \"{}\"，其余逐时点参数提交默认值，归一化后与改前一致", () => {
+test("混选（旧策略 + 逐时点策略）且不改参数：strategy_params 提交 \"{}\"，其余逐时点参数提交默认值，归一化后与改前一致", () => {
   const values = initialParamValues(decorated);
-  const next = newPayload(values, { stepwise: true, models: true }, "{}");
+  const next = newPayload(values, { stepwise: true, models: true, legacy: true }, "{}");
   const stepwise = next.stepwise as Record<string, unknown>;
   assert.equal(stepwise.strategy_params, "{}");
-  assert.equal(Object.keys(stepwise).length, 10, "10 个 stepwise.* 全部提交");
+  assert.deepEqual(Object.keys(stepwise).sort(), ["buy_fee_bps", "levels", "max_book_age_minutes", "next_bar_fill", "sell_fee_bps", "strategy_params", "whole_shares"], "7 个 stepwise.* 全部提交");
+  assert.deepEqual(next.position_sizing, { mode: "native" }, "混选时仓位模式照常提交（只对旧策略生效）");
   assert.deepEqual(resolveParams(raw, next), resolveParams(raw, oldPayload(initialParamValues(raw))));
-  // 改过账户规则时照常提交
-  const changed = newPayload({ ...values, "stepwise.fee_rate": "0.01", "stepwise.rebalance_order": "as_given" }, { stepwise: true, models: true }, "{\"edge_threshold\":0.2}");
-  assert.equal((changed.stepwise as Record<string, unknown>).fee_rate, 0.01);
-  assert.equal((changed.stepwise as Record<string, unknown>).rebalance_order, "as_given");
-  assert.equal((changed.stepwise as Record<string, unknown>).strategy_params, "{\"edge_threshold\":0.2}");
+  // 改过 pm_sim 参数时照常提交
+  const changed = newPayload({ ...values, "stepwise.buy_fee_bps": "5", "stepwise.next_bar_fill": false, "stepwise.levels": "3" }, { stepwise: true, models: true, legacy: true }, "{\"edge_threshold\":0.2}");
+  const sent = changed.stepwise as Record<string, unknown>;
+  assert.equal(sent.buy_fee_bps, 5);
+  assert.equal(sent.next_bar_fill, false);
+  assert.equal(sent.levels, 3);
+  assert.equal(sent.strategy_params, "{\"edge_threshold\":0.2}");
+});
+
+test("只选逐时点策略：仓位模式及每笔股数 / 金额隐藏、不校验、不提交；infra 补默认值后与「显示并保持默认」等价", () => {
+  const context = { stepwise: true, models: true, legacy: false };
+  const find = (name: string) => decorated.find((d) => d.name === name)!;
+  for (const name of ["position_sizing.mode", "position_sizing.shares", "position_sizing.stake"]) {
+    assert.equal(find(name).requires, "legacy");
+    assert.equal(isVisible(find(name), { ...initialParamValues(decorated), "position_sizing.mode": "fixed_shares" }, context), false, `${name} 隐藏`);
+  }
+  const values = { ...initialParamValues(decorated), "position_sizing.mode": "fixed_shares", "position_sizing.shares": "-1" };
+  assert.equal(validateParams(decorated, values, context)["position_sizing.shares"], undefined, "隐藏的仓位参数填了非法值也不拦截");
+  const next = newPayload(initialParamValues(decorated), context, "{}");
+  assert.equal("position_sizing" in next, false);
+  assert.deepEqual(next.bankroll, { mode: "unlimited" }, "资金模式对逐时点策略照常生效");
+  assert.deepEqual(resolveParams(raw, next), resolveParams(raw, oldPayload(initialParamValues(raw))));
 });
 
 test("不读模型（盘口数据集）时 include_market 不提交，等于默认的 false", () => {
@@ -112,21 +130,25 @@ test("不读模型（盘口数据集）时 include_market 不提交，等于默�
 });
 
 test("隐藏的参数不校验：旧策略下逐时点参数填了非法值也不拦截", () => {
-  const values = { ...initialParamValues(decorated), "stepwise.depth_levels": "999" };
-  assert.deepEqual(validateParams(decorated, values, { stepwise: false, models: true }), {});
-  assert.match(validateParams(decorated, values, { stepwise: true, models: true })["stepwise.depth_levels"], /不大于 15/);
+  const values = { ...initialParamValues(decorated), "stepwise.levels": "999" };
+  assert.deepEqual(validateParams(decorated, values, { stepwise: false, models: true, legacy: true }), {});
+  assert.match(validateParams(decorated, values, { stepwise: true, models: true, legacy: true })["stepwise.levels"], /不大于 15/);
 });
 
 // ───────────────────────── 展示规则 ─────────────────────────
 
-test("分组：口径 / 仓位 / 资金与逐时点账户规则分开；include_market 与 strategy_params 不在任何分组里", () => {
+test("分组：口径 / 仓位 / 资金与逐时点策略（pm_sim）分开；include_market 与 strategy_params 不在任何分组里", () => {
   const { groups, rest } = groupParamDefs(BOARD_ITEM, decorated);
   const scope = groups.find((g) => g.id === "scope")!;
   const stepwise = groups.find((g) => g.id === "stepwise")!;
   assert.deepEqual(scope.defs.map((d) => d.name), ["scope", "position_sizing.mode", "position_sizing.shares", "position_sizing.stake", "bankroll.mode", "bankroll.amount"]);
-  assert.equal(stepwise.defs.length, 9);
-  assert.ok(stepwise.defs.every((d) => d.name.startsWith("stepwise.") && d.name !== STRATEGY_PARAMS_NAME));
-  assert.match(stepwise.note ?? "", /待研究侧确认/);
+  assert.deepEqual(stepwise.defs.map((d) => d.name), ["stepwise.next_bar_fill", "stepwise.max_book_age_minutes", "stepwise.levels", "stepwise.whole_shares", "stepwise.buy_fee_bps", "stepwise.sell_fee_bps"]);
+  assert.ok(stepwise.defs.every((d) => d.requires === "stepwise"));
+  assert.equal(stepwise.title, "逐时点策略（pm_sim）");
+  assert.equal(stepwise.note, "规则由研究侧的 pm_sim 决定（不补齐盘口、先卖后买、期末按估值不强平），这里只调它开放的几项。只在选中逐时点策略时生效。");
+  for (const retired of ["depth_levels", "fee_rate", "allow_cash_partial_fill", "quote_tolerance_minutes", "max_source_staleness_minutes", "bounded_gap_fill", "rebalance_order", "end_valuation"]) {
+    assert.equal(raw.some((d) => d.name === `stepwise.${retired}`), false, `旧账户规则参数 stepwise.${retired} 已删除`);
+  }
   assert.deepEqual(rest.map((d) => d.name).sort(), ["include_market", STRATEGY_PARAMS_NAME]);
   assert.equal(groupParamDefs("benchmark/calibration", raw).groups.length, 0, "没有展示规则的项目不分组");
 });
@@ -136,8 +158,7 @@ test("选项中文名：值不变，只改按钮文字；没有规则的参数�
   assert.deepEqual(labelOf(decorated, "scope"), [["strict", "严格交集"], ["own", "各模型自有全集"]]);
   assert.deepEqual(labelOf(decorated, "position_sizing.mode"), [["native", "策略自带"], ["fixed_shares", "固定股数"], ["fixed_stake", "固定金额"]]);
   assert.deepEqual(labelOf(decorated, "bankroll.mode"), [["finite", "有限资金"], ["unlimited", "无限资金"]]);
-  assert.deepEqual(labelOf(decorated, "stepwise.rebalance_order"), [["sells_first", "先卖后买"], ["as_given", "按策略顺序"]]);
-  assert.deepEqual(labelOf(decorated, "stepwise.end_valuation"), [["mark_mid", "按中价估值"], ["liquidate_bid", "按买价清仓"]]);
+  assert.equal(Object.keys(CHOICE_LABELS).some((name) => name.startsWith("stepwise.")), false, "旧账户规则的枚举标签已删除");
   const signal = decorateParamDefs("benchmark/model_signal", engine.paramDefinitions["benchmark/model_signal"]);
   assert.deepEqual(labelOf(signal, "sample_scope"), [["full", "各模型自身全量"], ["common", "共同样本"]]);
   assert.deepEqual(signal.find((d) => d.name === "horizon_h")!.choices!.map((c) => c.label), ["1", "12", "24", "48", "96", "168"], "整数选项不翻译");
@@ -153,18 +174,22 @@ test("标签兜底：引擎文案仍是英文时用中文，引擎已是中文�
 
 // ───────────────────────── 策略能力 ─────────────────────────
 
-test("逐时点策略：kind、对模型的需求、仓位模式、Domain 限制、参数都读自清单；旧策略保持原行为", () => {
+test("逐时点策略：kind、对模型的需求、pm_sim 版本、Domain 限制、参数都读自清单；旧策略保持原行为", () => {
   const v3 = strategy("baseline_v3_stepwise");
   assert.equal(v3.stepwise, true);
   assert.equal(v3.id, "baseline_v3_stepwise@1.0.0");
   assert.equal(v3.predictions, "required");
-  assert.deepEqual(v3.sizingModes, ["native", "fixed_shares", "fixed_stake"]);
+  assert.deepEqual(v3.sizingModes, ["native", "fixed_shares", "fixed_stake"], "旧接口定义里的仓位模式仍能解码");
+  assert.equal(v3.pmSimVersion, undefined, "旧接口定义没有 pm_sim 版本");
   assert.equal(v3.validatedDomains, null, "domains: null = 全部");
   assert.deepEqual(v3.params, []);
   const edge = strategy("edge_filter_stepwise");
   assert.equal(edge.predictions, "optional");
   assert.deepEqual(edge.params.map((p) => p.name), ["edge_threshold", "hold_hours", "use_depth", "side_mode"]);
-  assert.equal(edge.decisionInterval, "30m");
+  assert.equal(edge.pmSimVersion, "6.3.0");
+  assert.equal(edge.sizingModes, undefined, "pm_sim 接口的定义没有仓位模式");
+  assert.equal("decisionInterval" in edge, false, "不再解析决策间隔");
+  assert.equal(strategyInfo({ ...items("catalog-strategies.json").find((i) => i.key === "edge_filter_stepwise")!, metadata: { definition: { kind: "stepwise" }, pm_sim_version: "6.4.0" } }).pmSimVersion, "6.4.0", "definition 没有时读 metadata");
   const reversion = strategy("mid_reversion_stepwise");
   assert.equal(reversion.predictions, "none");
   assert.deepEqual(reversion.validatedDomains, ["Politics", "Sports"]);
@@ -173,6 +198,7 @@ test("逐时点策略：kind、对模型的需求、仓位模式、Domain 限制
   assert.equal(strategy("price_v4").predictions, "none");
   assert.equal(strategy("price_v4").priceOnly, true);
   assert.equal(strategy("baseline").sizingModes, undefined);
+  assert.equal(strategy("baseline").pmSimVersion, undefined);
 });
 
 test("策略说明与名字相同（旧策略的说明就是名字）时不重复显示", () => {
@@ -183,7 +209,7 @@ test("策略说明与名字相同（旧策略的说明就是名字）时不重�
   assert.equal(strategyDescription({ label: "A", description: undefined }), undefined);
 });
 
-test("模型需求与仓位模式限制按所选策略合并", () => {
+test("模型需求按所选策略合并", () => {
   const picked = (...keys: string[]) => keys.map(strategy);
   assert.deepEqual(modelNeed(picked("baseline")), { required: true, reads: true, ignoring: [] });
   assert.equal(modelNeed(picked("price_v4")).reads, false);
@@ -192,11 +218,6 @@ test("模型需求与仓位模式限制按所选策略合并", () => {
   assert.deepEqual([optional.required, optional.reads], [false, true]);
   const mixed = modelNeed(picked("edge_filter_stepwise", "mid_reversion_stepwise"));
   assert.deepEqual(mixed.ignoring.map((s) => s.key), ["mid_reversion_stepwise"]);
-  assert.equal(allowedSizingModes(picked("baseline")), undefined, "旧策略不限制");
-  assert.deepEqual(allowedSizingModes(picked("baseline_v3_stepwise")), ["native", "fixed_shares", "fixed_stake"]);
-  assert.deepEqual(allowedSizingModes(picked("baseline_v3_stepwise", "edge_filter_stepwise")), ["native", "fixed_stake"]);
-  assert.deepEqual(allowedSizingModes(picked("edge_filter_stepwise", "mid_reversion_stepwise")), ["native"]);
-  assert.deepEqual(allowedSizingModes(picked("baseline", "mid_reversion_stepwise")), ["native"], "旧策略不参与取交集");
 });
 
 test("逐时点策略参数：单选时全部可改；多选时只有都声明且定义一致的可改，其余说明原因", () => {
@@ -346,6 +367,35 @@ test("旧运行标题行兜底：英文词换中文、时间去掉秒与纳秒�
   assert.equal(prettyHeadline(prettyHeadline(old)), prettyHeadline(old));
 });
 
+test("未成交原因码表：16 个 pm_sim 拒单原因与执行器 pmbt/stepwise/reasons.py 逐字一致；旧逐时点账户的码保留并标明旧口径", () => {
+  // 原样抄自执行器 pmbt/stepwise/reasons.py 的 REASON_LABELS（改那边就同步这里与 app/lib/backtest-labels.ts）
+  const executor: Record<string, string> = {
+    unknown_market: "结算表里没有这个市场",
+    market_closed: "市场已关闭",
+    no_book: "没有盘口：这个市场不在本次允许交易的范围（Domain / 数据集）内，或此刻没有盘口",
+    stale_book: "盘口超过年龄上限（看簿、买卖、估值同一标准）",
+    book_before_decision: "下一格成交时只有决策之前观测到的盘口（那一格缺数据），订单作废",
+    no_visible_depth: "盘口深度不够，只成交了可见的部分（或一股都没有）",
+    crossed_book: "盘口交叉（无风险套利，只可能来自数据瑕疵），不成交",
+    limit_price_not_reached: "没有达到限价",
+    below_min_size: "按整股成交，取整后不足一股",
+    nothing_to_sell: "没有可卖的持仓",
+    unknown_lot: "指定平仓的那一手不存在",
+    insufficient_cash: "现金不足",
+    event_exposure_cap: "超过事件敞口上限",
+    invalid_order: "订单不合规（股数 / 金额 / 限价不合法）",
+    ambiguous_target: "同一市场方向上已有更早的单，调到目标仓位算不出要买卖多少，拒绝",
+    window_end: "区间结束时还没到执行时刻",
+  };
+  assert.deepEqual(PM_SIM_REASON_LABELS, executor);
+  assert.equal(Object.keys(PM_SIM_REASON_LABELS).length, 16);
+  for (const [code, label] of Object.entries(executor)) assert.equal(DROP_REASON_LABELS[code], label, `${code} 用 pm_sim 文案`);
+  const legacy = ["no_quote", "thin_book", "no_liquidity", "below_one_share", "domain_not_allowed", "duplicate_order", "exceeds_position", "already_at_target"];
+  assert.deepEqual(Object.keys(LEGACY_STEPWISE_REASON_LABELS).sort(), [...legacy].sort());
+  for (const code of legacy) assert.match(DROP_REASON_LABELS[code], /（旧逐时点账户口径）$/, `${code} 标明旧口径`);
+  for (const code of ["stale_book", "insufficient_cash", "invalid_order", "market_closed"]) assert.doesNotMatch(DROP_REASON_LABELS[code], /旧/, `同名码 ${code} 用新文案`);
+});
+
 test("未成交原因表兜底：旧结果里说明 = 原因码时翻译、挪动原因代码列；新码两列相同时只留一列", () => {
   const old = run("btr-20261019-trade001").result!.sections.find((s) => s.id === "drop_reasons")!;
   assert.equal(old.type, "table");
@@ -353,8 +403,8 @@ test("未成交原因表兜底：旧结果里说明 = 原因码时翻译、挪�
   const next = normalizeDropReasons(old);
   assert.deepEqual(next.columns.map((c) => c.label), ["策略", "模型", "未成交原因", "笔数", "占 selected", "原因代码"], "原因代码挪到最后并改名");
   const byReason = new Map(next.rows.map((r) => [r.reason as string, r.description as string]));
-  assert.equal(byReason.get("below_one_share"), "按整股成交，目标不足一股");
-  assert.equal(byReason.get("no_liquidity"), "对手盘一档有效报价都没有");
+  assert.equal(byReason.get("below_one_share"), "按整股成交，目标不足一股（旧逐时点账户口径）");
+  assert.equal(byReason.get("no_liquidity"), "对手盘一档有效报价都没有（旧逐时点账户口径）");
   assert.equal(byReason.get("thin_book"), "盘口过薄无法成交", "旧引擎原因保持执行器写的中文");
 
   // 码表里没有的新码：说明列与原因列相同 → 隐藏重复的说明列

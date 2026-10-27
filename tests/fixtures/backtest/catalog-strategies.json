@@ -169,25 +169,22 @@
         "version": "0.2.0",
         "origin": "platform",
         "status": "available",
-        "submission_id": "bts-20261021-edge_fil",
+        "submission_id": "bts-20261027-edge_fil",
         "metadata": {
           "definition": {
             "kind": "stepwise",
-            "api_version": 1,
+            "api": "pm_sim",
+            "pm_sim_version": "6.3.0",
+            "pm_sim_protocol": "sim-v6",
             "label": "边际过滤（逐时点）",
+            "description": "边际过滤（逐时点）",
             "strategy_id": "edge_filter_stepwise",
             "version": "0.2.0",
             "entry": "edge_filter_stepwise.main:Strategy",
-            "decision_trigger": "grid",
-            "decision_interval": "30m",
-            "decision_interval_seconds": 1800,
             "inputs": {
-              "predictions": "optional"
+              "predictions": "optional",
+              "factors": []
             },
-            "position_sizing": [
-              "native",
-              "fixed_stake"
-            ],
             "domains": null,
             "params": [
               {
@@ -227,18 +224,31 @@
                 "help": ""
               }
             ],
+            "code_dependencies": [],
+            "resources": {},
             "uses_models": true,
-            "submission_id": "bts-20261021-edge_fil",
-            "package_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+            "submission_id": "bts-20261027-edge_fil",
+            "package_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "smoke": {
+              "window": {
+                "start": "2026-06-20T00:00:00Z",
+                "end": "2026-06-25T00:00:00Z"
+              },
+              "orders": 12,
+              "filled_orders": 9,
+              "ending_pnl": 1.25,
+              "pm_sim_version": "6.3.0",
+              "inputs_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "feeds": [
+                "markets"
+              ]
+            }
           },
           "label": "边际过滤（逐时点）",
-          "submission_id": "bts-20261021-edge_fil",
+          "submission_id": "bts-20261027-edge_fil",
           "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-          "decision_interval": "30m",
-          "position_sizing": [
-            "native",
-            "fixed_stake"
-          ],
+          "api": "pm_sim",
+          "pm_sim_version": "6.3.0",
           "params": [
             {
               "name": "edge_threshold",
@@ -278,9 +288,23 @@
             }
           ],
           "inputs": {
-            "predictions": "optional"
+            "predictions": "optional",
+            "factors": []
           },
-          "example_steps": 3
+          "smoke": {
+            "window": {
+              "start": "2026-06-20T00:00:00Z",
+              "end": "2026-06-25T00:00:00Z"
+            },
+            "orders": 12,
+            "filled_orders": 9,
+            "ending_pnl": 1.25,
+            "pm_sim_version": "6.3.0",
+            "inputs_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "feeds": [
+              "markets"
+            ]
+          }
         }
       },
       {
@@ -289,24 +313,22 @@
         "version": "0.1.0",
         "origin": "platform",
         "status": "available",
-        "submission_id": "bts-20261021-mid_reve",
+        "submission_id": "bts-20261027-mid_reve",
         "metadata": {
           "definition": {
             "kind": "stepwise",
-            "api_version": 1,
+            "api": "pm_sim",
+            "pm_sim_version": "6.3.0",
+            "pm_sim_protocol": "sim-v6",
             "label": "中价回归（逐时点，不读模型）",
+            "description": "中价回归（逐时点，不读模型）",
             "strategy_id": "mid_reversion_stepwise",
             "version": "0.1.0",
             "entry": "mid_reversion_stepwise.main:Strategy",
-            "decision_trigger": "grid",
-            "decision_interval": "1h",
-            "decision_interval_seconds": 3600,
             "inputs": {
-              "predictions": "none"
+              "predictions": "none",
+              "factors": []
             },
-            "position_sizing": [
-              "native"
-            ],
             "domains": [
               "Politics",
               "Sports"
@@ -331,17 +353,31 @@
                 "help": ""
               }
             ],
+            "code_dependencies": [],
+            "resources": {},
             "uses_models": false,
-            "submission_id": "bts-20261021-mid_reve",
-            "package_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff"
+            "submission_id": "bts-20261027-mid_reve",
+            "package_sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+            "smoke": {
+              "window": {
+                "start": "2026-06-20T00:00:00Z",
+                "end": "2026-06-25T00:00:00Z"
+              },
+              "orders": 12,
+              "filled_orders": 9,
+              "ending_pnl": 1.25,
+              "pm_sim_version": "6.3.0",
+              "inputs_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "feeds": [
+                "markets"
+              ]
+            }
           },
           "label": "中价回归（逐时点，不读模型）",
-          "submission_id": "bts-20261021-mid_reve",
+          "submission_id": "bts-20261027-mid_reve",
           "sha256": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
-          "decision_interval": "1h",
-          "position_sizing": [
-            "native"
-          ],
+          "api": "pm_sim",
+          "pm_sim_version": "6.3.0",
           "params": [
             {
               "name": "edge_threshold",
@@ -363,9 +399,23 @@
             }
           ],
           "inputs": {
-            "predictions": "none"
+            "predictions": "none",
+            "factors": []
           },
-          "example_steps": 3
+          "smoke": {
+            "window": {
+              "start": "2026-06-20T00:00:00Z",
+              "end": "2026-06-25T00:00:00Z"
+            },
+            "orders": 12,
+            "filled_orders": 9,
+            "ending_pnl": 1.25,
+            "pm_sim_version": "6.3.0",
+            "inputs_digest": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+            "feeds": [
+              "markets"
+            ]
+          }
         }
       }
     ],

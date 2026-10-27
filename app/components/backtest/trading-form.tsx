@@ -1,13 +1,13 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { EngineInfo } from "../../lib/backtest-platform";
-import { CHOICE_LABELS, INCLUDE_MARKET_NAME, STRATEGY_PARAMS_NAME, groupParamDefs } from "../../lib/backtest-param-ui";
+import type { EngineInfo, ParamDef } from "../../lib/backtest-platform";
+import { INCLUDE_MARKET_NAME, STRATEGY_PARAMS_NAME, groupParamDefs } from "../../lib/backtest-param-ui";
 import { initialParamValues, isVisible, paramsPayload, validateParams, type ParamContext, type ParamValues } from "../../lib/backtest-params";
 import {
   ALL_DOMAINS, datasetConflict, domainState, domainsPayload, strategyDescription, strategyDomainPlan, type DomainSelection, type ModelInfo, type StrategyInfo,
 } from "../../lib/backtest-selection";
-import { POSITION_MODE_NAME, allowedSizingModes, modelNeed, planStrategyParams, strategyParamsJson } from "../../lib/backtest-stepwise";
+import { POSITION_MODE_NAME, modelNeed, planStrategyParams, strategyParamsJson } from "../../lib/backtest-stepwise";
 import { paramDefsFor, type CatalogData } from "./catalog-context";
 import { CatalogGate, SubmitBar, useLauncher } from "./forms-common";
 import { DomainPicker, ModelPicker, ParamForm, WindowPicker, useModelWindow } from "./pickers";
@@ -25,18 +25,18 @@ function StrategyOption({ strategy, checked, onToggle }: { strategy: StrategyInf
       {strategy.validatedDomains && <em>（只在 {strategy.validatedDomains.join(" / ")} 成交）</em>}
       {strategy.priceOnly && <em>（纯价格）</em>}
       {strategy.stepwise && strategy.predictions !== "required" && <em>（{PREDICTION_NOTE[strategy.predictions]}）</em>}
-      {strategy.stepwise && strategy.sizingModes && strategy.sizingModes.length < 3 && <em>（仓位只支持：{strategy.sizingModes.map((mode) => CHOICE_LABELS[POSITION_MODE_NAME][mode] ?? mode).join(" / ")}）</em>}
+      {strategy.stepwise && strategy.pmSimVersion && <em>（pm_sim {strategy.pmSimVersion}）</em>}
     </span>{description && <small>{description}</small>}</span>
   </label>;
 }
 
-/** 导出供 SSR 测试直接用目录数据渲染（组件本身只在目录就绪后由 TradingForm 挂载）。 */
-export function TradingFormInner({ data }: { data: CatalogData }) {
+/** 导出供 SSR 测试直接用目录数据渲染（组件本身只在目录就绪后由 TradingForm 挂载）；`initialStrategyIds` 只给测试预选多个策略用，缺省选第一个。 */
+export function TradingFormInner({ data, initialStrategyIds }: { data: CatalogData; initialStrategyIds?: string[] }) {
   const engine = data.engine as EngineInfo;
   const defs = useMemo(() => paramDefsFor(engine, "trading", "strategy_comparison"), [engine]);
   const ui = useMemo(() => groupParamDefs("trading/strategy_comparison", defs), [defs]);
   const [params, setParams] = useState<ParamValues>(() => initialParamValues(defs));
-  const [strategyKeys, setStrategyKeys] = useState<string[]>(() => data.strategies[0] ? [data.strategies[0].id] : []);
+  const [strategyKeys, setStrategyKeys] = useState<string[]>(() => initialStrategyIds ?? (data.strategies[0] ? [data.strategies[0].id] : []));
   const [strategyOverrides, setStrategyOverrides] = useState<ParamValues>({});
   const [domains, setDomains] = useState<DomainSelection>({ mode: "include", values: [ALL_DOMAINS] });
   const [priceDataset, setPriceDataset] = useState(data.datasets[0]?.key ?? "");
@@ -46,10 +46,12 @@ export function TradingFormInner({ data }: { data: CatalogData }) {
   const strategies = useMemo(() => data.strategies.filter((s) => strategyKeys.includes(s.id)), [data.strategies, strategyKeys]);
   const need = modelNeed(strategies);
   const hasStepwise = strategies.some((s) => s.stepwise);
+  // 仓位模式只对旧策略生效：只选了逐时点策略时隐藏（不校验、不提交，infra 补默认值）；还没选策略时照常显示
+  const hasLegacy = strategies.length === 0 || strategies.some((s) => !s.stepwise);
   const invalidParams = strategies.filter((s) => s.paramsInvalid);
   // 所选策略全都不读模型（纯价格策略，或声明 predictions=none 的逐时点策略）：不选模型，改选盘口数据集
   const priceOnly = strategies.length > 0 && !need.reads;
-  const context: ParamContext = { stepwise: hasStepwise, models: !priceOnly };
+  const context: ParamContext = { stepwise: hasStepwise, models: !priceOnly, legacy: hasLegacy };
   const strict = String(params.scope ?? "strict") !== "own";
   // 严格口径 = 沙盒标签模型（含 market-view）；各模型自有全集 = 去掉 market-view（旧 scope_models）
   const pool = useMemo(() => data.models.filter((m) => strict ? m.tags.includes("sandbox") || m.marketView : !m.marketView), [data.models, strict]);
@@ -64,9 +66,6 @@ export function TradingFormInner({ data }: { data: CatalogData }) {
   }, [plan.shared, strategyOverrides]);
   const strategyErrors = validateParams(plan.shared, strategyValues);
   const effective = useMemo<ParamValues>(() => ({ ...params, [STRATEGY_PARAMS_NAME]: strategyParamsJson(plan.shared, strategyValues) }), [params, plan.shared, strategyValues]);
-
-  const allowedModes = allowedSizingModes(strategies);
-  const choiceDisabled = (name: string, value: string) => name === POSITION_MODE_NAME && allowedModes && !allowedModes.includes(value) ? "所选逐时点策略不支持这个仓位模式" : undefined;
 
   const changeParam = (name: string, value: string | boolean) => {
     setParams((current) => ({ ...current, [name]: value }));
@@ -88,8 +87,8 @@ export function TradingFormInner({ data }: { data: CatalogData }) {
   const hourly = strategies.some((s) => s.readsHourlyFactors) ? datasetInfo?.hourlyFactorNote : undefined;
   const nonSandbox = strict && !priceOnly ? mw.infos.filter((m) => !m.marketView && !m.tags.includes("sandbox")) : [];
   const staleCache = strategies.some((s) => s.needsExecutionCache) ? mw.infos.filter((m) => m.cacheStale) : [];
-  const modeValue = String(params[POSITION_MODE_NAME] ?? "");
-  const modeBlocked = allowedModes !== undefined && defs.some((d) => d.name === POSITION_MODE_NAME) && !allowedModes.includes(modeValue);
+  // 混选时在仓位模式旁注明它只管旧策略
+  const markLegacyOnly = (group: ParamDef[]) => hasStepwise && hasLegacy ? group.map((def) => def.name === POSITION_MODE_NAME ? { ...def, label: `${def.label}（只对旧策略生效）` } : def) : group;
 
   const blockers: string[] = [];
   if (strategies.length === 0) blockers.push("请至少选择一个策略。");
@@ -97,7 +96,6 @@ export function TradingFormInner({ data }: { data: CatalogData }) {
   if (useDatasetPick && !priceDataset) blockers.push("请选择盘口数据集。");
   if (domain.blocked) blockers.push(domain.error ?? domain.warning ?? "Domain 选择无效。");
   if (plans.empty.length) blockers.push(`以下策略与所选 domain 没有交集：${plans.empty.join("、")}。`);
-  if (modeBlocked) blockers.push(`所选逐时点策略不支持当前仓位模式，请改选：${(allowedModes ?? []).map((mode) => CHOICE_LABELS[POSITION_MODE_NAME][mode] ?? mode).join(" / ")}。`);
   if (conflict) blockers.push("所选模型来自不同数据集。");
   if (mw.invalid) blockers.push("结束日期必须晚于开始日期。");
   for (const [name, message] of Object.entries(paramErrors)) blockers.push(`${defs.find((d) => d.name === name)?.label ?? name}${message}`);
@@ -141,8 +139,8 @@ export function TradingFormInner({ data }: { data: CatalogData }) {
       return <fieldset className="bt-picker" key={group.id}>
         <legend>{group.title}</legend>
         {group.note && <p className="bt-note">{group.note}</p>}
-        <ParamForm defs={group.defs} values={params} errors={paramErrors} onChange={changeParam} hide={["price_dataset"]} context={context} choiceDisabled={choiceDisabled} />
-        {group.id === "scope" && modeBlocked && <p className="bt-warn" role="alert">所选逐时点策略不支持当前仓位模式。</p>}
+        <ParamForm defs={markLegacyOnly(group.defs)} values={params} errors={paramErrors} onChange={changeParam} hide={["price_dataset"]} context={context} />
+        {group.id === "scope" && hasStepwise && !hasLegacy && defs.some((d) => d.name === POSITION_MODE_NAME) && <p className="bt-note">逐时点策略的仓位由策略自己决定，这里不设仓位模式。</p>}
         {group.id === "scope" && hasStepwise && strict && <p className="bt-note">逐时点策略不做严格交集裁剪，按各模型自有全集计算；结果的口径卡片会如实标注。</p>}
       </fieldset>;
     })}

@@ -1,0 +1,73 @@
+{
+  "data": {
+    "run_id": "btr-20261019-fail0001",
+    "batch_id": "btb-20261019-7h2kd9wq",
+    "parent_run_id": null,
+    "origin": "platform",
+    "board": "benchmark",
+    "item": "fixed_horizon_brier",
+    "status": "failed",
+    "lost": false,
+    "stage": null,
+    "stage_label": null,
+    "progress": null,
+    "log_tail": null,
+    "heartbeat_at": null,
+    "attempt": 1,
+    "cancel_requested": false,
+    "config_sha256": "fail0001a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4a1b2c3d4",
+    "config": {
+      "schema_version": "backtest.run_config.v1",
+      "run_id": "btr-20261019-fail0001",
+      "batch_id": "btb-20261019-7h2kd9wq",
+      "parent_run_id": null,
+      "board": "benchmark",
+      "item": "fixed_horizon_brier",
+      "engine": "pm-engine-20261019-3b7dbbede090",
+      "dataset": "telonex",
+      "data_generation": "dg-1f3a9c20b7d44e10",
+      "window": {
+        "start": "2026-08-07T21:16:28+08:00",
+        "end_exclusive": "2026-08-31T21:00:35+08:00",
+        "align": "strict_common"
+      },
+      "domains": {
+        "mode": "include",
+        "values": [
+          "all"
+        ]
+      },
+      "objects": {
+        "models": [
+          {
+            "key": "pswarm_v2",
+            "version": "legacy/legacy",
+            "model_name": "pswarm_v2",
+            "sha256": "9f2c0000000000000000000000000000000000000000000000000000000000e1"
+          }
+        ],
+        "strategies": [],
+        "factors": []
+      },
+      "params": {
+        "scope": "strict"
+      },
+      "requested_by": "console:console",
+      "created_at": "2026-10-19T14:30:00+08:00"
+    },
+    "rerunnable": true,
+    "requested_by": "console:console",
+    "created_at": "2026-10-19T14:30:00Z",
+    "started_at": "2026-10-19T12:00:05Z",
+    "finished_at": "2026-10-19T12:03:00Z",
+    "error": {
+      "code": "script_failed",
+      "message": "run_fixed_horizon_brier_benchmark 以退出码 1 结束",
+      "log_tail": "Traceback (most recent call last):\n  File \"scripts/run_fixed_horizon_brier_benchmark.py\", line 212, in main\nValueError: x_days 7 has no candidate markets"
+    },
+    "reproduce": {
+      "text": "实验 ID：btr-20261019-fail0001 · Benchmark / 固定 TTE Brier\n服务器：8.211.188.216 · 结果 /var/lib/pm-backtest/runs/btr-20261019-fail0001\n配置：/var/lib/pm-backtest/runs/btr-20261019-fail0001/run-config.json\n窗口：[2026-08-07T21:16:28+08:00, 2026-08-31T21:00:35+08:00) · Domain 全部 · 数据集 telonex/20260913-v0uepugf\n输入：pswarm_v2_subset sha256=9f2c…e1 · price50_subset sha256=77ab…03 · 预测表全集 100 个 sha256=4c0d…aa · 结算 sha256=b1e2…9c · 域映射 sha256=0d3f…52\n引擎：pm-engine@pm-engine-20261019-3b7dbbede090 · pearson-dmid-v8 · 执行器 5a6d16b · Python 3.13 · 依赖锁 sha256=ab12…77\n命令：cd /opt/pm-backtest-engine/releases/pm-engine-20261019-3b7dbbede090/pm_backtest_v2 && python -m scripts.run_brier_score_model_comparison --window-start 2026-08-07T21:16:28+08:00 \n重跑：/opt/pm-backtest-runner/releases/5a6d16b/bin/pmbt rerun btr-20261019-fail0001",
+      "fields": {}
+    }
+  }
+}

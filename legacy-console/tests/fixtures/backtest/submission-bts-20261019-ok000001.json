@@ -1,0 +1,20 @@
+{
+  "data": {
+    "submission_id": "bts-20261019-ok000001",
+    "kind": "factor_table",
+    "identity": {
+      "table": "research_0919",
+      "version": "20260919-a"
+    },
+    "identity_key": "research_0919/20260919-a",
+    "status": "accepted",
+    "sha256": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+    "bytes": 9123456,
+    "content_type": "application/vnd.apache.parquet",
+    "errors": [],
+    "submitted_by": "console:console",
+    "created_at": "2026-10-19T13:00:00Z",
+    "decided_at": "2026-10-19T13:02:00Z",
+    "intake_run_id": "btr-20261019-brier001"
+  }
+}

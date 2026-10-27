@@ -81,9 +81,10 @@ export interface ParamDef {
   when?: Record<string, unknown>;
   /**
    * 前端本地的显示条件（`backtest-param-ui.ts` 按名字写入，不来自 infra）：
-   * stepwise = 只在选中了逐时点策略时显示；models = 只在需要模型的表单里显示。
+   * stepwise = 只在选中了逐时点策略时显示；models = 只在需要模型的表单里显示；
+   * legacy = 只在选中了旧平台策略（或还没选策略）时显示（例如仓位模式：逐时点策略的仓位由策略自己决定）。
    */
-  requires?: "stepwise" | "models";
+  requires?: "stepwise" | "models" | "legacy";
 }
 
 export interface EngineInfo {

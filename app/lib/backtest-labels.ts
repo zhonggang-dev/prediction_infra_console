@@ -84,15 +84,46 @@ export const SAMPLE_SCOPE_LABELS: Record<string, string> = {
 export const sampleScopeLabel = (value: string): string => SAMPLE_SCOPE_LABELS[value] ?? value;
 
 /**
- * 未成交原因码 → 中文。新运行的结果里执行器已经翻译好；这张表只给旧运行（已存结果里「说明」列就是原因码）兜底，
- * 内容与执行器 `pmbt/stepwise/reasons.py` 的 REASON_LABELS 一致。
+ * 未成交原因码 → 中文。新运行的结果里执行器已经翻译好；这张表只给旧运行（已存结果里「说明」列就是原因码）兜底。
+ *
+ * 逐时点策略（pm_sim）的原因码是 pm_sim 的 `RejectReason` 枚举，文案与执行器 `pmbt/stepwise/reasons.py` 的
+ * REASON_LABELS 逐字一致（改那边就同步这里）。
  */
-export const DROP_REASON_LABELS: Record<string, string> = {
-  no_quote: "决策时点往前报价容忍内没有盘口快照", stale_book: "盘口快照的真实采集时间太旧", thin_book: "盘口深度不够，只成交了可见的部分",
-  no_liquidity: "对手盘一档有效报价都没有", below_one_share: "按整股成交，目标不足一股", insufficient_cash: "现金不足",
-  invalid_order: "订单不合规（缺 mode、方向不对、数量不合法……）", domain_not_allowed: "市场不在本次运行的 Domain / 数据范围内", market_closed: "市场已关闭",
-  duplicate_order: "同一时点对同一 (市场, 方向) 重复下单", exceeds_position: "要卖的股数超过持仓（或没有持仓）", already_at_target: "已在目标仓位，无需成交",
+export const PM_SIM_REASON_LABELS: Record<string, string> = {
+  unknown_market: "结算表里没有这个市场",
+  market_closed: "市场已关闭",
+  no_book: "没有盘口：这个市场不在本次允许交易的范围（Domain / 数据集）内，或此刻没有盘口",
+  stale_book: "盘口超过年龄上限（看簿、买卖、估值同一标准）",
+  book_before_decision: "下一格成交时只有决策之前观测到的盘口（那一格缺数据），订单作废",
+  no_visible_depth: "盘口深度不够，只成交了可见的部分（或一股都没有）",
+  crossed_book: "盘口交叉（无风险套利，只可能来自数据瑕疵），不成交",
+  limit_price_not_reached: "没有达到限价",
+  below_min_size: "按整股成交，取整后不足一股",
+  nothing_to_sell: "没有可卖的持仓",
+  unknown_lot: "指定平仓的那一手不存在",
+  insufficient_cash: "现金不足",
+  event_exposure_cap: "超过事件敞口上限",
+  invalid_order: "订单不合规（股数 / 金额 / 限价不合法）",
+  ambiguous_target: "同一市场方向上已有更早的单，调到目标仓位算不出要买卖多少，拒绝",
+  window_end: "区间结束时还没到执行时刻",
 };
+
+/**
+ * 改用 pm_sim 之前，执行器自写的逐时点账户用过的原因码：只为改造前那几次逐时点运行的已存结果兜底，文案标明是旧口径。
+ * 与 pm_sim 同名的码（stale_book / insufficient_cash / invalid_order / market_closed）统一用 pm_sim 的文案。
+ */
+export const LEGACY_STEPWISE_REASON_LABELS: Record<string, string> = {
+  no_quote: "决策时点往前报价容忍内没有盘口快照（旧逐时点账户口径）",
+  thin_book: "盘口深度不够，只成交了可见的部分（旧逐时点账户口径）",
+  no_liquidity: "对手盘一档有效报价都没有（旧逐时点账户口径）",
+  below_one_share: "按整股成交，目标不足一股（旧逐时点账户口径）",
+  domain_not_allowed: "市场不在本次运行的 Domain / 数据范围内（旧逐时点账户口径）",
+  duplicate_order: "同一时点对同一 (市场, 方向) 重复下单（旧逐时点账户口径）",
+  exceeds_position: "要卖的股数超过持仓（或没有持仓）（旧逐时点账户口径）",
+  already_at_target: "已在目标仓位，无需成交（旧逐时点账户口径）",
+};
+
+export const DROP_REASON_LABELS: Record<string, string> = { ...LEGACY_STEPWISE_REASON_LABELS, ...PM_SIM_REASON_LABELS };
 
 /** 旧结果的标题文案 → 新文案（只改展示）。 */
 export const TITLE_REWRITES: Record<string, string> = { "manifest · 载体配置": "运行清单（原始 JSON）" };

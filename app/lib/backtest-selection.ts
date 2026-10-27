@@ -165,13 +165,15 @@ export interface StrategyInfo {
   priceOnly: boolean;
   /** 是否读取模型预测：旧策略除纯价格外都必须选模型；逐时点策略按 `inputs.predictions` 声明 */
   predictions: PredictionPolicy;
-  /** 逐时点策略声明支持的仓位模式；旧策略不限（undefined） */
+  /** 旧接口逐时点定义里声明的仓位模式（只为解码旧目录条目保留）；pm_sim 接口的定义没有这个字段，旧策略也没有（undefined）。
+   *  表单不再据此限制仓位模式：逐时点策略的仓位由策略自己决定。 */
   sizingModes?: string[];
   /** 逐时点策略在清单里声明的参数；旧策略为空 */
   params: ParamDef[];
   /** 清单里的参数声明无法解析（解码失败），表单不显示这个策略的参数 */
   paramsInvalid: boolean;
-  decisionInterval?: string;
+  /** 逐时点策略提交试跑用的 pm_sim 版本（这个策略以后都用它运行）；旧接口定义与旧策略没有 */
+  pmSimVersion?: string;
   readsHourlyFactors: boolean;
   needsExecutionCache: boolean;
   definition: RawRecord;
@@ -202,7 +204,7 @@ export function strategyInfo(item: CatalogItem): StrategyInfo {
     key: item.key, version: item.version, label: item.version === "legacy" || !item.version ? label : `${label} @${item.version}`, kind, stepwise,
     description: text(meta.description), validatedDomains: Array.isArray(validated) ? validated.map(String) : null,
     nativeSizing: text(meta.native_sizing), priceOnly, predictions, sizingModes: stepwise && Array.isArray(sizing) ? sizing.map(String) : undefined,
-    params, paramsInvalid, decisionInterval: text(definition.decision_interval ?? meta.decision_interval),
+    params, paramsInvalid, pmSimVersion: stepwise ? text(definition.pm_sim_version ?? meta.pm_sim_version) : undefined,
     readsHourlyFactors: meta.reads_hourly_factors === true, needsExecutionCache: meta.requires_execution_cache === true, definition: Object.keys(definition).length ? definition : { kind: meta.kind },
   };
 }
