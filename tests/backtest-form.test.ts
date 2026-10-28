@@ -57,10 +57,10 @@ const newPayload = (values: ParamValues, context: ParamContext, strategyParams?:
 
 // ───────────────────────── 提交的配置与改前一致 ─────────────────────────
 
-test("只选旧策略：不提交逐时点参数，infra 补默认值后的参数与改前完全一致（配置摘要不变）", () => {
+test("只选旧策略：提交 pm_sim 规则与版本、不提交逐时点策略参数；infra 补默认值后的参数与改前完全一致（配置摘要不变）", () => {
   const values = initialParamValues(raw);
   const next = newPayload(values, { stepwise: false, models: true, legacy: true });
-  assert.equal("stepwise" in next, false, "旧策略不提交 stepwise.*");
+  assert.deepEqual(Object.keys(next.stepwise as Record<string, unknown>).sort(), ["buy_fee_bps", "levels", "max_book_age_minutes", "next_bar_fill", "pm_sim_version", "sell_fee_bps", "whole_shares"], "旧策略也由 pm_sim 撮合，规则与版本都提交；strategy_params 不提交");
   assert.deepEqual(resolveParams(raw, next), resolveParams(raw, oldPayload(values)));
   assert.deepEqual(next.position_sizing, { mode: "native" }, "仓位模式为策略自带时，每笔股数 / 金额隐藏、不提交");
   assert.deepEqual(next.bankroll, { mode: "unlimited" });
@@ -95,7 +95,7 @@ test("混选（旧策略 + 逐时点策略）且不改参数：strategy_params �
   const next = newPayload(values, { stepwise: true, models: true, legacy: true }, "{}");
   const stepwise = next.stepwise as Record<string, unknown>;
   assert.equal(stepwise.strategy_params, "{}");
-  assert.deepEqual(Object.keys(stepwise).sort(), ["buy_fee_bps", "levels", "max_book_age_minutes", "next_bar_fill", "sell_fee_bps", "strategy_params", "whole_shares"], "7 个 stepwise.* 全部提交");
+  assert.deepEqual(Object.keys(stepwise).sort(), ["buy_fee_bps", "levels", "max_book_age_minutes", "next_bar_fill", "pm_sim_version", "sell_fee_bps", "strategy_params", "whole_shares"], "8 个 stepwise.* 全部提交");
   assert.deepEqual(next.position_sizing, { mode: "native" }, "混选时仓位模式照常提交（只对旧策略生效）");
   assert.deepEqual(resolveParams(raw, next), resolveParams(raw, oldPayload(initialParamValues(raw))));
   // 改过 pm_sim 参数时照常提交
@@ -119,6 +119,7 @@ test("只选逐时点策略：仓位模式及每笔股数 / 金额隐藏、不�
   const next = newPayload(initialParamValues(decorated), context, "{}");
   assert.equal("position_sizing" in next, false);
   assert.deepEqual(next.bankroll, { mode: "unlimited" }, "资金模式对逐时点策略照常生效");
+  assert.equal("pm_sim_version" in (next.stepwise as Record<string, unknown>), false, "逐时点策略用登记时的 pm_sim 版本，不提交旧策略的版本");
   assert.deepEqual(resolveParams(raw, next), resolveParams(raw, oldPayload(initialParamValues(raw))));
 });
 
@@ -129,23 +130,26 @@ test("不读模型（盘口数据集）时 include_market 不提交，等于默�
   assert.deepEqual(resolveParams(raw, next), resolveParams(raw, oldPayload(initialParamValues(raw))));
 });
 
-test("隐藏的参数不校验：旧策略下逐时点参数填了非法值也不拦截", () => {
+test("pm_sim 规则对旧策略同样校验；隐藏的参数（只选逐时点策略时的仓位）不校验", () => {
   const values = { ...initialParamValues(decorated), "stepwise.levels": "999" };
-  assert.deepEqual(validateParams(decorated, values, { stepwise: false, models: true, legacy: true }), {});
+  assert.match(validateParams(decorated, values, { stepwise: false, models: true, legacy: true })["stepwise.levels"], /不大于 15/);
   assert.match(validateParams(decorated, values, { stepwise: true, models: true, legacy: true })["stepwise.levels"], /不大于 15/);
 });
 
 // ───────────────────────── 展示规则 ─────────────────────────
 
-test("分组：口径 / 仓位 / 资金与逐时点策略（pm_sim）分开；include_market 与 strategy_params 不在任何分组里", () => {
+test("分组：口径 / 仓位 / 资金与撮合记账（pm_sim）分开；include_market 与 strategy_params 不在任何分组里", () => {
   const { groups, rest } = groupParamDefs(BOARD_ITEM, decorated);
   const scope = groups.find((g) => g.id === "scope")!;
   const stepwise = groups.find((g) => g.id === "stepwise")!;
   assert.deepEqual(scope.defs.map((d) => d.name), ["scope", "position_sizing.mode", "position_sizing.shares", "position_sizing.stake", "bankroll.mode", "bankroll.amount"]);
-  assert.deepEqual(stepwise.defs.map((d) => d.name), ["stepwise.next_bar_fill", "stepwise.max_book_age_minutes", "stepwise.levels", "stepwise.whole_shares", "stepwise.buy_fee_bps", "stepwise.sell_fee_bps"]);
-  assert.ok(stepwise.defs.every((d) => d.requires === "stepwise"));
-  assert.equal(stepwise.title, "逐时点策略（pm_sim）");
-  assert.equal(stepwise.note, "规则由研究侧的 pm_sim 决定（不补齐盘口、先卖后买、期末按估值不强平），这里只调它开放的几项。只在选中逐时点策略时生效。");
+  assert.deepEqual(stepwise.defs.map((d) => d.name), ["stepwise.pm_sim_version", "stepwise.next_bar_fill", "stepwise.max_book_age_minutes", "stepwise.levels", "stepwise.whole_shares", "stepwise.buy_fee_bps", "stepwise.sell_fee_bps"]);
+  // pm_sim 规则对全部策略生效；pm_sim 版本只管旧策略（逐时点策略用登记时的版本）；逐时点策略参数只在选了逐时点策略时提交
+  assert.equal(stepwise.defs.find((d) => d.name === "stepwise.pm_sim_version")!.requires, "legacy");
+  assert.ok(stepwise.defs.filter((d) => d.name !== "stepwise.pm_sim_version").every((d) => d.requires === undefined));
+  assert.equal(rest.find((d) => d.name === STRATEGY_PARAMS_NAME)!.requires, "stepwise");
+  assert.equal(stepwise.title, "撮合记账（pm_sim）");
+  assert.match(stepwise.note!, /^全部策略（旧策略与逐时点策略）都由研究侧的 pm_sim 撮合记账/);
   for (const retired of ["depth_levels", "fee_rate", "allow_cash_partial_fill", "quote_tolerance_minutes", "max_source_staleness_minutes", "bounded_gap_fill", "rebalance_order", "end_valuation"]) {
     assert.equal(raw.some((d) => d.name === `stepwise.${retired}`), false, `旧账户规则参数 stepwise.${retired} 已删除`);
   }

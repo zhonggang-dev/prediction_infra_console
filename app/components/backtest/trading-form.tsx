@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import type { EngineInfo, ParamDef } from "../../lib/backtest-platform";
-import { INCLUDE_MARKET_NAME, STRATEGY_PARAMS_NAME, groupParamDefs } from "../../lib/backtest-param-ui";
+import { INCLUDE_MARKET_NAME, PM_SIM_VERSION_NAME, STRATEGY_PARAMS_NAME, groupParamDefs } from "../../lib/backtest-param-ui";
 import { initialParamValues, isVisible, paramsPayload, validateParams, type ParamContext, type ParamValues } from "../../lib/backtest-params";
 import {
   ALL_DOMAINS, datasetConflict, domainState, domainsPayload, strategyDescription, strategyDomainPlan, type DomainSelection, type ModelInfo, type StrategyInfo,
@@ -88,7 +88,7 @@ export function TradingFormInner({ data, initialStrategyIds }: { data: CatalogDa
   const nonSandbox = strict && !priceOnly ? mw.infos.filter((m) => !m.marketView && !m.tags.includes("sandbox")) : [];
   const staleCache = strategies.some((s) => s.needsExecutionCache) ? mw.infos.filter((m) => m.cacheStale) : [];
   // 混选时在仓位模式旁注明它只管旧策略
-  const markLegacyOnly = (group: ParamDef[]) => hasStepwise && hasLegacy ? group.map((def) => def.name === POSITION_MODE_NAME ? { ...def, label: `${def.label}（只对旧策略生效）` } : def) : group;
+  const markLegacyOnly = (group: ParamDef[]) => hasStepwise && hasLegacy ? group.map((def) => def.name === POSITION_MODE_NAME || def.name === PM_SIM_VERSION_NAME ? { ...def, label: `${def.label}（只对旧策略生效）` } : def) : group;
 
   const blockers: string[] = [];
   if (strategies.length === 0) blockers.push("请至少选择一个策略。");

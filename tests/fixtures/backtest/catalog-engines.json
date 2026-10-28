@@ -110,7 +110,18 @@
                 ]
               }
             ],
-            "benchmark/overview": [],
+            "benchmark/overview": [
+              {
+                "name": "stepwise.pm_sim_version",
+                "type": "enum",
+                "label": "pm_sim 版本",
+                "help": "旧策略（研究侧脚本选股）用哪一版 pm_sim 撮合记账。逐时点策略固定用它提交时登记的版本，不受这里影响。",
+                "default": "6.3.0",
+                "choices": [
+                  "6.3.0"
+                ]
+              }
+            ],
             "benchmark/resolved_event_brier": [],
             "intake/factor_table": [],
             "intake/prediction": [],
@@ -201,6 +212,16 @@
                 "help": "只对逐时点策略生效：覆盖策略清单里声明的参数，例如 {\"enter_above\": 0.1}；留空 {} 用策略默认值。同时选多个逐时点策略时，每个策略只取自己声明了的参数；没有任何所选策略声明的参数名会报错。",
                 "default": "{}",
                 "max_length": 2000
+              },
+              {
+                "name": "stepwise.pm_sim_version",
+                "type": "enum",
+                "label": "pm_sim 版本",
+                "help": "旧策略（研究侧脚本选股）用哪一版 pm_sim 撮合记账。逐时点策略固定用它提交时登记的版本，不受这里影响。",
+                "default": "6.3.0",
+                "choices": [
+                  "6.3.0"
+                ]
               },
               {
                 "name": "stepwise.next_bar_fill",
