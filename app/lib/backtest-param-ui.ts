@@ -28,14 +28,16 @@ interface ItemUi {
 
 const STEPWISE_PREFIX = "stepwise.";
 const POSITION_SIZING_PREFIX = "position_sizing.";
-/** 逐时点策略自己的参数不进「逐时点策略（pm_sim）」分组：它由策略清单声明的参数生成表单，再写进这个 JSON。 */
+/** 逐时点策略自己的参数不进「撮合记账（pm_sim）」分组：它由策略清单声明的参数生成表单，再写进这个 JSON。 */
 export const STRATEGY_PARAMS_NAME = "stepwise.strategy_params";
 export const INCLUDE_MARKET_NAME = "include_market";
+/** 旧策略用的 pm_sim 版本（逐时点策略固定用它登记时的版本） */
+export const PM_SIM_VERSION_NAME = "stepwise.pm_sim_version";
 
 const TRADING: ItemUi = {
   groups: [
     { id: "scope", title: "口径、仓位与资金", match: (name) => !name.startsWith(STEPWISE_PREFIX) && name !== INCLUDE_MARKET_NAME },
-    { id: "stepwise", title: "逐时点策略（pm_sim）", note: "规则由研究侧的 pm_sim 决定（不补齐盘口、先卖后买、期末按估值不强平），这里只调它开放的几项。只在选中逐时点策略时生效。", match: (name) => name.startsWith(STEPWISE_PREFIX) && name !== STRATEGY_PARAMS_NAME },
+    { id: "stepwise", title: "撮合记账（pm_sim）", note: "全部策略（旧策略与逐时点策略）都由研究侧的 pm_sim 撮合记账，规则由它决定（不补齐盘口、先卖后买、卖不掉继续持有、期末按估值不强平），这里只调它开放的几项。", match: (name) => name.startsWith(STEPWISE_PREFIX) && name !== STRATEGY_PARAMS_NAME },
   ],
   when: {
     "position_sizing.shares": { "position_sizing.mode": "fixed_shares" },
@@ -43,7 +45,9 @@ const TRADING: ItemUi = {
     "bankroll.amount": { "bankroll.mode": "finite" },
   },
   requires: [
-    { match: (name) => name.startsWith(STEPWISE_PREFIX), context: "stepwise" },
+    // 逐时点策略自己的参数只在选中逐时点策略时提交；pm_sim 版本只管旧策略（逐时点策略用登记时的版本）；其余 pm_sim 规则对全部策略生效
+    { match: (name) => name === STRATEGY_PARAMS_NAME, context: "stepwise" },
+    { match: (name) => name === PM_SIM_VERSION_NAME, context: "legacy" },
     // 逐时点策略（pm_sim）下多少由策略自己决定，平台的仓位模式只对旧策略生效：只选逐时点策略时整组隐藏、不提交
     { match: (name) => name.startsWith(POSITION_SIZING_PREFIX), context: "legacy" },
     { match: (name) => name === INCLUDE_MARKET_NAME, context: "models" },
