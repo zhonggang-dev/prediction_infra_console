@@ -30,10 +30,10 @@
    scp console-<sha7>.tar.gz zhangyan:/home/zhangyan/
    ```
 
-2. 服务器：解到 `/opt/prediction-console/releases/<sha7>-<说明>/`，**在 `legacy-console/` 上下文**构建镜像，并带上三个标签：
+2. 服务器：解到构建目录 `/opt/prediction-console/releases/<sha7>-<说明>-build/`，**在 `legacy-console/` 上下文**构建镜像，并带上三个标签。注意不要解到元数据 `release` 指向的那个目录：发布器要求它事先不存在（由发布器创建并写 `DEPLOYMENT.json`，`current` 指针指向它），已存在会在切换前报 `release directory already exists`。
 
    ```bash
-   cd /opt/prediction-console/releases/<sha7>-<说明>
+   cd /opt/prediction-console/releases/<sha7>-<说明>-build
    sudo docker build -f legacy-console/Dockerfile \
      --build-arg RELEASE_MERGE_SHA=<40位提交> \
      --build-arg BACKEND_BINARY_SHA256=<后端二进制 sha256> \
