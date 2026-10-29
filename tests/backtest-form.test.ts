@@ -96,7 +96,7 @@ test("混选（旧策略 + 逐时点策略）且不改参数：strategy_params �
   const stepwise = next.stepwise as Record<string, unknown>;
   assert.equal(stepwise.strategy_params, "{}");
   assert.deepEqual(Object.keys(stepwise).sort(), ["buy_fee_bps", "levels", "max_book_age_minutes", "next_bar_fill", "pm_sim_version", "sell_fee_bps", "strategy_params", "whole_shares"], "8 个 stepwise.* 全部提交");
-  assert.deepEqual(next.position_sizing, { mode: "native" }, "混选时仓位模式照常提交（只对旧策略生效）");
+  assert.deepEqual(next.position_sizing, { mode: "native" }, "混选时仓位模式照常提交（逐时点策略不适用）");
   assert.deepEqual(resolveParams(raw, next), resolveParams(raw, oldPayload(initialParamValues(raw))));
   // 改过 pm_sim 参数时照常提交
   const changed = newPayload({ ...values, "stepwise.buy_fee_bps": "5", "stepwise.next_bar_fill": false, "stepwise.levels": "3" }, { stepwise: true, models: true, legacy: true }, "{\"edge_threshold\":0.2}");

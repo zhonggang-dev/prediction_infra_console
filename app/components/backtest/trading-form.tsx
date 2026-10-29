@@ -17,7 +17,8 @@ export function TradingForm() { return <CatalogGate>{(data) => <TradingFormInner
 const modelRef = (m: ModelInfo) => ({ key: m.catalogKey, version: m.version });
 const PREDICTION_NOTE = { none: "不读模型", optional: "模型可选", required: "" } as const;
 
-function StrategyOption({ strategy, checked, onToggle }: { strategy: StrategyInfo; checked: boolean; onToggle: () => void }) {
+/** `runVersion` = 本次运行里旧策略用的 pm_sim 版本；逐时点策略固定用登记时的版本，只有和它不同才在卡片上标出来（相同就没有区别可说）。 */
+function StrategyOption({ strategy, checked, onToggle, runVersion }: { strategy: StrategyInfo; checked: boolean; onToggle: () => void; runVersion: string }) {
   const description = strategyDescription(strategy);
   return <label className={`bt-option ${checked ? "selected" : ""}`}>
     <input type="checkbox" checked={checked} onChange={onToggle} />
@@ -25,7 +26,7 @@ function StrategyOption({ strategy, checked, onToggle }: { strategy: StrategyInf
       {strategy.validatedDomains && <em>（只在 {strategy.validatedDomains.join(" / ")} 成交）</em>}
       {strategy.priceOnly && <em>（纯价格）</em>}
       {strategy.stepwise && strategy.predictions !== "required" && <em>（{PREDICTION_NOTE[strategy.predictions]}）</em>}
-      {strategy.stepwise && strategy.pmSimVersion && <em>（pm_sim {strategy.pmSimVersion}）</em>}
+      {strategy.stepwise && strategy.pmSimVersion && strategy.pmSimVersion !== runVersion && <em>（pm_sim {strategy.pmSimVersion}）</em>}
     </span>{description && <small>{description}</small>}</span>
   </label>;
 }
@@ -88,7 +89,7 @@ export function TradingFormInner({ data, initialStrategyIds }: { data: CatalogDa
   const nonSandbox = strict && !priceOnly ? mw.infos.filter((m) => !m.marketView && !m.tags.includes("sandbox")) : [];
   const staleCache = strategies.some((s) => s.needsExecutionCache) ? mw.infos.filter((m) => m.cacheStale) : [];
   // 混选时在仓位模式旁注明它只管旧策略
-  const markLegacyOnly = (group: ParamDef[]) => hasStepwise && hasLegacy ? group.map((def) => def.name === POSITION_MODE_NAME || def.name === PM_SIM_VERSION_NAME ? { ...def, label: `${def.label}（只对旧策略生效）` } : def) : group;
+  const markLegacyOnly = (group: ParamDef[]) => hasStepwise && hasLegacy ? group.map((def) => def.name === POSITION_MODE_NAME || def.name === PM_SIM_VERSION_NAME ? { ...def, label: `${def.label}（逐时点策略不适用）` } : def) : group;
 
   const blockers: string[] = [];
   if (strategies.length === 0) blockers.push("请至少选择一个策略。");
@@ -113,9 +114,7 @@ export function TradingFormInner({ data, initialStrategyIds }: { data: CatalogDa
   };
 
   const toggleStrategy = (id: string) => setStrategyKeys(strategyKeys.includes(id) ? strategyKeys.filter((k) => k !== id) : [...strategyKeys, id]);
-  const legacyStrategies = data.strategies.filter((s) => !s.stepwise);
-  const stepwiseStrategies = data.strategies.filter((s) => s.stepwise);
-  const strategyGroups = [{ id: "legacy", title: "旧平台策略", items: legacyStrategies }, { id: "stepwise", title: "逐时点策略（平台提交）", items: stepwiseStrategies }].filter((g) => g.items.length > 0);
+  const runPmSimVersion = String(params[PM_SIM_VERSION_NAME] ?? "");
   const marketDefs = ui.rest.filter((d) => d.name === INCLUDE_MARKET_NAME);
 
   return <form className="bt-form" onSubmit={(event) => { event.preventDefault(); if (blockers.length === 0) submit(); }}>
@@ -123,12 +122,9 @@ export function TradingFormInner({ data, initialStrategyIds }: { data: CatalogDa
 
     <fieldset className="bt-picker">
       <legend>策略（可多选）</legend>
-      {strategyGroups.map((group) => <div className="bt-strategy-group" key={group.id}>
-        {strategyGroups.length > 1 && <h4 className="bt-group-title">{group.title}</h4>}
-        <div className="bt-options bt-strategy-options" role="group" aria-label={group.title}>
-          {group.items.map((strategy) => <StrategyOption key={strategy.id} strategy={strategy} checked={strategyKeys.includes(strategy.id)} onToggle={() => toggleStrategy(strategy.id)} />)}
-        </div>
-      </div>)}
+      <div className="bt-options bt-strategy-options" role="group" aria-label="策略">
+        {[...data.strategies.filter((s) => !s.stepwise), ...data.strategies.filter((s) => s.stepwise)].map((strategy) => <StrategyOption key={strategy.id} strategy={strategy} checked={strategyKeys.includes(strategy.id)} onToggle={() => toggleStrategy(strategy.id)} runVersion={runPmSimVersion} />)}
+      </div>
     </fieldset>
 
     <DomainPicker allDomains={data.domains} value={domains} onChange={setDomains} allowExclude={false} />

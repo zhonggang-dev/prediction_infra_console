@@ -347,14 +347,15 @@ test("交易回测表单 · 只选旧策略：显示 pm_sim 撮合规则与版�
   assert.match(html, /<legend>撮合记账（pm_sim）<\/legend>/, "旧策略也由 pm_sim 撮合记账");
   for (const label of ["pm_sim 版本", "下一格成交", "盘口深度（档）", "整股成交"]) assert.ok(html.includes(label), `显示 ${label}`);
   assert.doesNotMatch(html, /逐时点策略参数/, "旧策略不显示逐时点策略参数");
-  assert.doesNotMatch(html, /只对旧策略生效|仓位由策略自己决定/, "只选旧策略时仓位模式不加注");
+  assert.doesNotMatch(html, /逐时点策略不适用|仓位由策略自己决定/, "只选旧策略时仓位模式不加注");
   assert.match(html, /口径、仓位与资金/);
   assert.match(html, /仓位模式/);
   for (const text of ["严格交集", "各模型自有全集", "策略自带", "固定股数", "固定金额", "有限资金", "无限资金"]) assert.ok(html.includes(`>${text}</button>`), `选项按钮显示 ${text}`);
   for (const code of ["strict", "fixed_shares", "unlimited", "sells_first"]) assert.ok(!html.includes(`>${code}</button>`), `选项按钮不再显示原始码 ${code}`);
   assert.doesNotMatch(html, /bt-param-label[^>]*>(每笔股数|每笔金额（\$）|初始资金（\$）)</, "策略自带仓位 + 无限资金时，这三项隐藏");
-  assert.match(html, /旧平台策略/);
-  assert.match(html, /逐时点策略（平台提交）/);
+  assert.doesNotMatch(html, /旧平台策略|逐时点策略（平台提交）/, "策略不再分组：成交记账都由 pm_sim，区别只在谁选单");
+  assert.match(html, /role="group" aria-label="策略"/);
+  assert.doesNotMatch(html, /bt-group-title/);
   assert.equal(count(html, /Baseline V1\.1/g), 1, "名字与描述相同时只显示一次");
   assert.match(html, /带上 Market 基准行/);
   assert.ok(html.indexOf("带上 Market 基准行") > html.indexOf("<legend>模型"), "带上 Market 基准行在模型区");
@@ -379,18 +380,25 @@ test("交易回测表单 · 只选逐时点策略：出现 pm_sim 参数分组�
   assert.match(html, /<legend>口径、仓位与资金<\/legend>/, "口径与资金仍在");
   assert.match(html, />无限资金<\/button>/);
   assert.match(html, /逐时点策略不做严格交集裁剪/);
-  assert.match(html, /（pm_sim 6\.3\.0）/, "策略卡片显示 pm_sim 版本");
+  assert.doesNotMatch(html, /（pm_sim 6\.3\.0）/, "登记的版本与本次运行用的一致时，策略卡片不重复标版本");
   assert.doesNotMatch(html, /仓位只支持|决策间隔/);
 });
 
-test("交易回测表单 · 混选旧策略与逐时点策略：仓位模式保留并注明只对旧策略生效", () => {
+test("交易回测表单 · 混选旧策略与逐时点策略：仓位模式保留并注明逐时点策略不适用", () => {
   const html = tradingHtmlWith("baseline", "edge_filter_stepwise");
-  assert.match(html, /bt-param-label[^>]*>仓位模式（只对旧策略生效）</);
-  assert.match(html, /bt-param-label[^>]*>pm_sim 版本（只对旧策略生效）</);
+  assert.match(html, /bt-param-label[^>]*>仓位模式（逐时点策略不适用）</);
+  assert.match(html, /bt-param-label[^>]*>pm_sim 版本（逐时点策略不适用）</);
   assert.match(html, />固定股数<\/button>/);
   assert.doesNotMatch(html, /<button[^>]*disabled=""[^>]*>(策略自带|固定股数|固定金额)<\/button>/, "逐时点策略不约束仓位模式");
   assert.doesNotMatch(html, /逐时点策略的仓位由策略自己决定/);
   assert.match(html, /<legend>撮合记账（pm_sim）<\/legend>/);
+});
+
+test("交易回测表单 · 逐时点策略登记的 pm_sim 版本与本次运行用的不同时，策略卡片标出版本", () => {
+  const data = catalogData("edge_filter_stepwise");
+  const stepwise = data.strategies.map((s) => (s.stepwise ? { ...s, pmSimVersion: "9.9.9" } : s));
+  const html = loader.render(trading.TradingFormInner, { data: { ...data, strategies: stepwise } });
+  assert.match(html, /（pm_sim 9\.9\.9）/);
 });
 
 test("交易回测表单 · 逐时点策略没有参数时不显示参数表单；不读模型时改选盘口数据集、不强制选模型", () => {
