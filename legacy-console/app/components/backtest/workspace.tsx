@@ -21,7 +21,7 @@ const tabs = [
 export type BacktestView = typeof tabs[number]["href"];
 
 const HEADS: Record<BacktestView, { eyebrow: string; title: string; description: string }> = {
-  "/backtest-platform/trading": { eyebrow: "Backtest Platform / Trading PnL", title: "交易回测", description: "选择策略、Domain、仓位、资金、模型与窗口，在服务器上用原回测脚本运行，页面只显示进度与结果。" },
+  "/backtest-platform/trading": { eyebrow: "Backtest Platform / Trading PnL", title: "交易回测", description: "选择策略、Domain、仓位、资金、模型与窗口，在服务器上运行，成交、记账与指标统一由 pm_sim 计算，页面只显示进度与结果。" },
   "/backtest-platform/benchmark": { eyebrow: "Backtest Platform / Benchmark", title: "模型评测", description: "固定口径评测：总览宽表与 6 个单项（信号、交易、Brier、固定 TTE、校准、偏离）。" },
   "/backtest-platform/signal": { eyebrow: "Backtest Platform / Signal Test", title: "信号测试", description: "模型、单因子、批量因子表、因子池相关性：同一份卷子，六周期分桶与分 Domain 诊断。" },
   "/backtest-platform/factors": { eyebrow: "Backtest Platform / Factors", title: "因子库", description: "实验空间与因子池：版本、状态、移入移出记录。初筛通过不会自动入池。" },

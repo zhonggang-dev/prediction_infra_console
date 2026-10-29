@@ -48,7 +48,7 @@ const TRADING: ItemUi = {
     // 逐时点策略自己的参数只在选中逐时点策略时提交；pm_sim 版本只管旧策略（逐时点策略用登记时的版本）；其余 pm_sim 规则对全部策略生效
     { match: (name) => name === STRATEGY_PARAMS_NAME, context: "stepwise" },
     { match: (name) => name === PM_SIM_VERSION_NAME, context: "legacy" },
-    // 逐时点策略（pm_sim）下多少由策略自己决定，平台的仓位模式只对旧策略生效：只选逐时点策略时整组隐藏、不提交
+    // 逐时点策略（pm_sim）下多少由策略自己决定，平台的仓位模式只对由平台选单（研究侧脚本）的策略生效：只选逐时点策略时整组隐藏、不提交
     { match: (name) => name.startsWith(POSITION_SIZING_PREFIX), context: "legacy" },
     { match: (name) => name === INCLUDE_MARKET_NAME, context: "models" },
   ],

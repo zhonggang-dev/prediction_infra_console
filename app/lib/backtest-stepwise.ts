@@ -1,7 +1,7 @@
 /**
  * 逐时点策略在交易回测表单里的辅助逻辑（纯函数）：参数表单取交集、对模型的需求。规则与执行器一致：
  * 执行器对每个逐时点策略只取它自己声明了的参数（stepwise/handler.py）。
- * 仓位不在这里：逐时点策略（pm_sim）下多少由策略自己决定，平台的仓位模式只对旧策略生效（见 `backtest-param-ui.ts`）。
+ * 仓位不在这里：逐时点策略（pm_sim）下多少由策略自己决定，平台的仓位模式只对由平台选单（研究侧脚本）的策略生效（见 `backtest-param-ui.ts`）。
  */
 
 import { paramsDiff, stableJson, type ParamValues } from "./backtest-params.ts";
