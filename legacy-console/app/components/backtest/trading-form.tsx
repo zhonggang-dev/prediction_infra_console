@@ -160,7 +160,7 @@ export function TradingFormInner({ data, initialStrategyIds }: { data: CatalogDa
     {priceOnly
       ? <fieldset className="bt-picker"><legend>数据集（盘口）</legend><label><span>所选策略不读模型预测，读哪一套盘口</span><select className="select" value={priceDataset} onChange={(event) => setPriceDataset(event.target.value)}>{data.datasets.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}</select></label></fieldset>
       : <>
-        <ModelPicker pool={pool} selected={mw.selected} onChange={mw.setSelected} datasets={data.datasets}
+        <ModelPicker pool={pool} catalogModels={data.models} selected={mw.selected} onChange={mw.setSelected} datasets={data.datasets}
           extra={marketDefs.length > 0 ? <ParamForm defs={marketDefs} values={params} errors={paramErrors} onChange={changeParam} context={context} /> : undefined} />
         {need.ignoring.length > 0 && <p className="bt-note">以下策略不读模型预测，选了模型也会被忽略：{need.ignoring.map((s) => s.label).join("、")}。</p>}
         {useDatasetPick && <fieldset className="bt-picker"><legend>数据集（盘口）</legend><label><span>没有选模型时，读哪一套盘口</span><select className="select" value={priceDataset} onChange={(event) => setPriceDataset(event.target.value)}>{data.datasets.map((d) => <option key={d.key} value={d.key}>{d.label}</option>)}</select></label></fieldset>}

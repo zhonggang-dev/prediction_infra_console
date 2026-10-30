@@ -103,7 +103,7 @@ function BenchmarkFormInner({ data }: { data: CatalogData }) {
     <DomainPicker allDomains={data.domains} value={domains} onChange={setDomains} allowExclude />
     {defs.length > 0 && <fieldset className="bt-picker"><legend>参数</legend><ParamForm defs={defs} values={params} errors={errors} onChange={(name, value) => setParamsByItem((current) => ({ ...current, [item]: { ...(current[item] ?? params), [name]: value } }))} /></fieldset>}
 
-    <ModelPicker pool={pool} selected={mw.selected} onChange={mw.setSelected} datasets={data.datasets} exclusionReason={item === "overview" ? "总览的 Market 行由执行器自动带上，不需要手选。" : exclusionReason} />
+    <ModelPicker pool={pool} catalogModels={data.models} selected={mw.selected} onChange={mw.setSelected} datasets={data.datasets} exclusionReason={item === "overview" ? "总览的 Market 行由执行器自动带上，不需要手选。" : exclusionReason} />
     {nonSandbox.length > 0 && <p className="bt-warn">所选模型含非沙盒表（{nonSandbox.map((m) => m.name).join("、")}）：五个策略列会退到「各模型自有全集」口径，不是严格交集；这会写进结果的口径卡片。</p>}
     {item === "overview" && <p className="bt-note">更换模型会自动钉住公共时间区间（可手动改日期解除）。五个策略列固定原生仓位 + 无限资金，MultFactor 只在 World / Geopolitics 成交。</p>}
 

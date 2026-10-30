@@ -360,6 +360,7 @@ test("交易回测表单 · 只选旧策略：显示 pm_sim 撮合规则与版�
   assert.match(html, /带上 Market 基准行/);
   assert.ok(html.indexOf("带上 Market 基准行") > html.indexOf("<legend>模型"), "带上 Market 基准行在模型区");
   assert.match(html, /<input id="[^"]*include_market[^"]*" type="checkbox" checked=""/, "严格口径默认带上 Market 基准行（同旧平台）");
+  assert.match(html, />＋ (<!-- -->)?老管线</, "快捷按钮不管口径都显示（同旧平台）：严格口径下老管线模型不在可选范围，按钮照样出，点了提示没有可选模型");
   assert.equal(trading.withMarketDefault({ scope: "own", include_market: true }, [{ name: "include_market" }]).include_market, false, "各模型自有全集不带");
   assert.equal(trading.withMarketDefault({ scope: "strict" }, [{ name: "include_market" }]).include_market, true);
   assert.deepEqual(trading.withMarketDefault({ scope: "strict" }, []), { scope: "strict" }, "引擎没有这个参数时不加");
