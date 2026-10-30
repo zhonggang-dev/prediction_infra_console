@@ -60,13 +60,15 @@ export function useModelWindow(pool: ModelInfo[], options: { autoPin?: boolean }
 
 // ───────────────────────── 模型选择器 ─────────────────────────
 
-export function ModelPicker({ pool, selected, onChange, datasets, label = "模型", disabled = false, disabledNote, exclusionReason, max, extra }: {
-  pool: ModelInfo[]; selected: string[]; onChange: (keys: string[], preserveDates?: boolean) => void; datasets: DatasetInfo[]; label?: string; disabled?: boolean; disabledNote?: string; exclusionReason?: string; max?: number; extra?: React.ReactNode;
+export function ModelPicker({ pool, catalogModels, selected, onChange, datasets, label = "模型", disabled = false, disabledNote, exclusionReason, max, extra }: {
+  pool: ModelInfo[];
+  /** 全部模型（不按口径过滤）：快捷按钮按它出，和旧平台一样不管口径都显示；点了只从 pool 里加，没命中就提示 */
+  catalogModels?: ModelInfo[]; selected: string[]; onChange: (keys: string[], preserveDates?: boolean) => void; datasets: DatasetInfo[]; label?: string; disabled?: boolean; disabledNote?: string; exclusionReason?: string; max?: number; extra?: React.ReactNode;
 }) {
   const [query, setQuery] = useState("");
   const [message, setMessage] = useState<Notice>();
   const datasetLabels = useMemo(() => Object.fromEntries(datasets.map((d) => [d.key, d.label])), [datasets]);
-  const combos = useMemo(() => deriveCombos(pool, datasets), [pool, datasets]);
+  const combos = useMemo(() => deriveCombos(catalogModels ?? pool, datasets), [catalogModels, pool, datasets]);
   const conflict = useMemo(() => datasetConflict(selected, pool, datasets), [selected, pool, datasets]);
   const selectedSet = useMemo(() => new Set(selected), [selected]);
   const visible = useMemo(() => {
