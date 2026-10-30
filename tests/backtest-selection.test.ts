@@ -66,6 +66,24 @@ test("默认日期与覆盖警告（app.py _date_defaults / _coverage_warnings�
 
 // ───────────────────────── combo / 数据集冲突 ─────────────────────────
 
+test("最小子集：名册里的节点都出按钮（同旧平台，没有模型的也出），文字带训练集 / 测试集", () => {
+  const pool = models.filter((m) => !m.marketView);
+  const raw = items("catalog-datasets.json").find((item) => item.key === "telonex")!;
+  const parsed = datasetInfo({ ...raw, metadata: { ...raw.metadata, min_subset_nodes: [{ node: "2026-10-15", label: "2026-10-15 训练集", role: "training" }, { node: "2026-12-15", label: "2026-12-15 测试集", role: "test" }, { label: "缺节点号的忽略" }] } });
+  assert.deepEqual(parsed.minSubsetNodes, [{ node: "2026-10-15", label: "2026-10-15 训练集" }, { node: "2026-12-15", label: "2026-12-15 测试集" }]);
+  const combos = deriveCombos(pool, datasets.map((d) => (d.key === "telonex" ? parsed : d)));
+  const labels = combos.map((c) => c.label);
+  assert.ok(labels.includes("正式·Telonex·最小子集 2026-10-15 训练集"));
+  assert.ok(labels.includes("正式·Telonex·最小子集 2026-12-15 测试集"), "名册里有、还没有模型的节点也出按钮");
+  assert.ok(labels.includes("正式·Telonex·最小子集 2026-11-15"), "名册里没有、模型标签上有的节点照旧出");
+  assert.ok(!labels.includes("正式·Telonex·最小子集 2026-10-15"), "同一节点不出两个按钮");
+  const empty = combos.find((c) => c.label === "正式·Telonex·最小子集 2026-12-15 测试集")!;
+  assert.match(applyCombo([], pool, empty).error ?? "", /没有可选模型/, "点没有模型的节点：提示，不改选择");
+  const trained = combos.find((c) => c.label === "正式·Telonex·最小子集 2026-10-15 训练集")!;
+  assert.ok(applyCombo([], pool, trained).hits > 0);
+  assert.deepEqual(datasets.find((d) => d.key === "telonex")!.minSubsetNodes, [], "没上报名册时为空");
+});
+
 test("按标签一键加入：每个数据集 × 标签一个组合，并入而不是替换", () => {
   const pool = models.filter((m) => !m.marketView);
   const combos = deriveCombos(pool, datasets);

@@ -8,7 +8,7 @@ import { strategyDescription, strategyInfo } from "../app/lib/backtest-selection
 import { modelNeed, planStrategyParams, strategyParamsJson } from "../app/lib/backtest-stepwise.ts";
 import { DROP_REASON_LABELS, LEGACY_STEPWISE_REASON_LABELS, PM_SIM_REASON_LABELS, prettyHeadline, requesterLabel, runSummary, sampleScopeLabel } from "../app/lib/backtest-labels.ts";
 import { collectRuns, submissionHistory } from "../app/lib/backtest-runs.ts";
-import { evaluateHref, factorChange, factorGroups, factorNames, factorTableVersion } from "../app/lib/backtest-factors.ts";
+import { evaluateHref, factorChange, factorGroups, factorNames, factorTableVersion, factorVersionSuffix } from "../app/lib/backtest-factors.ts";
 import { normalizeDropReasons } from "../app/lib/backtest-table.ts";
 import { DEFAULT_LEGACY_BACKTEST_URL, legacyBacktestUrl } from "../app/lib/legacy-platform.ts";
 
@@ -340,8 +340,10 @@ test("因子库展示：名字去重、表 / 版本、最近变更的来源、�
   const labelled = factors.find((f) => f.key === "rev_momentum_3h")!;
   assert.deepEqual(factorNames(labelled), { title: "REV 动量 3h", subtitle: "rev_momentum_3h · 旧平台" });
   assert.deepEqual(factorTableVersion(legacy), { primary: "旧平台登记" });
+  assert.equal(factorVersionSuffix(legacy), "", "下拉框里旧平台因子不显示内部版本 legacy/legacy");
   const platform = factors.find((f) => f.key === "vol_burst")!;
   assert.deepEqual(factorTableVersion(platform), { primary: "表 research_0919", secondary: "版本 20260919-a" });
+  assert.equal(factorVersionSuffix(platform), " · research_0919/20260919-a");
   assert.deepEqual(factorNames(platform), { title: "成交突增", subtitle: "vol_burst" });
   assert.deepEqual([factorChange(legacy).actor, factorChange(legacy).manual], ["迁移导入", false], "没有操作人 = 导入时登记");
   assert.deepEqual([factorChange(platform).actor, factorChange(platform).manual], ["控制台（alice）", true]);

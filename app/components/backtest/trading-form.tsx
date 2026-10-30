@@ -12,6 +12,12 @@ import { paramDefsFor, type CatalogData } from "./catalog-context";
 import { CatalogGate, SubmitBar, useLauncher } from "./forms-common";
 import { DomainPicker, ModelPicker, ParamForm, WindowPicker, useModelWindow } from "./pickers";
 
+/** 「带上 Market 基准行」的默认值跟着口径走：严格口径勾上，各模型自有全集不勾（旧平台在自有全集下不提供 Market 行）。 */
+export function withMarketDefault(values: ParamValues, defs: ParamDef[]): ParamValues {
+  if (!defs.some((def) => def.name === INCLUDE_MARKET_NAME)) return values;
+  return { ...values, [INCLUDE_MARKET_NAME]: String(values.scope ?? "strict") !== "own" };
+}
+
 export function TradingForm() { return <CatalogGate>{(data) => <TradingFormInner data={data} />}</CatalogGate>; }
 
 const modelRef = (m: ModelInfo) => ({ key: m.catalogKey, version: m.version });
@@ -36,7 +42,8 @@ export function TradingFormInner({ data, initialStrategyIds }: { data: CatalogDa
   const engine = data.engine as EngineInfo;
   const defs = useMemo(() => paramDefsFor(engine, "trading", "strategy_comparison"), [engine]);
   const ui = useMemo(() => groupParamDefs("trading/strategy_comparison", defs), [defs]);
-  const [params, setParams] = useState<ParamValues>(() => initialParamValues(defs));
+  // 严格口径默认带上 Market 基准行（同旧平台：严格口径的默认模型里有 Market Favorite，用来对照“跟着市场买”）
+  const [params, setParams] = useState<ParamValues>(() => withMarketDefault(initialParamValues(defs), defs));
   const [strategyKeys, setStrategyKeys] = useState<string[]>(() => initialStrategyIds ?? (data.strategies[0] ? [data.strategies[0].id] : []));
   const [strategyOverrides, setStrategyOverrides] = useState<ParamValues>({});
   const [domains, setDomains] = useState<DomainSelection>({ mode: "include", values: [ALL_DOMAINS] });
@@ -69,7 +76,7 @@ export function TradingFormInner({ data, initialStrategyIds }: { data: CatalogDa
   const effective = useMemo<ParamValues>(() => ({ ...params, [STRATEGY_PARAMS_NAME]: strategyParamsJson(plan.shared, strategyValues) }), [params, plan.shared, strategyValues]);
 
   const changeParam = (name: string, value: string | boolean) => {
-    setParams((current) => ({ ...current, [name]: value }));
+    setParams((current) => name === "scope" ? withMarketDefault({ ...current, [name]: value }, defs) : { ...current, [name]: value });
     if (name === "scope") {
       const nextStrict = String(value) !== "own";
       const allowed = new Set(data.models.filter((m) => nextStrict ? m.tags.includes("sandbox") || m.marketView : !m.marketView).map((m) => m.key));

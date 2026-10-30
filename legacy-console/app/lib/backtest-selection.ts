@@ -67,6 +67,8 @@ export interface DatasetInfo {
   marketFavoriteModel?: string;
   hourlyFactorNote?: string;
   domains: string[];
+  /** 这套数据集上的最小子集名册节点（执行器按研究侧名册上报，含还没有模型的节点），label 形如「2026-09-08 训练集」 */
+  minSubsetNodes: Array<{ node: string; label: string }>;
 }
 
 export function datasetInfo(item: CatalogItem): DatasetInfo {
@@ -76,6 +78,10 @@ export function datasetInfo(item: CatalogItem): DatasetInfo {
     key: item.key, label: text(meta.label) ?? item.key,
     coverageStart: text(coverage.start), coverageEnd: text(coverage.end), orderbookEnd: text(meta.orderbook_end),
     marketFavoriteModel: text(meta.market_favorite_model), hourlyFactorNote: text(meta.hourly_factor_note), domains: textArray(meta.domains),
+    minSubsetNodes: (Array.isArray(meta.min_subset_nodes) ? meta.min_subset_nodes : []).flatMap((raw) => {
+      const node = text(record(raw).node);
+      return node ? [{ node, label: text(record(raw).label) ?? node }] : [];
+    }),
   };
 }
 
@@ -248,13 +254,20 @@ export function deriveCombos(models: ModelInfo[], datasets: DatasetInfo[]): Comb
   const combos: Combo[] = [];
   for (const dataset of datasets) {
     const pool = models.filter((model) => model.dataset === dataset.key && !model.marketView);
-    const add = (id: string, name: string, help: string, match: (model: ModelInfo) => boolean) => {
-      if (pool.some(match)) combos.push({ id: `${dataset.key}:${id}`, label: `${dataset.label}·${name}`, datasetKey: dataset.key, help, match });
+    const add = (id: string, name: string, help: string, match: (model: ModelInfo) => boolean, always = false) => {
+      if (always || pool.some(match)) combos.push({ id: `${dataset.key}:${id}`, label: `${dataset.label}·${name}`, datasetKey: dataset.key, help, match });
     };
     add("sandbox", "沙盒", "该数据集中带沙盒标签、且不属于子集 / 实盘子集 / 最小子集的全部模型。", (m) => m.tags.includes("sandbox") && !isAnySubset(m));
     add("sandbox_subset", "沙盒子集", "沙盒子集标签的模型。", (m) => m.tags.includes("sandbox_subset"));
     add("live_subset", "实盘子集", "实盘子集标签的模型。", (m) => m.tags.includes("live_subset"));
-    const nodes = Array.from(new Set(pool.flatMap((m) => m.tags.filter(isMinSubset)))).sort();
+    // 最小子集：名册里的节点都出按钮（同旧平台，还没有模型的节点点了会提示没有可选模型），文字带训练集 / 测试集；
+    // 名册里没有、但模型标签上有的节点照旧按标签出
+    const rosterTags = new Set(dataset.minSubsetNodes.map((n) => `min_subset:${n.node}`));
+    for (const { node, label } of [...dataset.minSubsetNodes].sort((a, b) => a.node.localeCompare(b.node))) {
+      const tag = `min_subset:${node}`;
+      add(tag, `最小子集 ${label}`, "月度轮换名册里该节点的最小子集模型。", (m) => m.tags.includes(tag), true);
+    }
+    const nodes = Array.from(new Set(pool.flatMap((m) => m.tags.filter(isMinSubset)))).filter((tag) => !rosterTags.has(tag)).sort();
     for (const node of nodes) add(node, tagLabel(node), "月度轮换名册里该节点的最小子集模型。", (m) => m.tags.includes(node));
     add("legacy_pipeline", "老管线", "老管线产出的模型。", (m) => m.tags.includes("legacy_pipeline"));
   }

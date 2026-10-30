@@ -359,6 +359,10 @@ test("交易回测表单 · 只选旧策略：显示 pm_sim 撮合规则与版�
   assert.equal(count(html, /Baseline V1\.1/g), 1, "名字与描述相同时只显示一次");
   assert.match(html, /带上 Market 基准行/);
   assert.ok(html.indexOf("带上 Market 基准行") > html.indexOf("<legend>模型"), "带上 Market 基准行在模型区");
+  assert.match(html, /<input id="[^"]*include_market[^"]*" type="checkbox" checked=""/, "严格口径默认带上 Market 基准行（同旧平台）");
+  assert.equal(trading.withMarketDefault({ scope: "own", include_market: true }, [{ name: "include_market" }]).include_market, false, "各模型自有全集不带");
+  assert.equal(trading.withMarketDefault({ scope: "strict" }, [{ name: "include_market" }]).include_market, true);
+  assert.deepEqual(trading.withMarketDefault({ scope: "strict" }, []), { scope: "strict" }, "引擎没有这个参数时不加");
   assert.doesNotMatch(html, /Position sizing|Bankroll|Shares/);
   assert.doesNotMatch(html, /本页面只显示进度与结果|运行在服务器的执行器上进行/, "提交栏不再重复页头里的说明");
 });

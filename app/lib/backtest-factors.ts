@@ -19,6 +19,9 @@ export function factorNames(item: CatalogItem): { title: string; subtitle: strin
   return { title: label, subtitle: [item.key, legacy].filter(Boolean).join(" · ") };
 }
 
+/** 下拉框里因子名后面的版本后缀：旧平台登记的因子没有表和版本（内部记作 `legacy/legacy`），不显示；平台提交的显示「表名/版本」。 */
+export const factorVersionSuffix = (item: CatalogItem) => isLegacyFactor(item) ? "" : ` · ${item.version}`;
+
 /** 「表 / 版本」列：旧因子显示「旧平台登记」；平台提交的因子版本是 `<表名>/<数据版本>`。 */
 export function factorTableVersion(item: CatalogItem): { primary: string; secondary?: string } {
   if (isLegacyFactor(item)) return { primary: "旧平台登记" };
