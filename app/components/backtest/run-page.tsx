@@ -145,7 +145,7 @@ export function RunPage({ runId }: { runId: string }) {
         </div>
         <div className="bt-actions">
           {run.hasArtifacts && <a className="button" href={backtestApi.artifactUrl(run.runId)} download>下载产物包</a>}
-          {run.rerunnable && !isActiveRun(run) && <button type="button" className="button" onClick={rerun} disabled={action.busy === "rerun"}>{action.busy === "rerun" ? "正在发起…" : "重跑（新运行，关联本次）"}</button>}
+          {run.rerunnable && !isActiveRun(run) && <button type="button" className="button" onClick={rerun} disabled={action.busy === "rerun"} title="用这次的配置、按当时的输入版本再算一遍；结果放在一个新的运行编号下，这次的结果保留不动，新运行会注明“重跑自”这一次">{action.busy === "rerun" ? "正在发起…" : "按原配置重跑"}</button>}
           {!run.rerunnable && !isActiveRun(run) && <span className="bt-muted">{run.origin === "legacy" ? "旧平台历史结果不可重跑" : "该运行不可重跑"}</span>}
         </div>
       </section>
