@@ -83,3 +83,9 @@
 @media (max-width: 480px) {
   .trading-attention-grid { grid-template-columns: 1fr; }
 }
+
+.trading-account-context label{display:flex;align-items:center;gap:14px}
+.trading-account-context label > span{flex:0 0 auto;white-space:nowrap}
+.trading-account-context .select{min-width:0;flex:1 1 auto}
+.trading-filter-details{padding:8px 0}.trading-filter-details summary{cursor:pointer;color:var(--muted)}.trading-filter-details[open] .trading-scope-fields{margin-top:12px}
+@media(max-width:720px){.trading-account-context label{width:100%}.trading-account-context .select{min-width:0;flex:1}}

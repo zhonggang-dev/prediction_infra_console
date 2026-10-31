@@ -31,22 +31,24 @@ export async function PATCH() { return methodNotAllowed(); }
 export async function DELETE() { return methodNotAllowed(); }
 
 async function forward(request: Request, method: "GET" | "POST", path: string[]): Promise<Response> {
+  const nativeDownload = new URL(request.url).pathname.split("/").at(-1) !== "archive-options" && Boolean(request.headers.get("accept")?.includes("text/html"));
+  const failure = (status: number, message: string, code: string) => nativeDownload ? downloadErrorPage(status) : jsonError(status, message, code);
   let target: ProxyRequest;
   try {
     target = method === "GET" ? resolveGet(request, path) : await resolvePost(request, path);
   } catch (error) {
-    return jsonError(400, error instanceof Error ? error.message : "下载请求参数无效", "DOWNLOAD_REQUEST_INVALID");
+    return failure(400, error instanceof Error ? error.message : "下载请求参数无效", "DOWNLOAD_REQUEST_INVALID");
   }
 
   const baseUrl = process.env.PREDICTION_INFRA_BASE_URL;
   const token = process.env.SANDBOX_DOWNLOAD_TOKEN;
-  if (!baseUrl || !token) return jsonError(503, "Sandbox 下载连接尚未配置。", "BACKEND_NOT_CONFIGURED");
+  if (!baseUrl || !token) return failure(503, "Sandbox 下载连接尚未配置。", "BACKEND_NOT_CONFIGURED");
 
   let url: URL;
   try {
     url = new URL(target.endpoint, baseUrl);
   } catch {
-    return jsonError(503, "Sandbox 下载连接配置无效。", "BACKEND_NOT_CONFIGURED");
+    return failure(503, "Sandbox 下载连接配置无效。", "BACKEND_NOT_CONFIGURED");
   }
   url.search = target.query.toString();
 
@@ -60,19 +62,28 @@ async function forward(request: Request, method: "GET" | "POST", path: string[])
         ...(target.body === undefined ? {} : { "content-type": "application/json" }),
       },
       body: target.body,
-      signal: request.signal,
+      signal: target.endpoint.endsWith("/archive-options") ? AbortSignal.any([request.signal, AbortSignal.timeout(15_000)]) : request.signal,
       // A download must remain streamable. Do not attach a wall-clock
       // timeout: large archives can take longer than the connection setup.
     });
   } catch {
-    return jsonError(502, "Sandbox 下载上游暂时不可用。", "UPSTREAM_UNAVAILABLE");
+    return failure(502, "Sandbox 下载上游暂时不可用。", "UPSTREAM_UNAVAILABLE");
   }
 
+  if (!response.ok && nativeDownload) {
+    // The failed upstream body may already be errored; cleanup must not hide the readable error page.
+    await response.body?.cancel().catch(() => undefined);
+    return downloadErrorPage(response.status);
+  }
   return new Response(response.body, { status: response.status, headers: copyDownloadHeaders(response.headers) });
 }
 
 function resolveGet(request: Request, path: string[]): ProxyRequest {
   const url = new URL(request.url);
+  if (path.length === 3 && path[0] === "sandboxes" && path[2] === "archive-options") {
+    assertOnlyQuery(url.searchParams, []);
+    return { endpoint: `/api/v1/sandboxes/${safePathID(path[1], "Sandbox ID")}/archive-options`, query: new URLSearchParams() };
+  }
   if (path.length === 3 && path[0] === "sandboxes" && path[2] === "archive") {
     const sandboxId = safePathID(path[1], "Sandbox ID");
     assertOnlyQuery(url.searchParams, ["variant", "asset_kind"]);
@@ -283,4 +294,10 @@ function jsonError(status: number, message: string, code: string): Response {
 
 function methodNotAllowed(): Response {
   return new Response(JSON.stringify({ code: "READ_ONLY", message: "下载接口仅允许 GET 或受控 POST。" }), { status: 405, headers: { allow: "GET, POST", "content-type": "application/json", "cache-control": "no-store", "x-content-type-options": "nosniff" } });
+}
+
+/** Successful archives stream untouched; failed native downloads open a readable page. */
+function downloadErrorPage(status: number): Response {
+  const message = status === 404 ? "所选文件不存在、尚未生成或未完整提交。请返回原页面核对文件版本。" : status === 409 ? "文件信息存在冲突，暂时无法下载。" : status === 413 ? "文件超过本次下载限制。" : status === 401 || status === 403 ? "下载服务暂时无法授权此请求，请联系维护人员。" : "下载服务暂时不可用，请返回原页面稍后重试。";
+  return new Response(`<!doctype html><html lang="zh-CN"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>文件暂时无法下载</title><style>body{font-family:system-ui,sans-serif;background:#f7f8f2;color:#17392e;max-width:640px;margin:12vh auto;padding:24px;line-height:1.8}h1{font-size:24px}</style><h1>文件暂时无法下载</h1><p>${message}</p><p>可以关闭此页，回到原页面重新核对。</p></html>`, { status, headers: { "content-type": "text/html; charset=utf-8", "content-disposition": "inline", "cache-control": "no-store", "x-content-type-options": "nosniff", "content-security-policy": "default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'" } });
 }

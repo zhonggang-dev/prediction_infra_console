@@ -49,3 +49,17 @@ export function appliedListOffset(currentHref: string, limit: number) {
   if (!Number.isSafeInteger(numeric) || numeric < 0 || numeric > Number.MAX_SAFE_INTEGER - 100) return 0;
   return Math.floor(numeric / limit) * limit;
 }
+
+/** Deep-link aliases must follow the current owning panel, including the default trading view. */
+export function workspacePathMatches(rootHref: string, pathname: string): boolean {
+  if (rootHref === pathname) return true;
+  const aliases: Record<string, string[]> = {
+    "/trading/orders": ["/trading"],
+    "/trading/ledger": ["/trades"],
+    "/markets/running": ["/markets"],
+    "/system/observability": ["/system", "/observability"],
+    "/system/delivery": ["/delivery"],
+    "/system/settings": ["/settings"],
+  };
+  return aliases[rootHref]?.includes(pathname) ?? false;
+}
