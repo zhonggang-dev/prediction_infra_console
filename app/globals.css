@@ -954,3 +954,6 @@ tbody tr:hover { background: #f7faf6; }
 @media (max-width: 620px) {
   .trading-embedded-toolbar { align-items: stretch; flex-direction: column; }.trading-embedded-toolbar .live-head-actions { width: 100%; flex-wrap: wrap; }.trading-embedded-toolbar .live-head-actions .refresh-select { flex: 1 1 120px; }.trading-embedded-toolbar .live-head-actions .button { flex: 1 1 auto; }
 }
+
+.service-observed{padding:14px 22px;margin:0;color:var(--muted);font-size:13px;white-space:normal}.service-technical{padding:0 22px 18px}.service-technical summary{cursor:pointer;color:var(--muted)}.service-technical .service-runtime-row{padding:14px 0;grid-template-columns:repeat(3,minmax(0,1fr))}.service-technical .service-runtime-row strong{white-space:normal;overflow-wrap:anywhere}.v2-dataset-selector-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+@media(max-width:720px){.service-technical .service-runtime-row,.v2-dataset-selector-grid{grid-template-columns:1fr}}

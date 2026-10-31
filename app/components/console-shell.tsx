@@ -43,7 +43,7 @@ const navigationGroups: NavigationGroup[] = [
 ];
 
 /** 控制台外壳：桌面侧栏与移动端抽屉共用同一份导航。 */
-export function ConsoleShell({ children, timezone }: { children: React.ReactNode; timezone?: string }) {
+export function ConsoleShell({ children }: { children: React.ReactNode; timezone?: string }) {
   const [isOpen, setIsOpen] = useState(false);
   const pathname = usePathname();
   const isActive = (href: string) => {
@@ -69,11 +69,11 @@ export function ConsoleShell({ children, timezone }: { children: React.ReactNode
           </div>)}
         </nav>
       </div>
-      <div className="sidebar-footer"><span className="live-indicator"><i className="dot" />服务状态由后端返回</span><br /><span className="build-note">运维控制台</span><br /><span>{timezone ? `时间标准：${timezone}` : "所有时间均为 UTC"}</span></div>
+      <div className="sidebar-footer"><span className="live-indicator"><i className="dot" />服务状态由后端返回</span></div>
     </aside>
     <button className={`drawer-backdrop ${isOpen ? "open" : ""}`} aria-label="关闭导航" onClick={() => setIsOpen(false)} />
     <div className="content">
-      <header className="topbar"><div className="top-actions"><button className="button icon-button mobile-menu" aria-label="打开导航" aria-controls="console-sidebar" aria-expanded={isOpen} onClick={() => setIsOpen(true)}><Icon name="menu" /></button><span className="breadcrumb">Prediction Infra / 内部运维</span></div><div className="top-actions"><span className="utc">{timezone ? `${timezone} 数据标准` : "UTC 数据标准"}</span><a className="button" href="/system/settings">连接设置</a></div></header>
+      <header className="topbar"><div className="top-actions"><button className="button icon-button mobile-menu" aria-label="打开导航" aria-controls="console-sidebar" aria-expanded={isOpen} onClick={() => setIsOpen(true)}><Icon name="menu" /></button><span className="breadcrumb">Prediction Infra / 内部运维</span></div><div className="top-actions"></div></header>
       <main className="main">{children}</main>
     </div>
   </div>;

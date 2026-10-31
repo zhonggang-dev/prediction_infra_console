@@ -82,9 +82,9 @@ test("order decoder preserves frozen market question and outcome labels", async 
 test("交易 workspace only shares account and keeps PnL/ledger in the ledger view", async () => {
   const source = await readFile(new URL("../app/components/trading-v2-page.tsx", import.meta.url), "utf8");
   assert.match(source, /sharedQueryKeys: \["execution_account_id"\]/);
-  assert.match(source, /<TradeRecordsPage embedded sharedAccountOnly showPnL \/>/);
+  assert.match(source, /<TradeRecordsPage embedded sharedAccountOnly compact \/>/);
   assert.doesNotMatch(source, /<LiveTradingPage/);
-  assert.match(source, /LatestEdgeSnapshot/);
+  assert.match(source, /OfficialWalletPnlPanel/);
 });
 
 test("account permission display separates current switches from the historical cycle gate", () => {

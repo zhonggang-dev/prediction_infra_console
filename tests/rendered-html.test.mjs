@@ -177,7 +177,7 @@ test("数据集轮转的三个兼容入口复用同一类型→版本→用途�
     assert.equal(response.status, 200, path);
     const html = await response.text();
     assert.match(html, /<h1>数据集轮转<\/h1>/, path);
-    assert.match(html, /选择资料类型 → 版本 → 用途/, path);
+    assert.match(html, /选择资料类型 → 版本/, path);
     assert.match(html, /刷新/, path);
     assert.doesNotMatch(html, /高级归档工具/, path);
     assert.doesNotMatch(html, /打开 PM Backtest/, path);
@@ -189,56 +189,48 @@ test("数据集轮转的三个兼容入口复用同一类型→版本→用途�
 test("资料工作区把真实版本/变体/用途和轮换嵌入同一业务壳", async () => {
   const datasets = await (await render("/datasets")).text();
   assert.match(datasets, /<h1>数据集轮转<\/h1>/);
-  assert.match(datasets, /选择资料类型 → 版本 → 用途/);
+  assert.match(datasets, /选择资料类型 → 版本/);
   assert.match(datasets, /轮换执行、发布历史与规则/);
   assert.equal((datasets.match(/class="brand"/g) ?? []).length, 1, "资料工作区只能有一个 ConsoleShell");
 
   const sandboxes = await (await render("/sandboxes")).text();
-  assert.match(sandboxes, /资料归档/);
-  assert.match(sandboxes, /高级归档工具/);
+  assert.match(sandboxes, /<h1>Sandbox<\/h1>/);
+  assert.doesNotMatch(sandboxes, /高级归档工具|全部资料类型|模式 \/ 交易|历史回测导出|打开 PM Backtest/);
   assert.equal((sandboxes.match(/class="brand"/g) ?? []).length, 1, "资料归档只能有一个 ConsoleShell");
   assert.doesNotMatch(datasets, /高级归档工具/);
   assert.doesNotMatch(datasets, /v2-tab-sandboxes/);
   assert.doesNotMatch(sandboxes, /v2-tab-datasets/);
 });
 
-test("服务端可渲染交易与结算记录页面", async () => {
+test("收益页默认官方曲线与精简账本，四个主Tab不恢复旧概况", async () => {
   const response = await render("/trades");
   assert.equal(response.status, 200);
   const html = await response.text();
-  assert.match(html, /交易与结算记录/);
-  assert.match(html, /已确认并入账的成交与结算/);
-  assert.match(html, /REDEEM · 赎回结算/);
+  assert.match(html, /官方钱包盈亏/);
+  assert.match(html, /成交与结算明细/);
+  assert.match(html, /曲线为 Polymarket 官方钱包口径/);
+  assert.match(html, /id="v2-tab-trading-ledger"[^>]*aria-selected="true"/);
+  assert.equal((html.match(/role="tab"/g) ?? []).length, 4);
+  assert.doesNotMatch(html, /账户经营摘要|决策记录|钱包 PnL 对比/);
+  assert.equal((html.match(/class="brand"/g) ?? []).length, 1);
 });
 
-test("服务端可渲染实盘概况的初始未知状态", async () => {
-  const response = await render("/live");
-  assert.equal(response.status, 200);
-  const html = await response.text();
-  assert.match(html, /实盘概况/);
-  assert.match(html, /账户经营摘要/);
-  assert.match(html, /当前许可 \/ 最近周期/);
-  assert.match(html, /总盈亏（已实现 \/ 浮动）/);
-  assert.match(html, /暂未返回账户事实/);
-  assert.doesNotMatch(html, /实盘快照与账户质量|系统管理持仓明细|钱包 PnL 对比|模型 Edge 分布/);
-  assert.doesNotMatch(html, /\$12,842\.36/);
+test("旧实盘与决策URL转订单，旧赎回转持仓次级入口且不携带旧分页", async () => {
+  for (const path of ["/live", "/trading/overview", "/trading/cycles"]) {
+    const response = await render(`${path}?execution_account_id=wallet-6&offset=20&status=OUTPUT_RECORDED`);
+    assert.ok([307, 308].includes(response.status), path);
+    assert.equal(response.headers.get("location"), "/trading/orders?execution_account_id=wallet-6");
+  }
+  const redemption = await render("/trading/redemptions?execution_account_id=wallet-7&offset=100");
+  assert.equal(redemption.headers.get("location"), "/trading/positions?execution_account_id=wallet-7&position_view=redemptions");
 });
 
-test("交易旧 URL 复用新版工作区并保留实盘与账本内容", async () => {
-  const live = await (await render("/live")).text();
-  assert.match(live, /账户范围/);
-  assert.match(live, /账户经营摘要/);
-  assert.match(live, /当前许可 \/ 最近周期/);
-  assert.doesNotMatch(live, /实盘快照与账户质量/);
-  assert.doesNotMatch(live, /系统管理持仓明细/);
-  assert.match(live, /id="v2-tab-trading-overview"[^>]*aria-selected="true"/);
-  assert.equal((live.match(/class="brand"/g) ?? []).length, 1, "实盘旧 URL 不应嵌套 ConsoleShell");
-
-  const ledger = await (await render("/trades")).text();
-  assert.match(ledger, /资金账本与结算/);
-  assert.match(ledger, /EXTERNAL_SELL/);
-  assert.match(ledger, /id="v2-tab-trading-ledger"[^>]*aria-selected="true"/);
-  assert.equal((ledger.match(/class="brand"/g) ?? []).length, 1, "账本旧 URL 不应嵌套 ConsoleShell");
+test("交易入口默认订单，四个主Tab保留一个业务壳", async () => {
+  const html = await (await render("/trading")).text();
+  assert.match(html, /id="v2-tab-trading-orders"[^>]*aria-selected="true"/);
+  assert.equal((html.match(/role="tab"/g) ?? []).length, 4);
+  assert.equal((html.match(/class="brand"/g) ?? []).length, 1);
+  assert.doesNotMatch(html, /实盘概况|决策记录|连接设置|所有时间均为 UTC/);
 });
 
 test("账本嵌入工作区只共享账户，模型策略和日期保留本页筛选", async () => {
@@ -250,9 +242,8 @@ test("账本嵌入工作区只共享账户，模型策略和日期保留本页�
   assert.match(filters, /结束日期/);
   assert.match(filters, /模型/);
   assert.match(filters, /策略/);
-  assert.match(filters, /执行账户（共享范围）/);
-  assert.match(filters, /disabled/);
-  assert.match(filters, /placeholder="例如 forecast-v2"/);
+  assert.doesNotMatch(filters, /执行账户（共享范围）/);
+  assert.match(filters, /历史模型与策略筛选/);
   assert.doesNotMatch(filters, /顶部上下文|账本共享时间上下文/);
 });
 
@@ -273,7 +264,7 @@ test("服务端可渲染双服务基础监控页面", async () => {
   assert.equal(response.status, 200);
   const html = await response.text();
   assert.match(html, /服务监控/);
-  assert.match(html, /服务端采样的运行指标/);
+  assert.match(html, /查看服务运行快照与 Redis 状态/);
   assert.match(html, /Redis 队列监控/);
   assert.match(html, /业务消息与缓存分开统计/);
 });

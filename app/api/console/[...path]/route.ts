@@ -141,6 +141,9 @@ function resolveTarget(path: string[], method: string): ProxyTarget | undefined 
       serviceName: "Trading Execution",
     };
   }
+  if (first === "wallet-pnl" && method === "GET" && (path.length === 1 || (path.length === 2 && path[1] === "accounts"))) {
+    return { baseUrl: process.env.TRADING_EXECUTION_BASE_URL, token: process.env.TRADING_EXECUTION_LIVE_READ_ONLY_TOKEN, endpoint: path.length === 1 ? "/api/v1/wallet-pnl" : "/api/v1/wallet-pnl/accounts", stream: false, serviceName: "Trading Execution" };
+  }
   if (first === "live-operations" && method === "GET" && path.length === 1) {
     return {
       baseUrl: process.env.TRADING_EXECUTION_BASE_URL,

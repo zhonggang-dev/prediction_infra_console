@@ -58,7 +58,7 @@ export function PredictionsV2Page({ tasks = false }: { tasks?: boolean }) {
 const workspaceTabs = [{ href: "/predictions", label: "结果" }, { href: "/predictions/tasks", label: "任务核对" }] as const;
 
 function PredictionCoverageSummary({ coverage, current }: { coverage: NonNullable<ConsoleV2Overview["predictionCoverage"]>; current?: ConsoleV2Overview["currentGeneration"] }) {
-  return <section className="prediction-coverage-summary"><div className="section-head"><div><h2 className="section-title">当前发布轮次覆盖</h2><p className="section-caption">{current ? `轮次 ${current.generationId} · 统计时间 ${formatV2Time(coverage.generationObservedAt)}` : "历史范围摘要"}</p></div><span className="prediction-asof">预测截面 {formatV2Time(coverage.predictionAsOf)}</span></div><V2Facts values={[{ label: "可用市场数", value: formatV2Number(coverage.eligibleMarketCount, 0) }, { label: "预期任务", value: formatV2Number(coverage.expectedTaskCount, 0) }, { label: "已完成", value: formatV2Number(coverage.completedTaskCount, 0) }, { label: "待完成", value: formatV2Number(coverage.pendingTaskCount, 0) }]} />{coverage.models?.length ? <div className="prediction-model-coverage">{coverage.models.map((item) => <ModelCoverage key={item.predictionModelId} model={item} />)}</div> : <p className="prediction-coverage-note">暂未提供模型分项统计。</p>}</section>;
+  return <section className="prediction-coverage-summary"><div className="section-head"><div><h2 className="section-title">当前发布轮次覆盖</h2><p className="section-caption">{current ? `轮次 ${current.generationId} · 统计时间 ${formatV2Time(coverage.generationObservedAt)}` : "历史范围摘要"}</p></div><span className="prediction-asof">信息时点 {formatV2Time(coverage.predictionAsOf)}</span></div><V2Facts values={[{ label: "可用市场数", value: formatV2Number(coverage.eligibleMarketCount, 0) }, { label: "预期任务", value: formatV2Number(coverage.expectedTaskCount, 0) }, { label: "已完成", value: formatV2Number(coverage.completedTaskCount, 0) }, { label: "待完成", value: formatV2Number(coverage.pendingTaskCount, 0) }]} />{coverage.models?.length ? <div className="prediction-model-coverage">{coverage.models.map((item) => <ModelCoverage key={item.predictionModelId} model={item} />)}</div> : <p className="prediction-coverage-note">暂未提供模型分项统计。</p>}</section>;
 }
 
 function ModelCoverage({ model }: { model: ConsoleV2PredictionCoverageModel }) {
@@ -131,7 +131,7 @@ function PredictionResults({ model, generationId, predictionAsOf }: { model: str
     { label: "模型 / 来源", className: "primary", render: (item) => <div className="v2-cell-copy"><strong>{v2Unknown(item.modelName)}</strong><small>{item.sourceKind} · {v2Unknown(item.predictorVersion)}</small></div> },
     { label: "问题 / 市场身份", className: "wide", render: (item) => <div className="v2-cell-copy"><strong>{item.question}</strong><small className="mono">{item.marketId} · {item.conditionId}</small></div> },
     { label: "概率", render: (item) => `${v2Unknown(item.outcome0Name, "Outcome 0")} ${probability(item.outcome0Probability)} · ${v2Unknown(item.outcome1Name, "Outcome 1")} ${probability(item.outcome1Probability)}` },
-    { label: "as-of / 接收", render: (item) => <div className="v2-cell-copy"><span>{formatV2Time(item.predictionAsOf)}</span><small>{formatV2Time(item.receivedAt)}</small></div> },
+    { label: "信息时点 / 接收时间", render: (item) => <div className="v2-cell-copy"><span>{formatV2Time(item.predictionAsOf)}</span><small>{formatV2Time(item.receivedAt)}</small></div> },
   ]} renderDetail={(item) => <V2Facts values={[{ label: "预测 ID", value: item.predictionId, mono: true }, { label: "模型", value: v2Unknown(item.modelName) }, { label: "模型版本", value: v2Unknown(item.predictorVersion) }, { label: "发布轮次", value: v2Unknown(item.generationId), mono: true }, { label: "来源", value: item.sourceKind }, { label: "Sandbox ID", value: v2Unknown(item.sandboxId), mono: true }, { label: "来源任务", value: v2Unknown(item.sourceJobId), mono: true }, { label: "问题", value: item.question }, { label: v2Unknown(item.outcome0Name, "Outcome 0"), value: probability(item.outcome0Probability) }, { label: v2Unknown(item.outcome1Name, "Outcome 1"), value: probability(item.outcome1Probability) }, { label: "信息时点", value: formatV2Time(item.predictionAsOf) }, { label: "结果接收时间", value: formatV2Time(item.receivedAt) }]} />} />
   </>;
 }
@@ -152,7 +152,7 @@ function PredictionTasks({ model, generationId, predictionAsOf }: { model: strin
     { label: "任务 / 模型", className: "primary", render: (item) => <div className="v2-cell-copy"><strong className="mono">{item.predictionId}</strong><small>{item.predictionModelId}</small></div> },
     { label: "状态", render: (item) => v2Status(item.status, item.status) },
     { label: "问题 / 市场身份", className: "wide", render: (item) => <div className="v2-cell-copy"><strong>{item.question}</strong><small className="mono">{item.marketId} · {item.conditionId}</small></div> },
-    { label: "as-of / 可用", render: (item) => <div className="v2-cell-copy"><span>{formatV2Time(item.predictionAsOf)}</span><small>{formatV2Time(item.taskAvailableAt)}</small></div> },
+    { label: "信息时点 / 可用时间", render: (item) => <div className="v2-cell-copy"><span>{formatV2Time(item.predictionAsOf)}</span><small>{formatV2Time(item.taskAvailableAt)}</small></div> },
   ]} emptyDescription="任务列表只展示后端返回的任务状态；没有额外执行证据时不提供重复详情。" />;
 }
 

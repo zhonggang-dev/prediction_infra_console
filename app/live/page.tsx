@@ -1,5 +1,6 @@
-import { TradingV2Page } from "../components/trading-v2-page";
+import { redirect } from "next/navigation";
+import { legacyTradingDestination } from "../lib/trading-navigation";
 
-export default function LivePage() {
-  return <TradingV2Page view="overview" />;
+export default async function LegacyTradingPage({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  redirect(legacyTradingDestination("orders", await searchParams));
 }

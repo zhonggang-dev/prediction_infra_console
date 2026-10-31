@@ -110,7 +110,6 @@ export function DatasetRotationPage({ embedded = false, focusVersion, showCurren
 
       <div className="rotation-tabs"><button className={`button ${detail?.kind === "training" ? "primary" : ""}`} onClick={() => openDetail({ kind: "training" })}>累计训练集</button></div>
       {detail?.kind === "training" && <RotationDetail detail={detail} data={data} onClose={() => setDetail(undefined)} />}
-      <p className="rotation-footer">数据来源：PG / OSS · 页面时间：{data.timezone}</p>
     </>}
   </>;
   return embedded ? <section className="v2-dataset-rotation-embedded-content">{content}</section> : <ConsoleShell timezone={data?.timezone}>{content}</ConsoleShell>;
@@ -194,7 +193,7 @@ function RotationDetail({ detail, data, onClose }: { detail: Detail; data: Datas
     : testDownloadState === "download_checked"
       ? "历史清单尚未核对，下载时由服务端执行严格文件预检。"
       : "固定版本测试集，使用同源 BFF 并绑定该 variant。";
-  return <div className="rotation-detail" aria-live="polite"><DetailHeader title={`${variantLabels[variant.variant]} · ${variantDescriptions[variant.variant]} / ${purpose === "train" ? "训练集" : "测试集"}`} onClose={onClose} /><div className="rotation-facts"><Fact label="批次版本" value={version} /><Fact label="时间范围" value={range[0] && range[1] ? `${formatDateOnly(range[0], data.timezone)} — ${formatDateOnly(range[1], data.timezone)}` : "暂无训练时间范围"} /><Fact label="本轮成员数" value={`${integer(count)} 个`} /><Fact label="发布时间" value={variant.publishedAt ? formatDateTime(variant.publishedAt, data.timezone) : "尚未发布"} /><Fact label="状态" value={variantStatusText(variant.status)} /><Fact label="存储状态" value={storageStatusText(variant.storageStatus)} /></div><div className="rotation-api"><span>下载动作</span>{canDownload ? <a className="button" href={endpoint} target="_blank" rel="noreferrer" download>{purpose === "train" ? "下载累计 train" : "下载固定 test"}</a> : <span className="v2-inline-note">该版本当前不可生成固定 test 下载。</span>}<small>{downloadNote}</small></div></div>;
+  return <div className="rotation-detail" aria-live="polite"><DetailHeader title={`${variantLabels[variant.variant]} · ${variantDescriptions[variant.variant]} / ${purpose === "train" ? "训练集" : "测试集"}`} onClose={onClose} /><div className="rotation-facts"><Fact label="批次版本" value={version} /><Fact label="时间范围" value={range[0] && range[1] ? `${formatDateOnly(range[0], data.timezone)} — ${formatDateOnly(range[1], data.timezone)}` : "暂无训练时间范围"} /><Fact label="本轮成员数" value={`${integer(count)} 个`} /><Fact label="发布时间" value={variant.publishedAt ? formatDateTime(variant.publishedAt, data.timezone) : "尚未发布"} /><Fact label="状态" value={variantStatusText(variant.status)} /><Fact label="存储状态" value={storageStatusText(variant.storageStatus)} /></div><div className="rotation-api"><span>下载动作</span>{canDownload ? <a className="button" href={endpoint} target="_blank" rel="noreferrer">{purpose === "train" ? "下载累计 train" : "下载固定 test"}</a> : <span className="v2-inline-note">该版本当前不可生成固定 test 下载。</span>}<small>{downloadNote}</small></div></div>;
 }
 
 function CurrentVersion({ current, timezone }: { current: DatasetRotationCurrentVersion; timezone: string }) {

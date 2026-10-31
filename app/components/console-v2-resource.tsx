@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { ConsoleShell } from "./console-shell";
 import { Icon } from "./icons";
 import { ConsoleV2ApiError, ConsoleV2ContractError, type ConsoleV2Page, type ConsoleV2Result } from "../lib/console-v2";
-import { appliedFilterFromUrl, appliedListOffset, mergeSharedQuery, workspaceHrefWithAppliedQuery } from "../lib/console-workspace";
+import { appliedFilterFromUrl, appliedListOffset, mergeSharedQuery, workspaceHrefWithAppliedQuery, workspacePathMatches } from "../lib/console-workspace";
 
 export type V2Params = Record<string, string | number | undefined>;
 /** Keep client URL/page arithmetic aligned with the read-model offset bound. */
@@ -180,19 +180,6 @@ export function V2WorkspacePanel({ active, href, visited, children }: { active: 
 
 function tabId(value: string) { return `v2-tab-${value.replace(/[^A-Za-z0-9_-]+/g, "-").replace(/^-|-$/g, "")}`; }
 function panelId(value: string) { return `v2-panel-${value.replace(/[^A-Za-z0-9_-]+/g, "-").replace(/^-|-$/g, "")}`; }
-
-function workspacePathMatches(rootHref: string, pathname: string) {
-  if (rootHref === pathname) return true;
-  const aliases: Record<string, string[]> = {
-    "/trading/overview": ["/trading", "/live"],
-    "/trading/ledger": ["/trades"],
-    "/markets/running": ["/markets"],
-    "/system/observability": ["/system", "/observability"],
-    "/system/delivery": ["/delivery"],
-    "/system/settings": ["/settings"],
-  };
-  return aliases[rootHref]?.includes(pathname) ?? false;
-}
 
 function readPanelAppliedQuery(panel: HTMLElement | null) {
   if (!panel) return "";
