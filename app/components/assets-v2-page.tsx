@@ -138,7 +138,6 @@ function AssetCatalog() {
     { label: "来源", render: (item) => sourceLabels[item.marketSource ?? ""] ?? v2Unknown(item.marketSource) },
     { label: "Sandbox ID", className: "primary mono", render: (item) => v2Unknown(item.sandboxId) },
     { label: "问题", className: "wide", render: (item) => v2Unknown(item.question) },
-    { label: "登记状态", render: (item) => v2Status(item.committedAt ? "committed" : "pending", item.committedAt ? "已登记" : "未提交") },
     { label: "大小 / 提交时间", render: (item) => <div className="v2-cell-copy"><span>{formatV2Bytes(item.archiveSizeBytes)}</span><small>{formatV2Time(item.committedAt)}</small></div> },
   ]} renderDetail={(item) => <AssetDetail item={item} />} emptyDescription="没有符合条件的 Sandbox。" />;
 }
