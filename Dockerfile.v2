@@ -24,6 +24,6 @@ WORKDIR /app
 COPY --from=build --chown=node:node /app /app
 
 USER node
-EXPOSE 13001
+EXPOSE 13000
 
 CMD ["pnpm", "start:v2"]

@@ -6,7 +6,7 @@
  */
 
 import { decodeTradingLedgerPage } from "./trading-ledger-v2.ts";
-import { decodeTradingHolding, holdingIdentity, type ConsoleV2Holding } from "./trading-holdings.ts";
+import { decodeTradingHolding, decodeTradingPortfolioHolding, holdingIdentity, portfolioHoldingIdentity, type ConsoleV2Holding, type ConsoleV2PortfolioHolding } from "./trading-holdings.ts";
 
 export type ConsoleV2Service = "infra" | "trading";
 
@@ -622,6 +622,8 @@ export const consoleV2 = {
     decisionCycle: (id: string) => object("trading", `decision-cycles/${encodeURIComponent(id)}`, {}, decodeRecord),
     orders: (params: PageParams = {}) => page("trading", "orders", params, decodeOrder),
     orderTrace: (id: string) => object("trading", `orders/${encodeURIComponent(id)}/trace`, {}, decodeOrderTrace),
+    portfolioHoldings: (params: PageParams = {}) => page("trading", "portfolio-holdings", params, (value) => decodeTradingPortfolioHolding(value, { requiredText, optionalText, optionalTime })),
+    portfolioHoldingLots: (identity: ConsoleV2PortfolioHolding, params: PageParams = {}) => page("trading", "portfolio-holdings/lots", { ...params, holding_identity: portfolioHoldingIdentity(identity) }, decodePositionLot),
     holdings: (params: PageParams = {}) => page("trading", "holdings", params, decodeHolding),
     holdingLots: (identity: ConsoleV2Holding, params: PageParams = {}) => page("trading", "holdings/lots", { ...params, holding_identity: holdingIdentity(identity) }, decodePositionLot),
     positionLots: (params: PageParams = {}) => page("trading", "position-lots", params, decodePositionLot),
@@ -865,15 +867,39 @@ function exactNonNegativeInteger(value: unknown, field: string): number {
 }
 function nullableBoolean(value: unknown): boolean | null { return typeof value === "boolean" ? value : value === null || value === undefined ? null : String(value).toLowerCase() === "true" ? true : String(value).toLowerCase() === "false" ? false : null; }
 
-export interface ConsoleV2Account { executionAccountId: string; marketSource: "POLYMARKET" | "KALSHI" }
+export interface ConsoleV2Account {
+  executionAccountId: string;
+  marketSource: "POLYMARKET" | "KALSHI";
+  strategyId?: string;
+  mode?: "ACTIVE" | "SELL_ONLY" | "PAUSED";
+  predictionModelId?: string;
+  sourceMode?: "SANDBOX" | "DIRECT";
+}
 export interface ConsoleV2AccountSettlement { settlementId: string; marketSource: string; executionAccountId: string; marketId?: string; conditionId?: string; status: string; transactionHash?: string; payout?: string; createdAt?: string; updatedAt?: string; settledAt?: string; confirmedAt?: string; appliedAt?: string }
 function decodeAccounts(value: RawRecord) {
   if (!Array.isArray(value.accounts)) throw new ConsoleV2ContractError("accounts列表无效");
   return { observedAt: requiredTime(value.observed_at, "accounts.observed_at"), accounts: arrayRecords(value.accounts).map((item): ConsoleV2Account => {
     const source = requiredText(item.market_source, "accounts.market_source");
     if (source !== "POLYMARKET" && source !== "KALSHI") throw new ConsoleV2ContractError("账户来源无效");
-    return { executionAccountId: requiredText(item.execution_account_id, "accounts.execution_account_id"), marketSource: source };
+    const mode = optionalAccountText(item.mode);
+    const sourceMode = optionalAccountText(item.source_mode);
+    const strategyId = optionalAccountText(item.strategy_id);
+    const predictionModelId = optionalAccountText(item.prediction_model_id);
+    if (mode !== undefined && mode !== "ACTIVE" && mode !== "SELL_ONLY" && mode !== "PAUSED") throw new ConsoleV2ContractError("账户运行模式无效");
+    if (sourceMode !== undefined && sourceMode !== "SANDBOX" && sourceMode !== "DIRECT") throw new ConsoleV2ContractError("账户预测来源无效");
+    return {
+      executionAccountId: requiredText(item.execution_account_id, "accounts.execution_account_id"), marketSource: source,
+      ...(strategyId ? { strategyId } : {}),
+      ...(mode ? { mode } : {}),
+      ...(predictionModelId ? { predictionModelId } : {}),
+      ...(sourceMode ? { sourceMode } : {}),
+    };
   }) };
+}
+function optionalAccountText(value: unknown): string | undefined {
+  if (value === undefined || value === null || value === "") return undefined;
+  if (typeof value !== "string") throw new ConsoleV2ContractError("账户配置字段无效");
+  return value.trim() || undefined;
 }
 function decodeAccountSettlement(value: RawRecord): ConsoleV2AccountSettlement {
   const marketSource = requiredText(value.market_source, "market_source");

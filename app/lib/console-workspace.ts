@@ -79,6 +79,7 @@ export function canonicalConsoleQuery(pathname: string, input: URLSearchParams) 
   let changedScope = false;
   const remove = (key: string) => { if (query.has(key)) { query.delete(key); changedScope = true; } };
   if (pathname === "/trading/orders" || pathname === "/trading") for (const key of ["model_id", "strategy_id", "from", "to"]) remove(key);
+  if (pathname === "/trading/positions" && query.get("position_view") !== "redemptions") for (const key of ["model_id", "strategy_id", "from", "to"]) remove(key);
   if (pathname === "/trading/ledger" || pathname === "/trades") for (const key of ["model_id", "strategy_id"]) remove(key);
   if (pathname === "/predictions" || pathname === "/predictions/tasks") {
     for (const key of ["selection_run_id", "selected_market_id", "status", "from", "to", "max_result_id"]) remove(key);

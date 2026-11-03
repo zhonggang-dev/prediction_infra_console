@@ -92,3 +92,19 @@
 
 /* Keep the absolutely positioned accessible table header inside its scroll area. */
 .trading-ledger-records .table-scroll { position: relative; }
+
+
+.trading-account-context > .trading-account-settings {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  padding-left: 8px;
+  color: var(--muted);
+  font-size: 11px;
+}
+.trading-account-settings > span { overflow-wrap: anywhere; }
+.trading-account-settings strong { margin-left: 4px; font-size: 11px; font-weight: 600; }
+@media (max-width: 720px) {
+  .trading-account-context > .trading-account-settings { flex-basis: 100%; padding-left: 0; }
+}

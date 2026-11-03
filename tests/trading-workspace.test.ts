@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { readFile } from "node:fs/promises";
-import { decodeTradingHolding, holdingIdentity } from "../app/lib/trading-holdings.ts";
+import { decodeTradingHolding, decodeTradingPortfolioHolding, holdingIdentity, portfolioHoldingIdentity } from "../app/lib/trading-holdings.ts";
 import { consoleV2 } from "../app/lib/console-v2.ts";
 import { deriveAccountPermission } from "../app/lib/trading-permissions.ts";
 import { filterUnmanagedPositions, formatTradingDisplayValue, normalizeOverviewSources, summarizeAttention } from "../app/lib/trading-display.ts";
@@ -137,4 +137,54 @@ test("overview source failure clears the failed runtime snapshot instead of reta
   assert.deepEqual(failed.snapshot, { observed: true });
   assert.deepEqual(failed.errors, ["运行状态暂不可用"]);
   assert.notEqual(failed.runtime, previous);
+});
+
+
+const portfolioFixture = {
+  execution_account_id: "wallet-a", market_source: "POLYMARKET", market_id: "m-1", condition_id: "c-1", token_id: "t-1", outcome_index: 0, outcome_name: "Yes", status: "MIXED", market_question: "Will fixture resolve?", remaining_shares: "12.340000", remaining_cost: "4.567890", lot_count: 2, first_opened_at: "2026-10-20T00:00:00Z", last_opened_at: "2026-10-22T00:00:00Z",
+};
+
+test("account asset decoder excludes historical model/strategy and preserves exact decimal totals", () => {
+  const item = decodeTradingPortfolioHolding({ ...portfolioFixture, model_id: "legacy", strategy_id: "old", mark_price: "999" }, helpers);
+  assert.equal(item.remainingShares, "12.340000");
+  assert.equal(item.remainingCost, "4.567890");
+  assert.equal("modelId" in item, false);
+  assert.equal("strategyId" in item, false);
+  assert.equal("markPrice" in item, false);
+  assert.deepEqual(JSON.parse(portfolioHoldingIdentity(item)), ["wallet-a", "POLYMARKET", "m-1", "c-1", "t-1", 0, "Yes"]);
+  for (const change of [{ executionAccountId: "other" }, { marketSource: "KALSHI" as const }, { tokenId: "other" }, { outcomeIndex: 1 as const }]) assert.notEqual(portfolioHoldingIdentity({ ...item, ...change }), portfolioHoldingIdentity(item));
+  const spaced = decodeTradingPortfolioHolding({ ...portfolioFixture, outcome_name: " Yes " }, helpers);
+  assert.equal(JSON.parse(portfolioHoldingIdentity(spaced))[6], " Yes ");
+  const kalshi = decodeTradingPortfolioHolding({ ...portfolioFixture, market_source: "KALSHI", condition_id: "", outcome_name: null, outcome_index: null }, helpers);
+  assert.deepEqual(JSON.parse(portfolioHoldingIdentity(kalshi)), ["wallet-a", "KALSHI", "m-1", "", "t-1", null, null]);
+});
+
+test("account asset decoder rejects malformed money, platform, outcome and lot counts", () => {
+  for (const change of [{ remaining_shares: false }, { remaining_cost: "0x10" }, { remaining_cost: 0 }, { lot_count: null }, { lot_count: 0 }, { lot_count: "2" }, { market_source: "OTHER" }, { status: "CLOSED" }, { outcome_index: 2 }, { outcome_index: "0" }, { execution_account_id: true }, { market_id: 2 }, { condition_id: false }, { token_id: 5 }, { outcome_name: 1 }]) assert.throws(() => decodeTradingPortfolioHolding({ ...portfolioFixture, ...change }, helpers));
+});
+
+test("portfolio API preserves exact totals and sends seven-part detail identity with independent paging", async () => {
+  const previous = globalThis.fetch;
+  const calls: URL[] = [];
+  globalThis.fetch = (async (input) => {
+    const url = new URL(String(input), "http://console.test");
+    calls.push(url);
+    const isLots = url.pathname.endsWith("/lots");
+    return Response.json({ data: { items: isLots ? [{ lot_id: "legacy-lot", model_id: "legacy-v1", strategy_id: "opening-strategy", execution_account_id: "wallet-a", status: "OPEN", remaining_shares: "0.000001", remaining_cost: "0.000002" }] : [portfolioFixture], total: isLots ? 6 : 21, limit: isLots ? 5 : 20, offset: isLots ? 5 : 20, observed_at: "2026-11-03T00:00:00Z", has_more: false } });
+  }) as typeof fetch;
+  try {
+    const result = await consoleV2.trading.portfolioHoldings({ execution_account_id: "wallet-a", offset: 20 });
+    assert.equal(calls[0].pathname, "/api/console/v2/trading/portfolio-holdings");
+    assert.equal(calls[0].searchParams.get("execution_account_id"), "wallet-a");
+    assert.equal(result.data.total, 21);
+    const lots = await consoleV2.trading.portfolioHoldingLots(result.data.items[0], { limit: 5, offset: 5 });
+    assert.equal(calls[1].pathname, "/api/console/v2/trading/portfolio-holdings/lots");
+    assert.equal(calls[1].searchParams.get("limit"), "5");
+    assert.equal(calls[1].searchParams.get("offset"), "5");
+    assert.equal(calls[1].searchParams.has("model_id"), false);
+    assert.deepEqual(JSON.parse(calls[1].searchParams.get("holding_identity") ?? "null"), ["wallet-a", "POLYMARKET", "m-1", "c-1", "t-1", 0, "Yes"]);
+    assert.equal(lots.data.items[0].modelId, "legacy-v1");
+    assert.equal(lots.data.items[0].strategyId, "opening-strategy");
+    assert.equal(lots.data.total, 6);
+  } finally { globalThis.fetch = previous; }
 });
