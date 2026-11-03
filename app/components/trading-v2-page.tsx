@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { consoleV2, type ConsoleV2Order, type ConsoleV2Page, type ConsoleV2PositionLot, type ConsoleV2ReconciliationIssue, type ConsoleV2ReconciliationRun, type ConsoleV2AccountSettlement, type ConsoleV2Account } from "../lib/console-v2";
-import { holdingIdentity, type ConsoleV2Holding } from "../lib/trading-holdings";
+import { portfolioHoldingIdentity, type ConsoleV2PortfolioHolding } from "../lib/trading-holdings";
 import { formatV2Number, formatV2Time, V2Facts, V2Frame, V2ListPage, V2Tabs, V2WorkspacePanel, V2SubViews, WORKSPACE_FILTER_CHANGE_EVENT, useV2Filter, useWorkspaceTabs, v2Status, v2Unknown } from "./console-v2-resource";
 import { OfficialWalletPnlPanel } from "./wallet-pnl-chart";
 import { TradeRecordsPage } from "./trade-records-page";
@@ -23,13 +23,14 @@ export function TradingV2Page({ view = "orders" }: { view?: TradingView }) {
   const [accountsRetry, setAccountsRetry] = useState(0);
   useEffect(() => { let cancelled = false; void consoleV2.trading.accounts().then((result) => { if (!cancelled) { setAccounts(result.data.accounts); setAccountsError(undefined); } }).catch((error: unknown) => { if (!cancelled) { setAccounts([]); setAccountsError(error instanceof Error ? error.message : "账户目录不可用"); } }); return () => { cancelled = true; }; }, [accountsRetry]);
   const workspace = useWorkspaceTabs(tabs, `/trading/${view}`, { sharedQueryKeys: ["execution_account_id"] });
-  const selectedSource = accounts.find((item) => item.executionAccountId === account)?.marketSource;
+  const selectedAccount = accounts.find((item) => item.executionAccountId === account);
+  const selectedSource = selectedAccount?.marketSource;
   const config = workspace.active === "/trading/orders" ? { title: "订单", description: "查看委托、成交与订单状态。" }
     : workspace.active === "/trading/positions" ? { title: "持仓", description: "查看当前持有资产、份额与成本。" }
-    : workspace.active === "/trading/ledger" ? { title: "收益与成交账本", description: "查看钱包盈亏与已入账的成交、结算明细。" }
+    : workspace.active === "/trading/ledger" ? { title: "收益与成交账本", description: selectedSource === "KALSHI" ? "查看已入账的成交、对冲回款与到期结算。" : "查看钱包盈亏与已入账的成交、结算明细。" }
     : { title: "对账", description: "查看未解决差异及处理记录。" };
   return <V2Frame eyebrow="Trading" title={config.title} description={config.description}>
-    <section className="trading-account-context" aria-label="交易账户范围"><label><span>账户</span><select className="select" aria-label="交易账户范围" value={account} onChange={(event) => { setAccount(event.target.value); window.dispatchEvent(new Event(WORKSPACE_FILTER_CHANGE_EVENT)); }}><option value="">全部账户</option>{accounts.map((item) => <option key={item.executionAccountId} value={item.executionAccountId}>{item.marketSource === "KALSHI" ? "Kalshi" : "Polymarket"} · {item.executionAccountId}</option>)}{account && !accounts.some((item) => item.executionAccountId === account) && <option value={account}>{account}（目录未确认）</option>}</select></label></section>
+    <section className="trading-account-context" aria-label="交易账户范围"><label><span>账户</span><select className="select" aria-label="交易账户范围" value={account} onChange={(event) => { setAccount(event.target.value); window.dispatchEvent(new Event(WORKSPACE_FILTER_CHANGE_EVENT)); }}><option value="">全部账户</option>{accounts.map((item) => <option key={item.executionAccountId} value={item.executionAccountId}>{item.marketSource === "KALSHI" ? "Kalshi" : "Polymarket"} · {item.executionAccountId}</option>)}{account && !accounts.some((item) => item.executionAccountId === account) && <option value={account}>{account}（目录未确认）</option>}</select></label>{selectedAccount && <div className="trading-account-settings" aria-label="当前账户配置"><span>当前策略 <strong>{selectedAccount.strategyId ?? "未提供"}</strong></span><span>运行模式 <strong>{selectedAccount.mode === "ACTIVE" ? "启用" : selectedAccount.mode === "SELL_ONLY" ? "仅卖出" : selectedAccount.mode === "PAUSED" ? "暂停" : "未提供"}</strong></span>{selectedAccount.predictionModelId && <span>预测模型 <strong>{selectedAccount.predictionModelId}</strong></span>}</div>}</section>
     {accountsError && <div className="notice error"><p>账户目录不可用：{accountsError}</p><button className="button" type="button" onClick={() => setAccountsRetry((value) => value + 1)}>重试</button></div>}
     <V2Tabs tabs={tabs} active={workspace.active} onSelect={(href) => workspace.select(href as typeof workspace.active)} />
     <V2WorkspacePanel active={workspace.active} href="/trading/orders" visited={workspace.visited.has("/trading/orders")}><Orders /></V2WorkspacePanel>
@@ -84,7 +85,7 @@ function ReconciliationViews() {
   return <V2SubViews sharedQueryKeys={["execution_account_id"]} parameter="reconciliation_view" choices={[{ href: "issues", label: "对账问题", content: <ReconciliationIssues /> }, { href: "runs", label: "运行记录", content: <ReconciliationRuns /> }]} />;
 }
 const apiParams = (params: Record<string, string | number | undefined>) => { const next = { ...params }; delete next.position_view; delete next.reconciliation_view; if (next.status === "ALL") delete next.status; return next; };
-const loadHoldings = (params: Record<string, string | number | undefined>) => consoleV2.trading.holdings(apiParams(params));
+const loadHoldings = (params: Record<string, string | number | undefined>) => consoleV2.trading.portfolioHoldings(apiParams(params));
 const loadRedemptions = (params: Record<string, string | number | undefined>) => consoleV2.trading.settlements(apiParams(params));
 const loadIssues = (params: Record<string, string | number | undefined>) => consoleV2.trading.reconciliationIssues(apiParams(params));
 const loadRuns = (params: Record<string, string | number | undefined>) => consoleV2.trading.reconciliationRuns(apiParams(params));
@@ -92,13 +93,13 @@ const loadRuns = (params: Record<string, string | number | undefined>) => consol
 function Positions() {
   const [account] = useV2Filter("execution_account_id");
   const params = useMemo(() => ({ position_view: "holdings", execution_account_id: account || undefined }), [account]);
-  return <V2ListPage<ConsoleV2Holding> title="当前持仓" load={loadHoldings} params={params} rowKey={holdingIdentity} searchPlaceholder="搜索市场、账户或历史策略" columns={[
+  return <V2ListPage<ConsoleV2PortfolioHolding> title="当前持仓" discardedFilters={["model_id", "strategy_id", "from", "to"]} load={loadHoldings} params={params} rowKey={portfolioHoldingIdentity} searchPlaceholder="搜索市场或账户" columns={[
     { label: "账户", render: (item) => v2Unknown(item.executionAccountId) },
     { label: "市场 / 结果", className: "primary", render: (item) => <div className="v2-cell-copy"><strong>{v2Unknown(item.marketQuestion, item.marketId ?? "未知市场")}</strong><small>{v2Unknown(item.outcomeName)}</small></div> },
     { label: "持有份额", render: (item) => decimal(item.remainingShares) },
     { label: "持有成本", render: (item) => decimal(item.remainingCost) },
     { label: "状态", render: (item) => holdingLabels[item.status] ?? item.status },
-  ]} renderDetail={(item) => <><V2Facts values={[{ label: "历史模型 / 策略", value: `${v2Unknown(item.modelId)} / ${v2Unknown(item.strategyId)}` }, { label: "市场来源", value: v2Unknown(item.marketSource) }, { label: "市场 / 条件", value: `${v2Unknown(item.marketId)} / ${v2Unknown(item.conditionId)}`, mono: true }, { label: "Token", value: v2Unknown(item.tokenId), mono: true }, { label: "首次开仓", value: formatV2Time(item.firstOpenedAt) }]} /><HoldingLotDetails key={holdingIdentity(item)} item={item} /></>} />;
+  ]} renderDetail={(item) => <><V2Facts values={[{ label: "市场来源", value: v2Unknown(item.marketSource) }, { label: "市场 / 条件", value: `${v2Unknown(item.marketId)} / ${v2Unknown(item.conditionId)}`, mono: true }, { label: "Token", value: v2Unknown(item.tokenId), mono: true }, { label: "首次开仓", value: formatV2Time(item.firstOpenedAt) }]} /><HoldingLotDetails key={portfolioHoldingIdentity(item)} item={item} /></>} />;
 }
 
 function ReconciliationIssues() {
@@ -143,7 +144,7 @@ function Redemptions({ marketSource }: { marketSource?: string }) {
 }
 
 
-function HoldingLotDetails({ item }: { item: ConsoleV2Holding }) {
+function HoldingLotDetails({ item }: { item: ConsoleV2PortfolioHolding }) {
   const pageSize = 5;
   const [page, setPage] = useState(0);
   const [result, setResult] = useState<ConsoleV2Page<ConsoleV2PositionLot>>();
@@ -156,10 +157,10 @@ function HoldingLotDetails({ item }: { item: ConsoleV2Holding }) {
       setLoading(true);
       setError(undefined);
       setResult(undefined);
-      void consoleV2.trading.holdingLots(item, { limit: pageSize, offset: page * pageSize }).then((response) => { if (!cancelled) setResult(response.data); }).catch((requestError: unknown) => { if (!cancelled) setError(requestError instanceof Error ? requestError.message : "Lot 明细暂不可用"); }).finally(() => { if (!cancelled) setLoading(false); });
+      void consoleV2.trading.portfolioHoldingLots(item, { limit: pageSize, offset: page * pageSize }).then((response) => { if (!cancelled) setResult(response.data); }).catch((requestError: unknown) => { if (!cancelled) setError(requestError instanceof Error ? requestError.message : "Lot 明细暂不可用"); }).finally(() => { if (!cancelled) setLoading(false); });
     }, 0);
     return () => { cancelled = true; window.clearTimeout(timer); };
   }, [item, page]);
   const totalPages = result ? Math.ceil(result.total / result.limit) : 0;
-  return <section className="v2-evidence-section holding-lot-details"><h4 className="v2-evidence-title">开仓批次明细</h4>{loading && !result ? <p className="v2-inline-note">正在读取 {formatV2Number(item.lotCount, 0)} 个 Lot…</p> : error ? <p className="v2-inline-note">{error}</p> : result && !result.items.length ? <p className="v2-inline-note">当前持仓身份没有返回 Lot 明细。</p> : result ? <><div className="table-scroll v2-evidence-table"><table className="v2-table"><thead><tr><th>Lot ID</th><th>状态</th><th>剩余份额 / 成本</th><th>开仓 / 关闭</th></tr></thead><tbody>{result.items.map((lot) => <tr key={lot.lotId}><td className="mono">{lot.lotId}</td><td>{lot.status}</td><td>{formatV2Number(lot.remainingShares, 6)} / {formatV2Number(lot.remainingCost, 6)}</td><td>{formatV2Time(lot.openedAt)} / {formatV2Time(lot.closedAt)}</td></tr>)}</tbody></table></div><div className="v2-inline-note">第 {page + 1} / {totalPages} 页 <button type="button" className="button" disabled={page === 0 || loading} onClick={() => setPage((value) => Math.max(0, value - 1))}>上一页</button><button type="button" className="button" disabled={page + 1 >= totalPages || loading} onClick={() => setPage((value) => Math.min(totalPages - 1, value + 1))}>下一页</button></div></> : <p className="v2-inline-note">当前汇总包含 {formatV2Number(item.lotCount, 0)} 个 Lot；未返回明细。</p>}</section>;
+  return <section className="v2-evidence-section holding-lot-details"><h4 className="v2-evidence-title">开仓批次明细</h4>{loading && !result ? <p className="v2-inline-note">正在读取 {formatV2Number(item.lotCount, 0)} 个 Lot…</p> : error ? <p className="v2-inline-note">{error}</p> : result && !result.items.length ? <p className="v2-inline-note">当前持仓身份没有返回 Lot 明细。</p> : result ? <><div className="table-scroll v2-evidence-table"><table className="v2-table"><thead><tr><th>Lot ID</th><th>开仓时模型 / 策略</th><th>状态</th><th>剩余份额 / 成本</th><th>开仓 / 关闭</th></tr></thead><tbody>{result.items.map((lot) => <tr key={lot.lotId}><td className="mono">{lot.lotId}</td><td><div className="v2-cell-copy"><strong>{v2Unknown(lot.modelId)}</strong><small>{v2Unknown(lot.strategyId)}</small></div></td><td>{holdingLabels[lot.status] ?? lot.status}</td><td>{decimal(lot.remainingShares)} / {decimal(lot.remainingCost)}</td><td>{formatV2Time(lot.openedAt)} / {formatV2Time(lot.closedAt)}</td></tr>)}</tbody></table></div><div className="v2-inline-note">第 {page + 1} / {totalPages} 页 <button type="button" className="button" disabled={page === 0 || loading} onClick={() => setPage((value) => Math.max(0, value - 1))}>上一页</button><button type="button" className="button" disabled={page + 1 >= totalPages || loading} onClick={() => setPage((value) => Math.min(totalPages - 1, value + 1))}>下一页</button></div></> : <p className="v2-inline-note">当前汇总包含 {formatV2Number(item.lotCount, 0)} 个 Lot；未返回明细。</p>}</section>;
 }

@@ -39,7 +39,7 @@ test("新版部署标识与旧版运行入口隔离", async () => {
   assert.match(unit, /prediction-console-v2/);
   assert.match(unit, /prediction-console-v2:current/);
   assert.match(unit, /PREDICTION_CONSOLE_V2_BIND_ADDRESS/);
-  assert.match(unit, /13001/);
+  assert.match(unit, /PREDICTION_CONSOLE_V2_PORT=13000/);
   assert.match(unit, /tmpfs \/app\/.wrangler:/);
   assert.match(unit, /tmpfs \/app\/\.wrangler-v2/);
   assert.match(dockerignore, /\.wrangler-v2/);
@@ -48,8 +48,8 @@ test("新版部署标识与旧版运行入口隔离", async () => {
   assert.match(globals, /@media \(max-width: 960px\) \{[\s\S]*?\.sidebar \{[^}]*visibility: hidden;/);
   assert.match(globals, /\.sidebar\.open \{[^}]*visibility: visible;/);
   assert.doesNotMatch(unit, /prediction-console(?::current|\.service)(?!-v2)/);
-  assert.doesNotMatch(unit, /13000/);
-  assert.match(dockerfile, /EXPOSE 13001/);
+  assert.doesNotMatch(unit, /13001/);
+  assert.match(dockerfile, /EXPOSE 13000/);
   assert.match(dockerfile, /pnpm build:v2/);
   assert.match(dockerfile, /"start:v2"/);
   assert.match(packageJson, /"dev:v2"/);
@@ -64,7 +64,7 @@ test("新版部署标识与旧版运行入口隔离", async () => {
 test("新版环境示例只声明独立绑定配置", async () => {
   const env = await read("deploy/service.env.v2.example");
   assert.match(env, /^PREDICTION_CONSOLE_V2_BIND_ADDRESS=127\.0\.0\.1$/m);
-  assert.match(env, /^PREDICTION_CONSOLE_V2_PORT=13001$/m);
+  assert.match(env, /^PREDICTION_CONSOLE_V2_PORT=13000$/m);
   assert.doesNotMatch(env, /CONSOLE_API_TOKEN=\S+/);
   assert.doesNotMatch(env, /^PREDICTION_CONSOLE_V2_BIND_ADDRESS=0\.0\.0\.0$/m);
 });

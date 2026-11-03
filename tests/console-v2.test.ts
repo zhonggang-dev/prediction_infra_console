@@ -203,7 +203,7 @@ test("业务工作区复用真实资料轮换与交易视图，不回退到 read
   assert.doesNotMatch(overview, /datasetMembers\(\{ limit: 1 \}\)/);
   assert.doesNotMatch(trading, /<LiveTradingPage/);
   assert.match(trading, /<TradeRecordsPage embedded sharedAccountOnly compact \/>/);
-  assert.match(trading, /consoleV2\.trading\.holdings/);
+  assert.match(trading, /consoleV2\.trading\.portfolioHoldings/);
   assert.match(trading, /OfficialWalletPnlPanel/);
   assert.match(trading, /\/trading\/ledger/);
   assert.match(trading, /aliases: \["\/trading"\]/);

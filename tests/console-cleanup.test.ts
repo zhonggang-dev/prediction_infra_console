@@ -42,7 +42,8 @@ test("规范旧筛选只改变所属页面并按范围重置offset，维护身�
   const ledger = canonicalConsoleQuery("/trading/ledger", input);
   assert.equal(ledger.get("from"), "2026-01-01");
   assert.equal(ledger.has("model_id"), false);
-  assert.equal(canonicalConsoleQuery("/trading/positions", input).toString(), input.toString());
+  assert.equal(canonicalConsoleQuery("/trading/positions", input).toString(), "execution_account_id=kalshi%3Amain&status=FILLED");
+  assert.equal(canonicalConsoleQuery("/trading/positions", new URLSearchParams("position_view=redemptions&offset=20")).toString(), "position_view=redemptions&offset=20");
   const prediction = canonicalConsoleQuery("/predictions/tasks", new URLSearchParams("generation_id=468&source=KALSHI&selection_run_id=573&selected_market_id=1&offset=40"));
   assert.equal(prediction.toString(), "generation_id=468&source=KALSHI");
   assert.equal(canonicalConsoleQuery("/predictions", new URLSearchParams("source=GENERATED&offset=20")).toString(), "");
@@ -94,7 +95,7 @@ test("新增交易资源BFF只用服务端live token和固定路径", async () =
   process.env.TRADING_EXECUTION_LIVE_READ_ONLY_TOKEN = "read-only";
   const fetch = globalThis.fetch;
   try {
-    for (const resource of ["accounts", "ledger-activities", "settlements"]) {
+    for (const resource of ["accounts", "ledger-activities", "settlements", "portfolio-holdings"]) {
       globalThis.fetch = (async (url, init) => { assert.equal(String(url), `http://trading.test/api/v1/console/v2/${resource}`); assert.equal(new Headers(init?.headers).get("authorization"), "Bearer read-only"); return Response.json({ data: {} }); }) as typeof fetch;
       assert.equal((await GET(new Request(`http://console.test/api/console/v2/trading/${resource}`), { params: Promise.resolve({ path: ["trading", resource] }) })).status, 200);
     }
@@ -253,4 +254,42 @@ test("旧任务入口只保留可解释结果范围，剥任务私有状态/搜�
   assert.equal(target.searchParams.get("generation_ids"), "467,468");
   for (const key of ["status", "q", "offset", "limit", "batch_model", "batch_max_result_id"]) assert.equal(target.searchParams.has(key), false);
   assert.equal(predictionTasksRedirect(new URLSearchParams("source=KALSHI&generation_id=468&prediction_as_of=2026-11-03T07%3A00%3A00.123456Z")), "/predictions?source=KALSHI&generation_id=468&prediction_as_of=2026-11-03T07%3A00%3A00.123456Z");
+});
+
+
+test("账户目录读取真实配置，缺失模式不推定启用，拒绝未知模式", async () => {
+  const row = { execution_account_id: "wallet-new", market_source: "POLYMARKET", strategy_id: "current-strategy", mode: "PAUSED", prediction_model_id: "v4.1 flash", source_mode: "SANDBOX", wallet_address: "secret", private_key_path: "secret", api_key_id: "secret" };
+  await withFetch({ data: { accounts: [row], observed_at: observed } }, async () => {
+    const account = (await consoleV2.trading.accounts()).data.accounts[0];
+    assert.deepEqual(account, { executionAccountId: "wallet-new", marketSource: "POLYMARKET", strategyId: "current-strategy", mode: "PAUSED", predictionModelId: "v4.1 flash", sourceMode: "SANDBOX" });
+    assert.equal(JSON.stringify(account).includes("secret"), false);
+  });
+  for (const mode of [undefined, null, ""]) await withFetch({ data: { accounts: [{ ...row, mode }], observed_at: observed } }, async () => { assert.equal((await consoleV2.trading.accounts()).data.accounts[0].mode, undefined); });
+  for (const change of [{ mode: "enabled" }, { mode: "NOT_ACTIVE" }, { source_mode: "LIVE" }, { mode: false }, { prediction_model_id: true }, { strategy_id: 2 }]) await withFetch({ data: { accounts: [{ ...row, ...change }], observed_at: observed } }, async () => { await assert.rejects(consoleV2.trading.accounts()); });
+});
+
+test("新资产成员BFF限定固定路径与只读token，不开放任意子资源", async () => {
+  const oldBase = process.env.TRADING_EXECUTION_BASE_URL;
+  const oldToken = process.env.TRADING_EXECUTION_LIVE_READ_ONLY_TOKEN;
+  const oldFetch = globalThis.fetch;
+  process.env.TRADING_EXECUTION_BASE_URL = "http://trading.test";
+  process.env.TRADING_EXECUTION_LIVE_READ_ONLY_TOKEN = "read-only";
+  const identity = '["wallet-a","POLYMARKET","m","c","t",0,"Yes"]';
+  try {
+    globalThis.fetch = (async (input, init) => {
+      const url = new URL(String(input));
+      assert.equal(url.pathname, "/api/v1/console/v2/portfolio-holdings/lots");
+      assert.equal(url.searchParams.get("holding_identity"), identity);
+      assert.equal(url.searchParams.get("offset"), "5");
+      assert.equal(new Headers(init?.headers).get("authorization"), "Bearer read-only");
+      return Response.json({ data: {} });
+    }) as typeof fetch;
+    const params = new URLSearchParams({ holding_identity: identity, limit: "5", offset: "5" });
+    assert.equal((await GET(new Request(`http://console.test/api/console/v2/trading/portfolio-holdings/lots?${params}`), { params: Promise.resolve({ path: ["trading", "portfolio-holdings", "lots"] }) })).status, 200);
+    for (const path of [["trading", "portfolio-holdings", "arbitrary"], ["trading", "portfolio-holdings", "lots", "extra"]]) assert.equal((await GET(new Request("http://console.test/"), { params: Promise.resolve({ path }) })).status, 404);
+  } finally {
+    globalThis.fetch = oldFetch;
+    if (oldBase === undefined) delete process.env.TRADING_EXECUTION_BASE_URL; else process.env.TRADING_EXECUTION_BASE_URL = oldBase;
+    if (oldToken === undefined) delete process.env.TRADING_EXECUTION_LIVE_READ_ONLY_TOKEN; else process.env.TRADING_EXECUTION_LIVE_READ_ONLY_TOKEN = oldToken;
+  }
 });

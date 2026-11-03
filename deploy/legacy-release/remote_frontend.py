@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Remote runner for the reviewed legacy Console 13000 release (source: legacy-console/ on main).
+"""Remote runner for the reviewed legacy Console 13001 release (source: legacy-console/ on main).
 
 This file is the side-effecting adapter.  It is intentionally separate from
 ``deploy_frontend.py``: that module remains an offline guard, while this
@@ -17,6 +17,7 @@ import fcntl
 import hashlib
 import ipaddress
 import json
+import sys
 from pathlib import Path
 import os
 import re
@@ -27,6 +28,9 @@ from urllib.request import Request, urlopen
 from urllib.parse import urlsplit
 
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from console_ports import LEGACY_PORT, V2_PORT
+
 ROOT = Path("/opt/prediction-console")
 LOCK_PATH = ROOT / ".deploy.lock"
 LEGACY_UNIT = "prediction-console.service"
@@ -34,7 +38,6 @@ LEGACY_CONTAINER = "prediction-console"
 LEGACY_TAG = "prediction-console:current"
 V2_CONTAINER = "prediction-console-v2"
 V2_TAG = "prediction-console-v2:current"
-LEGACY_PORT = 13000
 SHA40 = re.compile(r"^[0-9a-f]{40}$")
 SHA64 = re.compile(r"^[0-9a-f]{64}$")
 IMAGE_ID = re.compile(r"^sha256:[0-9a-f]{64}$")
@@ -143,9 +146,9 @@ def validate_metadata(metadata: dict[str, Any]) -> dict[str, Any]:
     except ValueError as error:
         raise ReleaseInputError("legacy_http_base_url must use a private IP address") from error
     if base_url.scheme != "http" or not private_host.is_private or base_url.port != LEGACY_PORT or base_url.path not in ("", "/") or base_url.username or base_url.password or base_url.query or base_url.fragment:
-        raise ReleaseInputError("legacy_http_base_url must be a private HTTP origin on port 13000")
+        raise ReleaseInputError("legacy_http_base_url must be a private HTTP origin on port 13001")
     if metadata.get("unit", LEGACY_UNIT) != LEGACY_UNIT or metadata.get("container", LEGACY_CONTAINER) != LEGACY_CONTAINER or metadata.get("image_ref", LEGACY_TAG) != LEGACY_TAG:
-        raise ReleaseInputError("legacy target is not prediction-console on port 13000")
+        raise ReleaseInputError("legacy target is not prediction-console on port 13001")
     return metadata
 
 
@@ -213,6 +216,20 @@ class RemoteIO:
         self.run("systemctl", "restart", unit)
 
 
+def container_port(payload: dict[str, Any]) -> int | None:
+    config = payload.get("Config") or {}
+    command = config.get("Cmd") or []
+    if "--port" in command:
+        try:
+            return int(command[command.index("--port") + 1])
+        except (IndexError, ValueError):
+            raise RuntimeError("container port argument is invalid")
+    for entry in config.get("Env") or []:
+        if entry.startswith("PREDICTION_CONSOLE_V2_PORT="):
+            return int(entry.split("=", 1)[1])
+    raise RuntimeError("container port cannot be verified")
+
+
 def container_facts(io: RemoteIO, name: str) -> dict[str, Any]:
     try:
         payload = io.docker_inspect(name)
@@ -222,6 +239,10 @@ def container_facts(io: RemoteIO, name: str) -> dict[str, Any]:
             raise ContainerMissing(name) from error
         raise
     state = payload.get("State") or {}
+    observed_port = container_port(payload)
+    expected_port = LEGACY_PORT if name == LEGACY_CONTAINER else V2_PORT
+    if observed_port is not None and observed_port != expected_port:
+        raise RuntimeError("container role/port mapping is not current")
     return {
         "id": payload.get("Id"), "image": payload.get("Image"), "started_at": state.get("StartedAt"),
         "restart_count": payload.get("RestartCount"), "status": state.get("Status"),

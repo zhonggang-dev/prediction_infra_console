@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Mock-IO tests for the legacy 13000 remote deployment runner."""
+"""Mock-IO tests for the legacy 13001 remote deployment runner."""
 
 from __future__ import annotations
 
@@ -47,7 +47,7 @@ class FakeIO(remote.RemoteIO):
         identity = self.legacy if name == remote.LEGACY_CONTAINER else self.v2
         if identity is None:
             raise subprocess.CalledProcessError(1, ["docker", "inspect", name], stderr=f"Error: No such container: {name}")
-        return {"Id": identity["id"], "Image": identity["image"], "RestartCount": identity["restart_count"], "State": {"StartedAt": identity["started_at"], "Status": identity["status"], "Running": identity["running"]}}
+        return {"Config": {"Cmd": ["pnpm", "start", "--port", str(remote.LEGACY_PORT if name == remote.LEGACY_CONTAINER else remote.V2_PORT)]}, "Id": identity["id"], "Image": identity["image"], "RestartCount": identity["restart_count"], "State": {"StartedAt": identity["started_at"], "Status": identity["status"], "Running": identity["running"]}}
 
     def docker_image(self, ref):
         if ref == remote.LEGACY_TAG:
@@ -147,7 +147,7 @@ def fixture():
                 "legacy_identity": {"id": "1" * 64, "image": "sha256:" + "2" * 64, "started_at": "2026-10-26T00:00:00Z", "restart_count": 0, "status": "running", "running": True, "pointer": str(current), "pointer_target": str(old_release.resolve())},
                 "protected_v2_identity": {"id": "3" * 64, "image": "sha256:" + "4" * 64, "started_at": "2026-10-26T00:00:00Z", "restart_count": 0, "status": "running", "running": True},
                 "wallet_pnl_expected": {"wallet-6": "0x" + "6" * 40, "wallet-7": "0x" + "7" * 40},
-                "legacy_http_base_url": "http://172.21.20.221:13000",
+                "legacy_http_base_url": "http://172.21.20.221:13001",
                 "ui_timeout_seconds": 2, "ui_poll_seconds": 1,
             }
             lock = root / "deploy.lock"

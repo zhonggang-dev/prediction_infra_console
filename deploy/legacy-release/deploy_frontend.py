@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Offline guards for the legacy 13000 frontend release (source: legacy-console/).
+"""Offline guards for the legacy 13001 frontend release (source: legacy-console/).
 
 Pure checks on metadata, image labels, the UI handshake and rollback ownership.
 It never touches Docker or systemd; remote_frontend.py does the real release.
@@ -13,10 +13,14 @@ from contextlib import contextmanager
 import fcntl
 import hashlib
 import json
+import sys
 from pathlib import Path
 import re
 from typing import Any, Callable, Iterator
 
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from console_ports import LEGACY_PORT, V2_PORT
 
 ROOT = Path("/opt/prediction-console")
 LOCK_PATH = ROOT / ".deploy.lock"
@@ -90,7 +94,7 @@ def validate_image_attestation(metadata: dict[str, Any], labels: dict[str, Any])
 def validate_preflight(metadata: dict[str, Any], observed: dict[str, Any]) -> dict[str, Any]:
     validate_metadata(metadata)
     if observed.get("legacy_identity") != metadata["legacy_identity"]:
-        raise ReleaseInputError("legacy 13000 identity changed")
+        raise ReleaseInputError("legacy 13001 identity changed")
     if observed.get("protected_v2_identity") != metadata["protected_v2_identity"]:
         raise ReleaseInputError("protected prediction-console-v2 identity changed")
     if observed.get("current_image_sha256") != metadata["image_sha256"]:
@@ -98,7 +102,7 @@ def validate_preflight(metadata: dict[str, Any], observed: dict[str, Any]) -> di
     if observed.get("backend_binary_sha") != metadata["expected_backend_binary_sha"]:
         raise ReleaseInputError("frontend is paired with an unexpected backend binary")
     validate_image_attestation(metadata, observed.get("image_labels") or {})
-    return {"legacy": metadata["legacy_identity"], "protected_v2": metadata["protected_v2_identity"], "port": 13000}
+    return {"legacy": metadata["legacy_identity"], "protected_v2": metadata["protected_v2_identity"], "port": LEGACY_PORT}
 
 
 def validate_ui_handshake(release: Path, merge_sha: str) -> str:
@@ -162,7 +166,7 @@ def main(argv: list[str] | None = None) -> int:
     metadata = json.loads(Path(args.metadata_json).read_text(encoding="utf-8"))
     observed = json.loads(Path(args.observed_json).read_text(encoding="utf-8"))
     validate_preflight(metadata, observed)
-    print(json.dumps({"phase": "legacy_frontend_preflight_ok", "unit": LEGACY_UNIT, "port": 13000, "protected": PROTECTED_V2}, sort_keys=True))
+    print(json.dumps({"phase": "legacy_frontend_preflight_ok", "unit": LEGACY_UNIT, "port": LEGACY_PORT, "protected": PROTECTED_V2}, sort_keys=True))
     return 0
 
 

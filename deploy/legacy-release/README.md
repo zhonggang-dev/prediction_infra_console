@@ -1,6 +1,6 @@
-# 旧版控制台（13000）发布脚本
+# 旧版控制台（13001）发布脚本
 
-13000 的源码在 [`legacy-console/`](../../legacy-console/)（见仓库 README「旧版 13000」）。这里是把它的镜像安全切到线上的脚本：持锁、校验身份、切换、验证页面、失败回滚。13001（`prediction-console-v2`）只作为"受保护对象"被检查，脚本不会动它。
+13001 的源码在 [`legacy-console/`](../../legacy-console/)（见仓库 README「旧版 13001」）。这里是把它的镜像安全切到线上的脚本：持锁、校验身份、切换、验证页面、失败回滚。13000（`prediction-console-v2`）只作为"受保护对象"被检查，脚本不会动它。
 
 | 文件 | 作用 |
 | --- | --- |
@@ -12,7 +12,7 @@
 
 ## 和 10-26 版的区别
 
-13000 不再用 `legacy/manifest.json` 拼装，所以：
+13001 不再用 `legacy/manifest.json` 拼装，所以：
 
 - 元数据去掉 `legacy_source_commit`，镜像也不再带 `com.unipai.legacy-source-commit` 标签，`DEPLOYMENT.json` 里不再写它。
 - `wallet_pnl_expected` 改为**可选**。只有改到官方盈亏卡片的发布才需要给（给了就照旧探测钱包 6 / 7 的接口并检查「官方盈亏」「运行监控」两个 Tab）。
@@ -42,7 +42,7 @@
    ```
 
    元数据里的 `image_sha256` 是这个镜像的完整 ID（`sha256:…`），不是标签名。
-3. 准备元数据 JSON（不含任何令牌 / 密码，含这类键名会被拒绝）。必填：`release`（`/opt/prediction-console/releases/…` 下的单层目录）、`merge_sha`、`source_branch`（只能是 `main`）、`source_archive_sha256`、`image_sha256`、`backend_identity`（一个这次发布期间不应变化的后端进程：`pid`、`binary_path`、`binary_sha256`；10-26 用的是 trading-execution）、`legacy_identity`（现在 `prediction-console` 容器的 id / image / started_at / restart_count / status / running 与 `current` 指针）、`protected_v2_identity`（`prediction-console-v2` 容器同样的字段）、`legacy_http_base_url`。**13000 监听内网地址**，例如 `http://172.21.20.221:13000`，不是 `127.0.0.1`。可选：`wallet_pnl_expected`、`smoke_pages`、`ui_timeout_seconds`（默认 900）、`ui_poll_seconds`、`startup_timeout_seconds`。
+3. 准备元数据 JSON（不含任何令牌 / 密码，含这类键名会被拒绝）。必填：`release`（`/opt/prediction-console/releases/…` 下的单层目录）、`merge_sha`、`source_branch`（只能是 `main`）、`source_archive_sha256`、`image_sha256`、`backend_identity`（一个这次发布期间不应变化的后端进程：`pid`、`binary_path`、`binary_sha256`；10-26 用的是 trading-execution）、`legacy_identity`（现在 `prediction-console` 容器的 id / image / started_at / restart_count / status / running 与 `current` 指针）、`protected_v2_identity`（`prediction-console-v2` 容器同样的字段）、`legacy_http_base_url`。**13001 监听内网地址**，例如 `http://172.21.20.221:13001`，不是 `127.0.0.1`。可选：`wallet_pnl_expected`、`smoke_pages`、`ui_timeout_seconds`（默认 900）、`ui_poll_seconds`、`startup_timeout_seconds`。
 4. 把脚本和元数据放到服务器，**在服务器上以 root 运行**（脚本只有这一种运行方式，不会转发、不会在本机执行）：
 
    ```bash
@@ -50,7 +50,7 @@
    ssh zhangyan 'sudo -n python3 /home/zhangyan/legacy-release/remote_frontend.py --metadata-json /home/zhangyan/legacy-release/meta.json --preflight'
    ```
 
-   `--preflight` 是只读检查：现有 13000 / 13001 容器身份、`current` 指针、后端进程、候选镜像的 ID 与标签。
+   `--preflight` 是只读检查：现有 13001 / 13000 容器身份、`current` 指针、后端进程、候选镜像的 ID 与标签。
 5. 确认没有人在用线上，再发布：同一条命令把 `--preflight` 换成 `--deploy`。发布器会等到 `<release>/UI_VERIFIED`，文件内容必须是 `merge_sha`；写 `UI_REJECTED` 则立即回滚。超时也回滚。
 6. 本地跑测试：
 
@@ -65,3 +65,5 @@
 ## 备注
 
 2026-10-27 逐时点策略（pm_sim）的前端发布是手工完成的（构建镜像 → 隔离只读容器验证 → 换标签重启 → 页面探测），没有走这个发布器；这个适配就是为了下一次发布能走它。
+
+发布脚本依赖上一级 `console_ports.py`，远端运行时必须保留 `deploy/legacy-release/` 和 `deploy/console_ports.py` 的目录关系。若线上仍是旧映射，先按 `deploy/console-port-swap/README.md` 完成成对迁移；本脚本不会自动把其他应用移走。

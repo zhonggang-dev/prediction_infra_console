@@ -1,10 +1,10 @@
 import net from "node:net";
 
 const host = process.env.PREDICTION_CONSOLE_V2_BIND_ADDRESS || "127.0.0.1";
-const port = Number(process.env.PREDICTION_CONSOLE_V2_PORT || "13001");
+const port = Number(process.env.PREDICTION_CONSOLE_V2_PORT || "13000");
 
 if (!Number.isInteger(port) || port < 1 || port > 65535) {
-  console.error(`PREDICTION_CONSOLE_V2_PORT 无效：${process.env.PREDICTION_CONSOLE_V2_PORT || "13001"}`);
+  console.error(`PREDICTION_CONSOLE_V2_PORT 无效：${process.env.PREDICTION_CONSOLE_V2_PORT || "13000"}`);
   process.exitCode = 1;
 } else {
   const socket = net.createConnection({ host, port });

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Offline tests for the legacy 13000 release guards."""
+"""Offline tests for the legacy 13001 release guards."""
 
 from __future__ import annotations
 
@@ -47,7 +47,7 @@ class FrontendGuardTests(unittest.TestCase):
         with self.assertRaises(frontend.ReleaseInputError):
             frontend.validate_image_attestation(metadata, {**labels, "com.unipai.release-profile": "v2"})
         observed = {"legacy_identity": metadata["legacy_identity"], "protected_v2_identity": metadata["protected_v2_identity"], "current_image_sha256": metadata["image_sha256"], "backend_binary_sha": metadata["expected_backend_binary_sha"], "image_labels": labels}
-        self.assertEqual(frontend.validate_preflight(metadata, observed)["port"], 13000)
+        self.assertEqual(frontend.validate_preflight(metadata, observed)["port"], 13001)
         with self.assertRaises(frontend.ReleaseInputError):
             frontend.validate_preflight(metadata, {**observed, "protected_v2_identity": {"id": "changed", "image": "v2-image", "started_at": "2026-10-26T00:00:00Z"}})
 

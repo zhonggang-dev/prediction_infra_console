@@ -1,6 +1,6 @@
 # Prediction Console V2
 
-Prediction Infra 的新版 React 运维控制台基础。它从线上 Console 的已提交版本独立复制，以 `13001` 和 `prediction-console-v2` 运行。旧版 `13000`（`prediction-console` 容器）的源码独立放在 [legacy-console/](./legacy-console/)，见下文「旧版 13000」。浏览器只请求同源 `/api/console/*`；BFF 在服务端携带令牌请求 Go 服务，因此任何令牌都不会进入浏览器包。
+Prediction Infra 的新版 React 运维控制台基础。它从线上 Console 的已提交版本独立复制，以 `13000` 和 `prediction-console-v2` 运行。旧版 `13001`（`prediction-console` 容器）的源码独立放在 [legacy-console/](./legacy-console/)，见下文「旧版 13001」。浏览器只请求同源 `/api/console/*`；BFF 在服务端携带令牌请求 Go 服务，因此任何令牌都不会进入浏览器包。
 
 新版业务页按市场、预测、题目、资料与数据、交易、系统运行分组，使用 v2 只读 projection、服务端筛选和有界分页。后端资源未配置、依赖 503 或字段不满足契约时，页面会明确显示不可用/未知，不把空结果或累计历史数量当作当前状态。
 
@@ -11,7 +11,7 @@ cp .env.example .env.local
 pnpm install
 ```
 
-新版本地入口默认只绑定 `127.0.0.1:13001`，与旧版开发命令隔离：
+新版本地入口默认只绑定 `127.0.0.1:13000`，与旧版开发命令隔离：
 
 ```bash
 pnpm dev:v2
@@ -25,6 +25,8 @@ pnpm start:v2
 
 ## 部署边界
 
+生产端口映射固定为新应用 `prediction-console-v2:13000`、旧应用 `prediction-console:13001`，合同位于 `deploy/console_ports.py`。已有双应用的迁移及后续新应用发布走[成对发布流程](./deploy/console-port-swap/README.md)，不要单独覆盖 unit 后启动并抢占另一套应用端口。下方安装片段只用于首次独立安装。
+
 前端与 Go 服务分别构建，但生产环境建议放在同一反向代理后：
 
 ```text
@@ -33,7 +35,7 @@ pnpm start:v2
 
 Console 的 BFF 会使用服务端环境变量访问 Go，浏览器不会得到这些令牌。BFF 本身必须由公司 SSO、VPN 或内网反向代理保护，不能携带真实令牌直接暴露到公网。反向代理还应限制 XXL-JOB 等内部路由，不要把它们转发给前端用户。
 
-新版 systemd 部署使用独立的 `prediction-console-v2.service`、`prediction-console-v2:current` 镜像、`/etc/prediction-console-v2` 配置目录和 `127.0.0.1:13001` 默认绑定。构建和安装步骤如下：
+新版 systemd 部署使用独立的 `prediction-console-v2.service`、`prediction-console-v2:current` 镜像、`/etc/prediction-console-v2` 配置目录和 `127.0.0.1:13000` 默认绑定。构建和安装步骤如下：
 
 ```bash
 docker build -f Dockerfile.v2 -t prediction-console-v2:current .
@@ -43,7 +45,7 @@ sudo install -m 0640 deploy/service.env.v2.example /etc/prediction-console-v2/se
 # 将只读后端变量写入 /etc/prediction-console-v2/env（不要提交真实值）
 sudo systemctl daemon-reload
 sudo systemctl enable --now prediction-console-v2.service
-curl http://127.0.0.1:13001/
+curl http://127.0.0.1:13000/
 ```
 
 如果需要直接通过服务器内网地址访问，编辑独立的 `/etc/prediction-console-v2/service.env`，把 `PREDICTION_CONSOLE_V2_BIND_ADDRESS` 设置为该服务器的明确内网 IP 后重启新版 unit。不要设置成 `0.0.0.0`，避免绕过 VPN、SSO 或内网边界。新版停止时只执行 `sudo systemctl stop prediction-console-v2.service`；不要把旧版 unit、容器或镜像名填入新版命令。
@@ -109,9 +111,9 @@ pnpm build
 pnpm test
 ```
 
-## 旧版 13000
+## 旧版 13001
 
-旧版控制台的完整源码在 [legacy-console/](./legacy-console/)，和根目录的新版（13001）是两份互不引用的代码：各自的 `package.json`、锁文件、Dockerfile 和测试。根目录的 lint、tsc、测试和 Docker 构建都不包含 `legacy-console/`。改 13000 就直接改这个目录，同样经 PR 合进 `main`、从 `main` 发布。
+旧版控制台的完整源码在 [legacy-console/](./legacy-console/)，和根目录的新版（13000）是两份互不引用的代码：各自的 `package.json`、锁文件、Dockerfile 和测试。根目录的 lint、tsc、测试和 Docker 构建都不包含 `legacy-console/`。改 13001 就直接改这个目录，同样经 PR 合进 `main`、从 `main` 发布。
 
 2026-10-27 落成目录时，内容与当时线上 13000 镜像（`prediction-console:current`，构建自 `4b043b9`）里的 155 个源码文件逐字节一致。两边都有的页面（例如回测平台）是两份，两边都要改时各改一次。
 
@@ -120,7 +122,7 @@ cd legacy-console
 pnpm install --frozen-lockfile
 pnpm lint
 pnpm test        # 含 build
-pnpm start -- --hostname 127.0.0.1 --port 13000
+pnpm start -- --hostname 127.0.0.1 --port 13001
 ```
 
 生产镜像用 [legacy-console/Dockerfile](./legacy-console/Dockerfile)，构建上下文是 `legacy-console/`：
@@ -132,7 +134,7 @@ docker build -f legacy-console/Dockerfile -t prediction-console:legacy-candidate
 
 构建阶段按锁文件 `pnpm install --frozen-lockfile`（保留 `pnpm-workspace.yaml` 的 allowBuilds）。运行阶段固定 `pnpm_config_verify_deps_before_run=warn`：根目录只读，pnpm 的依赖检查只告警、不自动安装。
 
-服务器上可用下面的只读 smoke check 验证镜像能在旧运行时目录启动；生产 unit 的真实环境变量和安全参数仍由既有部署配置提供：
+旧镜像内部默认仍为 13000；生产 unit 显式传入 13001，不因移动端口重建旧镜像。服务器上可用下面的只读 smoke check 验证镜像能在旧运行时目录启动；生产 unit 的真实环境变量和安全参数仍由既有部署配置提供：
 
 ```bash
 docker run --rm --read-only \
