@@ -123,7 +123,7 @@ class FakeIO(r.RemoteIO):
 
 
 @contextmanager
-def fixture(*, swapped=False, missing_env=False):
+def fixture(*, swapped=False, missing_env=False, missing_v2_pointer=False):
     with tempfile.TemporaryDirectory() as directory:
         base = Path(directory).resolve()
         roots = {name: base / name for name in r.NAMES}
@@ -150,12 +150,117 @@ def fixture(*, swapped=False, missing_env=False):
             for name in r.NAMES:
                 configs[name][1].write_bytes(r.patch_port(configs[name][1].read_bytes(), name, r.PORTS[name]))
                 m['baseline'][name]['service_env_sha256'] = r.sha_file(configs[name][1])
+        if missing_v2_pointer:
+            (roots[r.NAMES[1]] / 'current').unlink()
+            m['baseline'][r.NAMES[1]]['pointer_target'] = None
         clock = Clock()
         with patch.object(r, 'ROOTS', roots), patch.object(r, 'CONFIG', configs), patch.object(r.time, 'monotonic', clock.monotonic), patch.object(r.time, 'sleep', clock.sleep), patch.object(r, 'emit'):
             yield m, FakeIO(m), base
 
 
 class PairReleaseTests(unittest.TestCase):
+    def test_missing_v2_pointer_is_captured_as_null_and_preflight_is_read_only(self):
+        with fixture(missing_v2_pointer=True) as (m, fake, _):
+            captured = r.capture_metadata(fake, **{key: m[key] for key in ('operation_id', 'host', 'release', 'merge_sha', 'source_archive_sha256', 'image_sha256', 'backend_identity')})
+            self.assertIsNone(captured['baseline'][r.NAMES[1]]['pointer_target'])
+            self.assertEqual(captured['baseline'], m['baseline'])
+            r.preflight(fake, captured)
+            self.assertFalse((r.ROOTS[r.NAMES[1]] / 'current').exists())
+            self.assertEqual(fake.operations, [])
+
+    def test_missing_v2_pointer_is_created_only_for_candidate_on_success(self):
+        with fixture(missing_v2_pointer=True) as (m, fake, _):
+            r.deploy(fake, m)
+            self.assertEqual(r.pointer_target(r.NAMES[1]), m['release'])
+            self.assertEqual(r.pointer_target(r.NAMES[0]), m['baseline'][r.NAMES[0]]['pointer_target'])
+            self.assertEqual({name: r.container_port(fake.container(name)) for name in r.NAMES}, r.PORTS)
+
+    def test_missing_v2_pointer_restored_to_absence_after_ui_or_start_failure(self):
+        for kind in ('ui_reject', 'ui_timeout', 'legacy_start', 'v2_start', 'after_create'):
+            with self.subTest(kind=kind), fixture(missing_v2_pointer=True) as (m, fake, _):
+                if kind == 'ui_reject': fake.reject_ui = True
+                if kind == 'ui_timeout': fake.verify_ui = False
+                if kind == 'legacy_start': fake.fail_start = r.NAMES[0]
+                if kind == 'v2_start': fake.fail_start = r.NAMES[1]
+                if kind == 'after_create': fake.fail_after_create = True
+                with self.assertRaises((r.UnsafeRelease, RuntimeError, TimeoutError)):
+                    r.deploy(fake, m)
+                self.assert_baseline(m, fake)
+                pointer = r.ROOTS[r.NAMES[1]] / 'current'
+                self.assertFalse(pointer.exists())
+                self.assertFalse(pointer.is_symlink())
+
+    def test_missing_v2_pointer_keeps_strict_image_tag_and_configuration_baselines(self):
+        for kind in ('image', 'instance', 'config'):
+            with self.subTest(kind=kind), fixture(missing_v2_pointer=True) as (m, fake, _):
+                if kind == 'image': fake.tags[r.NAMES[1]] = 'sha256:' + '9' * 64
+                if kind == 'instance': fake.containers[r.NAMES[1]]['Id'] = 'foreign'
+                if kind == 'config': r.CONFIG[r.NAMES[1]][1].write_text('foreign-setting')
+                with self.assertRaises(r.UnsafeRelease):
+                    r.deploy(fake, m)
+                self.assertEqual(fake.operations, [])
+
+    def test_absent_v2_baseline_rejects_third_party_pointer_before_or_after_switch(self):
+        for after_start in (False, True):
+            with self.subTest(after_start=after_start), fixture(missing_v2_pointer=True) as (m, fake, _):
+                foreign = r.ROOTS[r.NAMES[1]] / 'releases' / 'foreign'
+                foreign.mkdir()
+                if after_start:
+                    original = fake.page
+                    changed = False
+                    def page(*args):
+                        nonlocal changed
+                        original(*args)
+                        if not changed:
+                            changed = True
+                            r.atomic_pointer(r.NAMES[1], str(foreign))
+                    fake.page = page
+                else:
+                    r.atomic_pointer(r.NAMES[1], str(foreign))
+                with self.assertRaises(r.UnsafeRelease):
+                    r.deploy(fake, m)
+                self.assertEqual(r.pointer_target(r.NAMES[1]), str(foreign))
+                self.assertEqual(len([op for op in fake.operations if op[0] == 'stop']), 2 if after_start else 0)
+
+    def test_invalid_or_missing_legacy_and_non_symlink_v2_current_still_rejected(self):
+        for name in r.NAMES:
+            for kind in ('file', 'dangling', 'outside', 'missing'):
+                if name == r.NAMES[1] and kind == 'missing':
+                    continue
+                with self.subTest(name=name, kind=kind), fixture() as (m, fake, base):
+                    pointer = r.ROOTS[name] / 'current'
+                    pointer.unlink()
+                    if kind == 'file': pointer.write_text('not a symlink')
+                    if kind == 'dangling': pointer.symlink_to(r.ROOTS[name] / 'releases' / 'missing')
+                    if kind == 'outside': pointer.symlink_to(base)
+                    with self.assertRaises(r.UnsafeRelease):
+                        r.capture_metadata(fake, **{key: m[key] for key in ('operation_id', 'host', 'release', 'merge_sha', 'source_archive_sha256', 'image_sha256', 'backend_identity')})
+                    self.assertEqual(fake.operations, [])
+
+    def test_known_v2_pointer_cannot_disappear_from_future_baseline(self):
+        with fixture(swapped=True) as (m, fake, _):
+            (r.ROOTS[r.NAMES[1]] / 'current').unlink()
+            with self.assertRaises(r.UnsafeRelease):
+                r.deploy(fake, m)
+            self.assertEqual(fake.operations, [])
+
+    def test_null_legacy_or_missing_pointer_fact_is_invalid_metadata(self):
+        for kind in ('legacy_null', 'missing_fact'):
+            with self.subTest(kind=kind), fixture() as (m, fake, _):
+                if kind == 'legacy_null': m['baseline'][r.NAMES[0]]['pointer_target'] = None
+                else: del m['baseline'][r.NAMES[1]]['pointer_target']
+                with self.assertRaises(r.UnsafeRelease):
+                    r.validate_metadata(m)
+
+    def test_restore_missing_pointer_never_removes_foreign_pointer(self):
+        with fixture(missing_v2_pointer=True) as (m, fake, _):
+            foreign = r.ROOTS[r.NAMES[1]] / 'releases' / 'foreign'
+            foreign.mkdir()
+            r.atomic_pointer(r.NAMES[1], str(foreign))
+            with self.assertRaises(r.UnsafeRelease):
+                r.restore_pointer(r.NAMES[1], None, m['release'])
+            self.assertEqual(r.pointer_target(r.NAMES[1]), str(foreign))
+
     def test_swaps_both_roles_preserving_legacy_image_and_backend(self):
         with fixture() as (m, fake, base):
             r.deploy(fake, m)
@@ -215,7 +320,10 @@ class PairReleaseTests(unittest.TestCase):
                         return
                     changed = True
                     if kind == 'tag': fake.tags[r.NAMES[1]] = 'sha256:' + '9' * 64
-                    if kind == 'pointer': r.atomic_pointer(r.NAMES[1], str(r.ROOTS[r.NAMES[1]] / 'releases' / 'foreign'))
+                    if kind == 'pointer':
+                        foreign = r.ROOTS[r.NAMES[1]] / 'releases' / 'foreign'
+                        foreign.mkdir()
+                        r.atomic_pointer(r.NAMES[1], str(foreign))
                     if kind == 'config': r.CONFIG[r.NAMES[1]][1].write_text('foreign=setting')
                 fake.page = page
                 with self.assertRaisesRegex(r.UnsafeRelease, 'CAS refused'):

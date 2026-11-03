@@ -33,7 +33,7 @@ sudo python3 deploy/console-port-swap/remote_swap.py \
   --metadata-json '/root/<本轮metadata>.json' --preflight
 ```
 
-metadata 的 `baseline` 按两个固定服务名索引，每项包含 `container`（id/image/started_at/restart_count/status/running）、`port`、`pointer_target`、`unit_sha256`、可空 `service_env_sha256`、`unit_template_sha256`。不存在的 service.env 用 null；元数据不接受 token/secret/credential 等敏感键。观察到非预期 unit 路径或 drop-in、非完整角色映射、容器/后端/指针/配置变化一律拒绝。
+metadata 的 `baseline` 按两个固定服务名索引，每项包含 `container`（id/image/started_at/restart_count/status/running）、`port`、`pointer_target`、`unit_sha256`、可空 `service_env_sha256`、`unit_template_sha256`。不存在的 service.env 用 null。仅旧部署从未建立 V2 `current` 的情况允许 `pointer_target: null`：它仍要求精确容器、镜像tag及配置基线；正向为候选创建 symlink，回滚仅删除本次候选 symlink、恢复原本缺失。旧应用缺指针、普通文件、悬空或越界 symlink 均拒绝；已有指针的后续发布仍严格要求其存在且不变。元数据不接受 token/secret/credential 等敏感键。观察到非预期 unit 路径或 drop-in、非完整角色映射、容器/后端/指针/配置变化一律拒绝。
 
 `startup_timeout_seconds` 可选 1–300，默认90；`ui_timeout_seconds` 可选1–1800，默认900。双锁、模板、端口、镜像来源和 CAS 不允许从参数绕过。
 
