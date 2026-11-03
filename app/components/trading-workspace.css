@@ -89,3 +89,6 @@
 .trading-account-context .select{min-width:0;flex:1 1 auto}
 .trading-filter-details{padding:8px 0}.trading-filter-details summary{cursor:pointer;color:var(--muted)}.trading-filter-details[open] .trading-scope-fields{margin-top:12px}
 @media(max-width:720px){.trading-account-context label{width:100%}.trading-account-context .select{min-width:0;flex:1}}
+
+/* Keep the absolutely positioned accessible table header inside its scroll area. */
+.trading-ledger-records .table-scroll { position: relative; }

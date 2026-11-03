@@ -1,3 +1,5 @@
+import { predictionBatchParentContext, predictionBatchQueryKeys } from "./prediction-batch-scope.ts";
+
 /**
  * Build the URL for a workspace tab without carrying a draft filter from the
  * currently visible input. The caller supplies the target panel's applied
@@ -27,6 +29,15 @@ export function workspaceHrefWithAppliedQuery(href: string, currentHref: string,
 export function mergeSharedQuery(targetQuery: string, currentQuery: URLSearchParams, sharedKeys: readonly string[]) {
   if (!sharedKeys.length) return targetQuery;
   const merged = new URLSearchParams(targetQuery);
+  // A saved result batch belongs to the parent range in which it was picked.
+  // Changing that range on the task tab must not restore an older batch over it.
+  if (merged.has("batch_prediction_as_of")) {
+    const previousContext = merged.get("batch_context") || predictionBatchParentContext(Object.fromEntries(merged));
+    const currentContext = predictionBatchParentContext(Object.fromEntries(currentQuery));
+    if (previousContext !== currentContext) {
+      for (const key of [...predictionBatchQueryKeys, "offset"]) merged.delete(key);
+    }
+  }
   for (const key of sharedKeys) {
     const value = currentQuery.get(key)?.trim();
     if (value) merged.set(key, value);
@@ -58,8 +69,27 @@ export function workspacePathMatches(rootHref: string, pathname: string): boolea
     "/trading/ledger": ["/trades"],
     "/markets/running": ["/markets"],
     "/system/observability": ["/system", "/observability"],
-    "/system/delivery": ["/delivery"],
     "/system/settings": ["/settings"],
   };
   return aliases[rootHref]?.includes(pathname) ?? false;
+}
+
+export function canonicalConsoleQuery(pathname: string, input: URLSearchParams) {
+  const query = new URLSearchParams(input);
+  let changedScope = false;
+  const remove = (key: string) => { if (query.has(key)) { query.delete(key); changedScope = true; } };
+  if (pathname === "/trading/orders" || pathname === "/trading") for (const key of ["model_id", "strategy_id", "from", "to"]) remove(key);
+  if (pathname === "/trading/ledger" || pathname === "/trades") for (const key of ["model_id", "strategy_id"]) remove(key);
+  if (pathname === "/predictions" || pathname === "/predictions/tasks") {
+    for (const key of ["selection_run_id", "selected_market_id"]) remove(key);
+    if (query.has("source") && !["POLYMARKET", "KALSHI"].includes(query.get("source") ?? "")) remove("source");
+    const batchKeys = ["batch_prediction_as_of", "batch_max_result_id", "batch_model", "batch_source"];
+    if (batchKeys.some((key) => query.has(key)) && !batchKeys.every((key) => query.get(key))) {
+      for (const key of [...batchKeys, "batch_generation_id"]) remove(key);
+    }
+  }
+  if ((pathname === "/markets" || pathname === "/markets/running") && query.get("market_scope") === "pool") { query.set("market_scope", "current"); changedScope = true; }
+  if (pathname === "/markets/data" && query.has("source") && query.get("source") !== "POLYMARKET") remove("source");
+  if (changedScope) query.delete("offset");
+  return query;
 }

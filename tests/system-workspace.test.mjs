@@ -8,15 +8,12 @@ async function render(pathname) {
   return worker.fetch(new Request(`http://localhost${pathname}`, { headers: { accept: "text/html" } }), { ASSETS: { fetch: async () => new Response("Not found", { status: 404 }) } }, { waitUntil() {}, passThroughOnException() {} });
 }
 
-test("系统主工作区只暴露服务监控和消息交付", async () => {
+test("系统直接展示服务监控，不保留消息或单项Tab", async () => {
   const response = await render("/system");
   assert.equal(response.status, 200);
   const html = await response.text();
-  assert.match(html, /id="v2-tab-system-observability"[^>]*>服务监控/);
-  assert.match(html, /id="v2-tab-system-delivery"[^>]*>消息交付/);
-  assert.equal((html.match(/role="tab"/g) ?? []).length, 2);
-  assert.doesNotMatch(html, /网页库任务/);
-  assert.doesNotMatch(html, /连接能力/);
+  assert.match(html, /服务监控/);
+  assert.doesNotMatch(html, /role="tab"|消息交付|技术信息|网页库任务/);
 });
 
 test("网页库任务和服务配置诊断仍可由旧直达地址访问，但不恢复系统主Tab", async () => {
@@ -30,10 +27,10 @@ test("网页库任务和服务配置诊断仍可由旧直达地址访问，但�
   assert.doesNotMatch(settings, /role="tab"/);
 });
 
-test("嵌入消息交付不重复渲染系统页内导航，独立直达页保留相关入口", async () => {
-  const embedded = await (await render("/system/delivery")).text();
-  assert.doesNotMatch(embedded, /aria-label="相关页面"/);
-
-  const direct = await (await render("/delivery")).text();
-  assert.match(direct, /aria-label="相关页面"/);
+test("旧消息地址清理旧筛选后重定向服务监控", async () => {
+  for (const path of ["/delivery?status=FAILED&q=old&offset=40", "/system/delivery?status=PENDING&offset=20"]) {
+    const response = await render(path);
+    assert.ok([307, 308].includes(response.status));
+    assert.equal(response.headers.get("location"), "/system/observability");
+  }
 });

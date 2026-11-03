@@ -5,6 +5,7 @@
  * origin BFF; service credentials and upstream URLs remain server-only.
  */
 
+import { decodeTradingLedgerPage } from "./trading-ledger-v2.ts";
 import { decodeTradingHolding, holdingIdentity, type ConsoleV2Holding } from "./trading-holdings.ts";
 
 export type ConsoleV2Service = "infra" | "trading";
@@ -44,6 +45,7 @@ export class ConsoleV2ApiError extends Error {
 }
 
 export interface ConsoleV2Generation {
+  marketSource?: string;
   generationId: string;
   sourceSelectionRunId: string;
   status: string;
@@ -55,6 +57,8 @@ export interface ConsoleV2Generation {
 }
 
 export interface ConsoleV2Overview {
+  sources: Array<{ marketSource: string; currentGeneration?: ConsoleV2Generation; predictionCoverage?: ConsoleV2PredictionCoverage }>;
+  marketTotals?: { memberCount: number | null; predictionEnabledCount: number | null; complete: boolean };
   observedAt: string;
   currentGeneration?: ConsoleV2Generation;
   activePoolCount: number | null;
@@ -84,6 +88,7 @@ export interface ConsoleV2PredictionCoverageModel {
 }
 
 export interface ConsoleV2PredictionModel {
+  currentDispatchChannels: string[];
   modelId: string;
   taskCount: number | null;
   resultCount: number | null;
@@ -109,6 +114,8 @@ export interface ConsoleV2PredictionBatchSummary {
 }
 
 export interface ConsoleV2RunningMarket {
+  marketSource?: string;
+  domainVolumeRank: number | null;
   generationId: string;
   runningMarketId: string;
   sourceSelectionRunId: string;
@@ -126,6 +133,7 @@ export interface ConsoleV2RunningMarket {
 }
 
 export interface ConsoleV2RunningPool {
+  marketSource?: string;
   runningMarketId: string;
   marketId: string;
   conditionId: string;
@@ -159,6 +167,7 @@ export interface ConsoleV2SelectionRun {
 }
 
 export interface ConsoleV2SelectedMarket {
+  domainVolumeRank: number | null;
   selectedMarketId: string;
   selectionRunId: string;
   marketSource?: string;
@@ -314,18 +323,6 @@ export interface ConsoleV2BacktestProduct {
   count: number | null;
 }
 
-export interface ConsoleV2OutboxEvent {
-  outboxEventId: string;
-  aggregateType?: string;
-  aggregateId?: string;
-  eventType: string;
-  attemptCount: number | null;
-  createdAt?: string;
-  lastAttemptAt?: string;
-  publishedAt?: string;
-  hasLastError: boolean | null;
-  deliveryStatus: string;
-}
 
 export interface ConsoleV2ServiceMetric {
   service: string;
@@ -614,10 +611,12 @@ export const consoleV2 = {
     settlements: (params: PageParams = {}) => page("infra", "market-settlements", params, decodeSettlement),
     pageJobs: (params: PageParams = {}) => page("infra", "page-jobs", params, decodePageJob),
     backtestProducts: (params: PageParams = {}) => page("infra", "backtest-products", params, decodeBacktestProduct),
-    outboxEvents: (params: PageParams = {}) => page("infra", "outbox-events", params, decodeOutboxEvent),
     serviceMetrics: () => object("infra", "service-metrics", {}, decodeServiceMetric),
   },
   trading: {
+    accounts: () => object("trading", "accounts", {}, decodeAccounts),
+    ledgerActivities: (params: PageParams = {}) => requestV2<unknown>("trading", "ledger-activities", params).then((payload) => ({ data: decodeTradingLedgerPage(payload), mode: "live" as const })),
+    settlements: (params: PageParams = {}) => page("trading", "settlements", params, decodeAccountSettlement),
     runtime: () => object("trading", "runtime", {}, decodeRuntime),
     decisionCycles: (params: PageParams = {}) => page("trading", "decision-cycles", params, decodeDecisionCycle),
     decisionCycle: (id: string) => object("trading", `decision-cycles/${encodeURIComponent(id)}`, {}, decodeRecord),
@@ -634,8 +633,22 @@ export const consoleV2 = {
 };
 
 function decodeOverview(value: RawRecord): ConsoleV2Overview {
+  if (value.sources !== undefined && !Array.isArray(value.sources)) throw new ConsoleV2ContractError("平台概览列表无效");
+  const seenSources = new Set<string>();
+  const sources = arrayRecords(value.sources).map((item) => {
+    const marketSource = requiredText(item.market_source, "overview.sources.market_source");
+    if (!["POLYMARKET", "KALSHI"].includes(marketSource) || seenSources.has(marketSource)) throw new ConsoleV2ContractError("平台概览来源无效");
+    seenSources.add(marketSource);
+    const currentGeneration = item.current_generation ? decodeGeneration(asRecord(item.current_generation)) : undefined;
+    if (currentGeneration?.marketSource && currentGeneration.marketSource !== marketSource) throw new ConsoleV2ContractError("平台概览代际来源不一致");
+    return { marketSource, currentGeneration, predictionCoverage: item.prediction_coverage ? decodePredictionCoverage(asRecord(item.prediction_coverage)) : undefined };
+  });
+  const totals = asRecordOrUndefined(value.market_totals);
+  if (totals && typeof totals.complete !== "boolean") throw new ConsoleV2ContractError("平台概览完整状态无效");
   return {
     observedAt: requiredTime(value.observed_at, "overview.observed_at"),
+    sources,
+    marketTotals: totals ? { memberCount: nullableExactCount(totals.member_count, "market_totals.member_count"), predictionEnabledCount: nullableExactCount(totals.prediction_enabled_count, "market_totals.prediction_enabled_count"), complete: totals.complete === true } : undefined,
     currentGeneration: value.current_generation ? decodeGeneration(asRecord(value.current_generation)) : undefined,
     activePoolCount: nullableNumber(value.active_pool_count),
     lastGeneration: value.last_generation ? decodeGeneration(asRecord(value.last_generation)) : undefined,
@@ -664,7 +677,7 @@ function decodePredictionCoverageModel(value: RawRecord): ConsoleV2PredictionCov
 }
 
 function decodePredictionModel(value: RawRecord): ConsoleV2PredictionModel {
-  return { modelId: requiredText(value.model_id, "prediction_model.model_id"), taskCount: nullableNumber(value.task_count), resultCount: nullableNumber(value.result_count), directResultCount: nullableNumber(value.direct_result_count), sandboxResultCount: nullableNumber(value.sandbox_result_count), latestPredictionAsOf: optionalTime(value.latest_prediction_as_of), latestReceivedAt: optionalTime(value.latest_received_at) };
+  return { modelId: requiredText(value.model_id, "prediction_model.model_id"), currentDispatchChannels: dispatchChannels(value.current_dispatch_channels), taskCount: nullableNumber(value.task_count), resultCount: nullableNumber(value.result_count), directResultCount: nullableNumber(value.direct_result_count), sandboxResultCount: nullableNumber(value.sandbox_result_count), latestPredictionAsOf: optionalTime(value.latest_prediction_as_of), latestReceivedAt: optionalTime(value.latest_received_at) };
 }
 
 function decodePredictionBatch(value: RawRecord): ConsoleV2PredictionBatchSummary {
@@ -673,7 +686,7 @@ function decodePredictionBatch(value: RawRecord): ConsoleV2PredictionBatchSummar
 
 function decodeGeneration(value: RawRecord): ConsoleV2Generation {
   return {
-    generationId: requiredId(value.generation_id, "generation_id"),
+    generationId: requiredId(value.generation_id, "generation_id"), marketSource: optionalText(value.market_source),
     sourceSelectionRunId: requiredId(value.source_selection_run_id, "source_selection_run_id"),
     status: requiredText(value.status, "generation.status"),
     isCurrent: nullableBoolean(value.is_current),
@@ -686,12 +699,12 @@ function decodeGeneration(value: RawRecord): ConsoleV2Generation {
 
 function decodeRunningMarket(value: RawRecord): ConsoleV2RunningMarket {
   return {
-    generationId: requiredId(value.generation_id, "running_market.generation_id"),
+    generationId: requiredId(value.generation_id, "running_market.generation_id"), marketSource: optionalText(value.market_source), domainVolumeRank: value.domain_volume_rank == null ? null : exactPositiveInteger(value.domain_volume_rank, "domain_volume_rank"),
     runningMarketId: requiredId(value.running_market_id, "running_market.running_market_id"),
     sourceSelectionRunId: requiredId(value.source_selection_run_id, "running_market.source_selection_run_id"),
     sourceSelectedMarketId: requiredId(value.source_selected_market_id, "running_market.source_selected_market_id"),
     marketId: requiredText(value.market_id, "running_market.market_id"),
-    conditionId: requiredText(value.condition_id, "running_market.condition_id"),
+    conditionId: value.market_source === "KALSHI" ? optionalText(value.condition_id) ?? "" : requiredText(value.condition_id, "running_market.condition_id"),
     question: requiredText(value.question, "running_market.question"),
     primaryDomain: optionalText(value.primary_domain), matchedDomains: textArray(value.matched_domains),
     volume24h: nullableNumber(value.volume_24h), domainRank: nullableNumber(value.domain_rank), predictionEnabled: nullableBoolean(value.prediction_enabled),
@@ -701,7 +714,7 @@ function decodeRunningMarket(value: RawRecord): ConsoleV2RunningMarket {
 
 function decodeRunningPool(value: RawRecord): ConsoleV2RunningPool {
   return {
-    runningMarketId: requiredId(value.running_market_id, "running_pool.running_market_id"), marketId: requiredText(value.market_id, "running_pool.market_id"), conditionId: requiredText(value.condition_id, "running_pool.condition_id"),
+    runningMarketId: requiredId(value.running_market_id, "running_pool.running_market_id"), marketSource: optionalText(value.market_source), marketId: requiredText(value.market_id, "running_pool.market_id"), conditionId: value.market_source === "KALSHI" ? optionalText(value.condition_id) ?? "" : requiredText(value.condition_id, "running_pool.condition_id"),
     sourceSelectedMarketId: requiredId(value.source_selected_market_id, "running_pool.source_selected_market_id"), sourceSelectionRunId: requiredId(value.source_selection_run_id, "running_pool.source_selection_run_id"),
     isActive: nullableBoolean(value.is_active), retiredAt: optionalTime(value.retired_at), retiredReason: optionalText(value.retired_reason), question: requiredText(value.question, "running_pool.question"), primaryDomain: optionalText(value.primary_domain), matchedDomains: textArray(value.matched_domains), volume24h: nullableNumber(value.volume_24h), marketObservedAt: optionalTime(value.market_observed_at), endAt: optionalTime(value.end_at),
   };
@@ -714,12 +727,12 @@ function decodeSelectionRun(value: RawRecord): ConsoleV2SelectionRun {
 }
 
 function decodeSelectedMarket(value: RawRecord): ConsoleV2SelectedMarket {
-  return { selectedMarketId: requiredId(value.selected_market_id, "selected_market_id"), selectionRunId: requiredId(value.selection_run_id, "selected_market.selection_run_id"), marketSource: optionalText(value.market_source), marketId: requiredText(value.market_id, "selected_market.market_id"), conditionId: requiredText(value.condition_id, "selected_market.condition_id"), question: requiredText(value.question, "selected_market.question"), primaryDomain: optionalText(value.primary_domain), rank: nullableNumber(value.rank), endAt: optionalTime(value.end_at), volume24h: nullableNumber(value.volume_24h), selectedAt: optionalTime(value.selected_at) };
+  return { selectedMarketId: requiredId(value.selected_market_id, "selected_market_id"), domainVolumeRank: value.domain_volume_rank == null ? null : exactPositiveInteger(value.domain_volume_rank, "domain_volume_rank"), selectionRunId: requiredId(value.selection_run_id, "selected_market.selection_run_id"), marketSource: optionalText(value.market_source), marketId: requiredText(value.market_id, "selected_market.market_id"), conditionId: value.market_source === "KALSHI" ? optionalText(value.condition_id) ?? "" : requiredText(value.condition_id, "selected_market.condition_id"), question: requiredText(value.question, "selected_market.question"), primaryDomain: optionalText(value.primary_domain), rank: nullableNumber(value.rank), endAt: optionalTime(value.end_at), volume24h: nullableNumber(value.volume_24h), selectedAt: optionalTime(value.selected_at) };
 }
 
 function decodePrediction(value: RawRecord): ConsoleV2Prediction {
   const sandboxId = optionalText(value.sandbox_id);
-  return { predictionId: requiredText(value.prediction_id, "prediction_id"), sandboxId, sourceJobId: optionalText(value.source_job_id), marketSource: optionalText(value.market_source), selectionRunId: optionalId(value.selection_run_id), selectedMarketId: optionalId(value.selected_market_id), marketId: requiredText(value.market_id, "prediction.market_id"), conditionId: requiredText(value.condition_id, "prediction.condition_id"), question: requiredText(value.question, "prediction.question"), primaryDomain: optionalText(value.primary_domain), executionMode: optionalText(value.execution_mode), outcome0Name: optionalText(value.outcome_0_name), outcome0Probability: nullableNumber(value.outcome_0_probability), outcome1Name: optionalText(value.outcome_1_name), outcome1Probability: nullableNumber(value.outcome_1_probability), modelName: optionalText(value.model_name), predictorVersion: optionalText(value.predictor_version), predictionAsOf: optionalTime(value.prediction_as_of), receivedAt: optionalTime(value.received_at), completedAt: optionalTime(value.completed_at), generationId: optionalId(value.generation_id), sourceKind: sandboxId ? "SANDBOX" : value.sandbox_id === null && hasCompleteDirectIdentity(value) ? "DIRECT" : "UNKNOWN" };
+  return { predictionId: requiredText(value.prediction_id, "prediction_id"), sandboxId, sourceJobId: optionalText(value.source_job_id), marketSource: optionalText(value.market_source), selectionRunId: optionalId(value.selection_run_id), selectedMarketId: optionalId(value.selected_market_id), marketId: requiredText(value.market_id, "prediction.market_id"), conditionId: value.market_source === "KALSHI" ? optionalText(value.condition_id) ?? "" : requiredText(value.condition_id, "prediction.condition_id"), question: requiredText(value.question, "prediction.question"), primaryDomain: optionalText(value.primary_domain), executionMode: optionalText(value.execution_mode), outcome0Name: optionalText(value.outcome_0_name), outcome0Probability: nullableNumber(value.outcome_0_probability), outcome1Name: optionalText(value.outcome_1_name), outcome1Probability: nullableNumber(value.outcome_1_probability), modelName: optionalText(value.model_name), predictorVersion: optionalText(value.predictor_version), predictionAsOf: optionalTime(value.prediction_as_of), receivedAt: optionalTime(value.received_at), completedAt: optionalTime(value.completed_at), generationId: optionalId(value.generation_id), sourceKind: sandboxId ? "SANDBOX" : value.sandbox_id === null && hasCompleteDirectIdentity(value) ? "DIRECT" : "UNKNOWN" };
 }
 
 function hasCompleteDirectIdentity(value: RawRecord) {
@@ -727,7 +740,7 @@ function hasCompleteDirectIdentity(value: RawRecord) {
 }
 
 function decodePredictionTask(value: RawRecord): ConsoleV2PredictionTask {
-  return { predictionId: requiredText(value.prediction_id, "prediction_task.prediction_id"), sourceJobId: optionalText(value.source_job_id), predictionModelId: requiredText(value.prediction_model_id, "prediction_task.prediction_model_id"), marketSource: optionalText(value.market_source), selectionRunId: requiredId(value.selection_run_id, "prediction_task.selection_run_id"), selectedMarketId: requiredId(value.selected_market_id, "prediction_task.selected_market_id"), marketId: requiredText(value.market_id, "prediction_task.market_id"), conditionId: requiredText(value.condition_id, "prediction_task.condition_id"), question: requiredText(value.question, "prediction_task.question"), predictionAsOf: optionalTime(value.prediction_as_of), taskAvailableAt: optionalTime(value.task_available_at), status: requiredText(value.status, "prediction_task.status"), receivedAt: optionalTime(value.received_at), completedAt: optionalTime(value.completed_at), generationId: optionalId(value.generation_id) };
+  return { predictionId: requiredText(value.prediction_id, "prediction_task.prediction_id"), sourceJobId: optionalText(value.source_job_id), predictionModelId: requiredText(value.prediction_model_id, "prediction_task.prediction_model_id"), marketSource: optionalText(value.market_source), selectionRunId: requiredId(value.selection_run_id, "prediction_task.selection_run_id"), selectedMarketId: requiredId(value.selected_market_id, "prediction_task.selected_market_id"), marketId: requiredText(value.market_id, "prediction_task.market_id"), conditionId: value.market_source === "KALSHI" ? optionalText(value.condition_id) ?? "" : requiredText(value.condition_id, "prediction_task.condition_id"), question: requiredText(value.question, "prediction_task.question"), predictionAsOf: optionalTime(value.prediction_as_of), taskAvailableAt: optionalTime(value.task_available_at), status: requiredText(value.status, "prediction_task.status"), receivedAt: optionalTime(value.received_at), completedAt: optionalTime(value.completed_at), generationId: optionalId(value.generation_id) };
 }
 
 function decodeAsset(value: RawRecord): ConsoleV2Asset {
@@ -758,9 +771,6 @@ function decodeBacktestProduct(value: RawRecord): ConsoleV2BacktestProduct {
   return { productKind: requiredText(value.product_kind, "backtest_product.product_kind"), version: requiredText(value.version, "backtest_product.version"), status: requiredText(value.status, "backtest_product.status"), windowStart: optionalTime(value.window_start), windowEnd: optionalTime(value.window_end), publishedAt: optionalTime(value.published_at), count: nullableNumber(value.count) };
 }
 
-function decodeOutboxEvent(value: RawRecord): ConsoleV2OutboxEvent {
-  return { outboxEventId: requiredText(value.outbox_event_id, "outbox_event.outbox_event_id"), aggregateType: optionalText(value.aggregate_type), aggregateId: optionalText(value.aggregate_id), eventType: requiredText(value.event_type, "outbox_event.event_type"), attemptCount: nullableNumber(value.attempt_count), createdAt: optionalTime(value.created_at), lastAttemptAt: optionalTime(value.last_attempt_at), publishedAt: optionalTime(value.published_at), hasLastError: nullableBoolean(value.has_last_error), deliveryStatus: requiredText(value.delivery_status, "outbox_event.delivery_status") };
-}
 
 function decodeServiceMetric(value: RawRecord): ConsoleV2ServiceMetric {
   const runtime = asRecord(value.runtime); const memory = asRecord(value.memory);
@@ -854,3 +864,34 @@ function exactNonNegativeInteger(value: unknown, field: string): number {
   return value;
 }
 function nullableBoolean(value: unknown): boolean | null { return typeof value === "boolean" ? value : value === null || value === undefined ? null : String(value).toLowerCase() === "true" ? true : String(value).toLowerCase() === "false" ? false : null; }
+
+export interface ConsoleV2Account { executionAccountId: string; marketSource: "POLYMARKET" | "KALSHI" }
+export interface ConsoleV2AccountSettlement { settlementId: string; marketSource: string; executionAccountId: string; marketId?: string; conditionId?: string; status: string; transactionHash?: string; payout?: string; createdAt?: string; updatedAt?: string; settledAt?: string; confirmedAt?: string; appliedAt?: string }
+function decodeAccounts(value: RawRecord) {
+  if (!Array.isArray(value.accounts)) throw new ConsoleV2ContractError("accounts列表无效");
+  return { observedAt: requiredTime(value.observed_at, "accounts.observed_at"), accounts: arrayRecords(value.accounts).map((item): ConsoleV2Account => {
+    const source = requiredText(item.market_source, "accounts.market_source");
+    if (source !== "POLYMARKET" && source !== "KALSHI") throw new ConsoleV2ContractError("账户来源无效");
+    return { executionAccountId: requiredText(item.execution_account_id, "accounts.execution_account_id"), marketSource: source };
+  }) };
+}
+function decodeAccountSettlement(value: RawRecord): ConsoleV2AccountSettlement {
+  const marketSource = requiredText(value.market_source, "market_source");
+  const status = requiredText(value.status, "status");
+  const pmStatuses = ["READY", "APPROVAL_SUBMITTING", "APPROVAL_SUBMITTED", "REDEEM_SUBMITTING", "REDEEM_SUBMITTED", "CONFIRMED", "APPLIED", "MANUAL_REVIEW"];
+  if ((marketSource !== "POLYMARKET" && marketSource !== "KALSHI") || !(marketSource === "KALSHI" ? ["APPLIED", "MANUAL_REVIEW"] : pmStatuses).includes(status)) throw new ConsoleV2ContractError("结算来源或状态无效");
+  let payout: string | undefined;
+  if (value.payout !== null && value.payout !== undefined) {
+    if (typeof value.payout !== "string" || !/^-?\d+(?:\.\d+)?$/.test(value.payout) || !Number.isFinite(Number(value.payout))) throw new ConsoleV2ContractError("结算金额无效");
+    payout = value.payout;
+  }
+  return { settlementId: requiredText(value.settlement_id, "settlement_id"), marketSource, executionAccountId: requiredText(value.execution_account_id, "execution_account_id"), marketId: optionalText(value.market_id), conditionId: optionalText(value.condition_id), status, transactionHash: optionalText(value.transaction_hash), payout, createdAt: optionalTime(value.created_at), updatedAt: optionalTime(value.updated_at), settledAt: optionalTime(value.settled_at), confirmedAt: optionalTime(value.confirmed_at), appliedAt: optionalTime(value.applied_at) };
+}
+function dispatchChannels(value: unknown): string[] {
+  if (!Array.isArray(value) || value.some((item) => item !== "DIRECT" && item !== "SANDBOX_NEW_READY")) throw new ConsoleV2ContractError("模型当前派发元数据无效");
+  return [...new Set(value)];
+}
+
+function nullableExactCount(value: unknown, field: string): number | null {
+  return value === null || value === undefined ? null : exactNonNegativeInteger(value, field);
+}

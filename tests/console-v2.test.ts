@@ -48,7 +48,7 @@ test("prediction model catalogue exposes historical Sandbox models separately fr
   const calls: string[] = [];
   globalThis.fetch = (async (input) => {
     calls.push(String(input));
-    return new Response(JSON.stringify({ data: { items: [{ model_id: "v4.1 flash", task_count: 10, result_count: 8, direct_result_count: 0, sandbox_result_count: 8, latest_prediction_as_of: "2026-10-21T16:10:13Z", latest_received_at: "2026-10-21T17:44:52Z" }], total: 1, limit: 100, offset: 0, has_more: false, observed_at: "2026-10-23T00:00:00Z" } }));
+    return new Response(JSON.stringify({ data: { items: [{ model_id: "v4.1 flash", current_dispatch_channels: [], task_count: 10, result_count: 8, direct_result_count: 0, sandbox_result_count: 8, latest_prediction_as_of: "2026-10-21T16:10:13Z", latest_received_at: "2026-10-21T17:44:52Z" }], total: 1, limit: 100, offset: 0, has_more: false, observed_at: "2026-10-23T00:00:00Z" } }));
   }) as typeof fetch;
   try {
     const result = await consoleV2.infra.predictionModels({ limit: 100 });
@@ -207,7 +207,7 @@ test("业务工作区复用真实资料轮换与交易视图，不回退到 read
   assert.match(trading, /OfficialWalletPnlPanel/);
   assert.match(trading, /\/trading\/ledger/);
   assert.match(trading, /aliases: \["\/trading"\]/);
-  assert.match(trading, /23:59:59\.999999Z/);
+  assert.match(ledger, /23:59:59\.999999Z/);
   assert.match(trading, /sharedQueryKeys: \["execution_account_id"\]/);
   assert.doesNotMatch(trading, /<TradingOverview/);
   assert.match(ledger, /params\.get\("from"\)/);
@@ -228,12 +228,12 @@ test("业务工作区复用真实资料轮换与交易视图，不回退到 read
   assert.doesNotMatch(trading, /load=\{\(requestParams\) => consoleV2\.trading\.reconciliation/);
   assert.match(markets, /href: "\/markets\/running", label: "运行市场", aliases: \["\/markets"\]/);
   assert.doesNotMatch(markets, /href: "\/markets\/selection", label: "选盘批次与历史", aliases/);
-  assert.match(markets, /本批次预测资格/);
-  assert.match(markets, /本批次启用/);
-  assert.match(markets, /预计结束时间不等同于结算/);
-  assert.match(markets, /实时有效性另查/);
+  assert.match(markets, /预测资格/);
+  assert.match(markets, /域内成交量排名/);
+  assert.match(markets, /primaryDomain/);
+  assert.match(markets, /完整批次/);
   assert.match(predictions, /activePredictionAsOf/);
-  assert.match(predictions, /item\.sourceKind/);
+  assert.match(predictions, /item\.marketSource/);
   assert.doesNotMatch(predictions, /sandboxId \? "SANDBOX" : "DIRECT"/);
   assert.match(api, /ledger-activities[^\n]*[\s\S]*?total: exactListTotal\(result\.data\.total, "ledger-activities"\)/);
 });
@@ -281,51 +281,15 @@ test("V2 BFF returns a stable configuration error without making an upstream req
   });
 });
 
-test("Outbox V2 projection keeps the legacy read model bounded and preserves status/attempt fields", async () => {
+test("消息模块删除后V2 BFF不再发起旧outbox读取", async () => {
   await withEnv({ PREDICTION_INFRA_BASE_URL: "http://infra.test", CONSOLE_API_TOKEN: "infra-secret" }, async () => {
     const previousFetch = globalThis.fetch;
-    globalThis.fetch = (async () => new Response(JSON.stringify({ data: { items: [{ outbox_event_id: 4, aggregate_type: "prediction", aggregate_id: "p-1", event_type: "READY", attempt_count: 3, created_at: "2026-10-16T00:00:00Z", last_attempt_at: null, published_at: null, has_last_error: true, delivery_status: "FAILED" }], total: 1, limit: 20, offset: 0 } }), { status: 200, headers: { "content-type": "application/json" } })) as typeof fetch;
-    try {
-      const response = await GET(new Request("http://console.test/api/console/v2/infra/outbox-events?status=FAILED"), { params: Promise.resolve({ path: ["infra", "outbox-events"] }) });
-      const payload = await response.json();
-      assert.equal(payload.data.items[0].attempt_count, 3);
-      assert.equal(payload.data.items[0].delivery_status, "FAILED");
-      assert.equal(payload.data.has_more, false);
-      assert.equal(payload.data.total, 1);
-      assert.equal(payload.data.summary.basis, "legacy_outbox_projection");
-      assert.match(payload.data.observed_at, /^20/);
-    } finally {
-      globalThis.fetch = previousFetch;
-    }
-  });
-});
-
-test("Outbox V2 projection rejects a legacy response without exact total", async () => {
-  await withEnv({ PREDICTION_INFRA_BASE_URL: "http://infra.test", CONSOLE_API_TOKEN: "infra-secret" }, async () => {
-    const previousFetch = globalThis.fetch;
-    globalThis.fetch = (async () => new Response(JSON.stringify({ data: { items: [], limit: 20, offset: 0 } }), { status: 200, headers: { "content-type": "application/json" } })) as typeof fetch;
+    let called = false;
+    globalThis.fetch = (async () => { called = true; return Response.json({}); }) as typeof fetch;
     try {
       const response = await GET(new Request("http://console.test/api/console/v2/infra/outbox-events"), { params: Promise.resolve({ path: ["infra", "outbox-events"] }) });
-      assert.equal(response.status, 502);
-      assert.equal((await response.json()).code, "TOTAL_UNAVAILABLE");
-    } finally {
-      globalThis.fetch = previousFetch;
-    }
-  });
-});
-
-test("Outbox V2 projection rejects null, boolean and empty-string totals", async () => {
-  await withEnv({ PREDICTION_INFRA_BASE_URL: "http://infra.test", CONSOLE_API_TOKEN: "infra-secret" }, async () => {
-    const previousFetch = globalThis.fetch;
-    try {
-      for (const total of [null, false, "", "1"]) {
-        globalThis.fetch = (async () => new Response(JSON.stringify({ data: { items: [], total, limit: 20, offset: 0 } }), { status: 200, headers: { "content-type": "application/json" } })) as typeof fetch;
-        const response = await GET(new Request("http://console.test/api/console/v2/infra/outbox-events"), { params: Promise.resolve({ path: ["infra", "outbox-events"] }) });
-        assert.equal(response.status, 502, `total=${String(total)}`);
-        assert.equal((await response.json()).code, "TOTAL_UNAVAILABLE");
-      }
-    } finally {
-      globalThis.fetch = previousFetch;
-    }
+      assert.equal(response.status, 404);
+      assert.equal(called, false);
+    } finally { globalThis.fetch = previousFetch; }
   });
 });
