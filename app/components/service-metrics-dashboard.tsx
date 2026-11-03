@@ -239,7 +239,7 @@ function appendHistory(setter: React.Dispatch<React.SetStateAction<HistoryPoint[
 const redisCategoryNames: Record<string, string> = {
   sandbox_build: "Sandbox 构建",
   sandbox_ready_legacy: "原 Ready",
-  sandbox_ready_new: "新 Ready",
+  sandbox_ready_new: "Sandbox",
   direct_prediction: "Direct 预测",
   selected_market_notice: "选盘通知",
   backtest_probability: "回测概率",
@@ -257,7 +257,7 @@ const redisCategoryNames: Record<string, string> = {
   // 后端也可能直接返回 Redis 盘点快照中的 family 名称；统一映射，避免看板退回内部键名。
   prediction_pm_sandboxbuild: "Sandbox 构建",
   prediction_pm_sandboxready: "原 Ready",
-  prediction_pm_sandboxready_new: "新 Ready",
+  prediction_pm_sandboxready_new: "Sandbox",
   prediction_pm_directprediction: "Direct 任务",
   prediction_pm_selectedmarkets: "选盘通知",
   prediction_pm_backtestprob: "回测概率",

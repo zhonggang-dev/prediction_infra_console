@@ -1,7 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { canonicalConsoleQuery, mergeSharedQuery } from "../app/lib/console-workspace.ts";
+import { canonicalConsoleQuery, mergeSharedQuery, predictionTasksRedirect } from "../app/lib/console-workspace.ts";
 import { fixedPredictionBatch, matchingPredictionBatch, predictionBatchParentContext, predictionResultQuery } from "../app/lib/prediction-batch-scope.ts";
+import { currentPredictionRange, predictionGenerationIds } from "../app/lib/prediction-scope.ts";
+import type { ConsoleV2Overview } from "../app/lib/console-v2.ts";
 import type { ConsoleV2PredictionBatchSummary } from "../app/lib/console-v2.ts";
 import { decodeTradingLedgerPage, formatTradingLedgerMoney } from "../app/lib/trading-ledger-v2.ts";
 import { consoleV2 } from "../app/lib/console-v2.ts";
@@ -149,7 +151,7 @@ test("晚回传更新目录后固定批次保持原水位、完整身份和代�
 });
 
 
-test("任务页变更共享范围后返回结果不复活旧批次，未变更时保留固定身份与分页", () => {
+test("共享范围变更后不复活旧批次，未变更时保留固定身份与分页", () => {
   const keys = ["scope", "model", "source", "generation_id", "prediction_as_of"];
   const fixed = "scope=history&model=echoz&source=KALSHI&generation_id=468&batch_model=echoz&batch_source=KALSHI&batch_prediction_as_of=2026-11-03T07%3A00%3A00Z&batch_max_result_id=9999&batch_generation_id=468&offset=20";
   const current = new URLSearchParams("scope=history&model=echoz&source=KALSHI&generation_id=468");
@@ -166,7 +168,7 @@ test("任务页变更共享范围后返回结果不复活旧批次，未变更�
   }
   const currentScope = fixed.replace("scope=history", "scope=current");
   const currentWithoutId = new URLSearchParams("scope=current&model=echoz&source=KALSHI");
-  assert.equal(new URLSearchParams(mergeSharedQuery(currentScope, currentWithoutId, keys)).get("batch_max_result_id"), "9999");
+  assert.equal(new URLSearchParams(mergeSharedQuery(currentScope, currentWithoutId, keys)).has("batch_max_result_id"), false);
 });
 
 
@@ -196,4 +198,59 @@ test("隐藏结果metadata虽随父模型改变，批次保存的父范围仍阻
   }
   const allModels = { ...selected, model: "", batch_context: predictionBatchParentContext({ model: "", source: "KALSHI", scope: "history", generation_id: "468" }) };
   assert.equal(fixedPredictionBatch(allModels)?.modelId, "echoz");
+});
+
+test("当前范围只依赖两平台各自current，不依赖Direct coverage，缺任一平台不得退为全历史", () => {
+  const overview = { sources: [{ marketSource: "POLYMARKET", currentGeneration: { generationId: "467", observedAt: observed }, predictionCoverage: null }, { marketSource: "KALSHI", currentGeneration: { generationId: "468", observedAt: "2026-11-03T07:00:00.123456Z" }, predictionCoverage: null }] } as unknown as ConsoleV2Overview;
+  assert.deepEqual(currentPredictionRange(overview, "", "", ""), { generationId: undefined, generationIds: "467,468", missingSources: [] });
+  assert.deepEqual(currentPredictionRange(overview, "KALSHI", "", ""), { generationId: "468", generationIds: undefined, missingSources: [] });
+  assert.equal(currentPredictionRange(undefined, "", "", "").generationIds, undefined);
+  const incomplete = { ...overview, sources: overview.sources.slice(0, 1) };
+  assert.deepEqual(currentPredictionRange(incomplete, "", "", "").missingSources, ["KALSHI"]);
+  assert.equal(currentPredictionRange(incomplete, "", "", "").generationIds, undefined);
+  // URL replay retains a frozen snapshot even after another maintenance run.
+  assert.equal(currentPredictionRange(overview, "", "", "465,466").generationIds, "465,466");
+  assert.equal(currentPredictionRange(undefined, "KALSHI", "466", "").generationId, "466");
+  for (const value of ["", "0", "1,1", "1,2,3", "1,", "-1", "9223372036854775808", "1e2"]) assert.deepEqual(predictionGenerationIds(value), [], value);
+  assert.deepEqual(predictionGenerationIds("9007199254741001,9223372036854775807"), ["9007199254741001", "9223372036854775807"]);
+});
+
+test("显式非法或冲突的current维护范围不能被overview静默替换", () => {
+  const overview = { sources: [{ marketSource: "POLYMARKET", currentGeneration: { generationId: "467" } }, { marketSource: "KALSHI", currentGeneration: { generationId: "468" } }] } as unknown as ConsoleV2Overview;
+  for (const [source, single, multiple] of [["", "", "1,1"], ["", "", "1,"], ["", "", "9223372036854775808,468"], ["", "467", "467,468"], ["KALSHI", "468", "467,468"], ["KALSHI", "", "467,468"]]) {
+    for (const data of [undefined, overview]) {
+      const range = currentPredictionRange(data, source, single, multiple);
+      assert.ok(range.error, `${source}/${single}/${multiple}`);
+      assert.equal(range.generationId, undefined);
+      assert.equal(range.generationIds, undefined);
+    }
+  }
+  assert.equal(currentPredictionRange(overview, "KALSHI", "", "466").generationId, "466");
+  for (const provided of [{ single: true, multiple: false }, { single: false, multiple: true }, { single: true, multiple: true }]) assert.ok(currentPredictionRange(overview, "", "", "", provided).error);
+});
+
+test("集合身份参与固定批次父范围；选中后结果使用单来源/代际且保持精确asof与原水位", () => {
+  const parent = { scope: "current", model: "v4.1 flash", sources: "POLYMARKET,KALSHI", generation_ids: "467,468" };
+  const selected = { ...parent, batch_model: "v4.1 flash", batch_source: "KALSHI", batch_generation_id: "468", batch_prediction_as_of: "2026-11-03T07:00:00.123456Z", batch_max_result_id: "9007199254741001", batch_context: predictionBatchParentContext(parent), offset: 20 };
+  assert.equal(fixedPredictionBatch(selected)?.generationId, "468");
+  assert.deepEqual(predictionResultQuery(selected), { model: "v4.1 flash", source: "KALSHI", generation_id: "468", prediction_as_of: selected.batch_prediction_as_of, max_result_id: selected.batch_max_result_id, offset: 20 });
+  assert.equal(fixedPredictionBatch({ ...selected, generation_ids: "468,467" })?.generationId, "468");
+  for (const changed of [{ generation_ids: "469,470" }, { generation_ids: "467,470" }, { model: "echoz" }, { model: "" }, { source: "POLYMARKET", sources: undefined, generation_ids: undefined, generation_id: "467" }]) {
+    assert.equal(fixedPredictionBatch({ ...selected, ...changed }), undefined);
+    assert.equal(predictionResultQuery({ ...selected, ...changed }).max_result_id, undefined);
+  }
+  const legacyContext = JSON.stringify({ model: "v4.1 flash", source: "KALSHI", scope: "current", generation_id: "", prediction_as_of: "" });
+  const legacy = { ...selected, source: "KALSHI", sources: undefined, generation_id: "468", generation_ids: undefined, batch_context: legacyContext };
+  assert.equal(fixedPredictionBatch(legacy)?.maxResultId, selected.batch_max_result_id);
+  assert.equal(fixedPredictionBatch({ ...legacy, generation_id: "470" }), undefined);
+});
+
+test("旧任务入口只保留可解释结果范围，剥任务私有状态/搜索/分页与旧批次", () => {
+  const input = new URLSearchParams("model=v4.1+flash&sources=POLYMARKET,KALSHI&scope=current&generation_ids=467,468&status=PENDING&q=private&offset=40&limit=50&batch_model=echoz&batch_max_result_id=99");
+  const target = new URL(predictionTasksRedirect(input), "http://console.test");
+  assert.equal(target.pathname, "/predictions");
+  assert.equal(target.searchParams.get("model"), "v4.1 flash");
+  assert.equal(target.searchParams.get("generation_ids"), "467,468");
+  for (const key of ["status", "q", "offset", "limit", "batch_model", "batch_max_result_id"]) assert.equal(target.searchParams.has(key), false);
+  assert.equal(predictionTasksRedirect(new URLSearchParams("source=KALSHI&generation_id=468&prediction_as_of=2026-11-03T07%3A00%3A00.123456Z")), "/predictions?source=KALSHI&generation_id=468&prediction_as_of=2026-11-03T07%3A00%3A00.123456Z");
 });

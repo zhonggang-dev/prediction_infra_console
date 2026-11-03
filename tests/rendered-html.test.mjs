@@ -92,11 +92,50 @@ test("服务端可渲染 Prediction Console 首页", async () => {
   assert.doesNotMatch(html, /href="\/backtests"/);
   assert.doesNotMatch(html, /href="http:\/\/172\.21\.20\.221:8501\/"[^>]*>.*PM Backtest/s);
   assert.doesNotMatch(html, /Your site is taking shape/);
+  assert.doesNotMatch(html, /Direct 当前维护任务|预期任务|仅统计各平台 Direct/);
+  for (const title of ["市场与预测", "数据集轮转", "题目", "交易"]) assert.ok(html.includes(title));
 
   const sidebar = html.match(/<aside id="console-sidebar"[\s\S]*?<\/aside>/)?.[0] ?? "";
   assert.ok(sidebar, "sidebar should render");
   for (const href of ["/markets", "/predictions", "/dataset-rotation", "/sandboxes", "/trading"]) {
     assert.equal((sidebar.match(new RegExp(`<a[^>]*href="${href}"`, "g")) ?? []).length, 1, `sidebar should expose one ${href} entry`);
+  }
+});
+
+test("预测页仅保留结果与批次下载，双平台current冻结身份不要求Direct摘要", async () => {
+  const html = await (await render("/predictions?scope=current&generation_ids=467,468&model=v4.1%20flash")).text();
+  assert.match(html, /全部平台/);
+  assert.match(html, /当前维护批次 467,468/);
+  assert.match(html, /data-v2-list-params=/);
+  assert.match(html, /generation_ids[^<]*467,468/);
+  assert.match(html, /预测结果批次/);
+  assert.doesNotMatch(html, /任务核对|当前发布轮次覆盖|role="tablist"|新 Ready|当前轮次覆盖未提供/);
+});
+
+test("旧预测任务地址重定向保留模型和维护身份，清除任务私有筛选", async () => {
+  const response = await render("/predictions/tasks?scope=current&sources=POLYMARKET,KALSHI&generation_ids=467,468&model=v4.1%20flash&status=PENDING&q=private&offset=40");
+  assert.equal(response.status, 307);
+  const target = new URL(response.headers.get("location"), "http://localhost");
+  assert.equal(target.pathname, "/predictions");
+  assert.equal(target.searchParams.get("model"), "v4.1 flash");
+  assert.equal(target.searchParams.get("generation_ids"), "467,468");
+  for (const key of ["status", "q", "offset"]) assert.equal(target.searchParams.has(key), false);
+});
+
+test("旧标量维护链接保留缺省Polymarket范围，不扩大为双平台", async () => {
+  const html = await (await render("/predictions?scope=current&generation_id=467")).text();
+  assert.match(html, /当前维护批次 467/);
+  assert.match(html, /value="POLYMARKET" selected=""/);
+  assert.match(html, /source[^<]*POLYMARKET/);
+  assert.doesNotMatch(html, /维护范围无效|generation_ids[^<]*467,468/);
+});
+
+test("非法或显式空current范围显示错误且暂停结果批次选择", async () => {
+  for (const query of ["generation_ids=1,1", "generation_ids=", "generation_id=467&generation_ids=467,468"]) {
+    const html = await (await render(`/predictions?scope=current&${query}`)).text();
+    assert.match(html, /维护范围无效/);
+    assert.match(html, /重新读取当前维护范围/);
+    assert.doesNotMatch(html, /aria-label="预测结果批次"/);
   }
 });
 
