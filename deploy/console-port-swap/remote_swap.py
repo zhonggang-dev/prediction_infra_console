@@ -92,8 +92,16 @@ def validate_metadata(m: dict[str, Any]) -> None:
             raise UnsafeRelease('incomplete baseline container identity')
         if not IMAGE.fullmatch(str(b['container']['image'])) or not b['container'].get('running') or b['container'].get('restart_count') != 0:
             raise UnsafeRelease('baseline container is not stable')
-        pointer = Path(b.get('pointer_target', ''))
-        if pointer.parent.resolve() != (ROOTS[name] / 'releases').resolve():
+        if 'pointer_target' not in b:
+            raise UnsafeRelease('baseline pointer fact is required')
+        target = b['pointer_target']
+        if target is None:
+            # Older V2 releases changed only the image tag and never created
+            # current. Preserve that observed absence, rather than inventing a
+            # release pointer. The legacy service always requires its pointer.
+            if name != NAMES[1]:
+                raise UnsafeRelease('only the V2 baseline may lack current')
+        elif not isinstance(target, str) or Path(target).parent.resolve() != (ROOTS[name] / 'releases').resolve():
             raise UnsafeRelease('baseline pointer outside service release root')
         for field in ('unit_sha256', 'unit_template_sha256'):
             if not SHA64.fullmatch(str(b.get(field, ''))):
@@ -158,11 +166,19 @@ def atomic_write(path: Path, contents: bytes, mode: int) -> None:
             temp.unlink()
 
 
-def pointer_target(name: str) -> str:
+def pointer_target(name: str) -> str | None:
     pointer = ROOTS[name] / 'current'
     if not pointer.is_symlink():
+        if name == NAMES[1] and not pointer.exists():
+            return None
         raise UnsafeRelease('service current must be a symlink')
-    return str(pointer.resolve())
+    try:
+        target = pointer.resolve(strict=True)
+    except (FileNotFoundError, OSError, RuntimeError) as error:
+        raise UnsafeRelease('service current is dangling or invalid') from error
+    if not target.is_dir() or target.parent != (ROOTS[name] / 'releases').resolve():
+        raise UnsafeRelease('service current points outside its release root')
+    return str(target)
 
 
 def atomic_pointer(name: str, target: str) -> None:
@@ -172,6 +188,22 @@ def atomic_pointer(name: str, target: str) -> None:
         raise UnsafeRelease('temporary pointer already exists')
     temp.symlink_to(target)
     os.replace(temp, path)
+
+
+def restore_pointer(name: str, target: str | None, candidate: str) -> None:
+    if target is not None:
+        atomic_pointer(name, target)
+        return
+    if name != NAMES[1]:
+        raise UnsafeRelease('legacy current cannot be removed')
+    observed = pointer_target(name)
+    if observed is None:
+        return  # The attempted switch failed before creating its pointer.
+    if observed != candidate:
+        raise UnsafeRelease('CAS refused removal of an unknown release pointer')
+    # pointer_target verified this is a real in-root symlink. Removing only
+    # our candidate restores the exact older V2 deployment shape.
+    (ROOTS[name] / 'current').unlink()
 
 
 def patch_port(contents: bytes, name: str, port: int) -> bytes:
@@ -420,7 +452,7 @@ def restore(io: RemoteIO, m: dict[str, Any], saved: dict[str, Any], written: dic
             else:
                 atomic_write(path, contents, 0o644 if label == 'unit' else 0o600)
         io.tag(m['baseline'][name]['container']['image'], name)
-        atomic_pointer(name, m['baseline'][name]['pointer_target'])
+        restore_pointer(name, m['baseline'][name]['pointer_target'], m['release'])
     io.reload()
     for name in changed:
         b = m['baseline'][name]
