@@ -81,8 +81,16 @@ export function canonicalConsoleQuery(pathname: string, input: URLSearchParams) 
   if (pathname === "/trading/orders" || pathname === "/trading") for (const key of ["model_id", "strategy_id", "from", "to"]) remove(key);
   if (pathname === "/trading/ledger" || pathname === "/trades") for (const key of ["model_id", "strategy_id"]) remove(key);
   if (pathname === "/predictions" || pathname === "/predictions/tasks") {
-    for (const key of ["selection_run_id", "selected_market_id"]) remove(key);
+    for (const key of ["selection_run_id", "selected_market_id", "status", "from", "to", "max_result_id"]) remove(key);
+    if (query.has("scope") && !["history", "current"].includes(query.get("scope") ?? "")) remove("scope");
     if (query.has("source") && !["POLYMARKET", "KALSHI"].includes(query.get("source") ?? "")) remove("source");
+    if (query.has("source")) query.delete("sources");
+    else if (query.has("sources")) {
+      const sources = [...new Set((query.get("sources") || "").split(",").filter((source) => ["POLYMARKET", "KALSHI"].includes(source)))];
+      if (sources.length === 1) { query.set("source", sources[0]); query.delete("sources"); }
+      else if (sources.length === 2) query.set("sources", "POLYMARKET,KALSHI");
+      else remove("sources");
+    }
     const batchKeys = ["batch_prediction_as_of", "batch_max_result_id", "batch_model", "batch_source"];
     if (batchKeys.some((key) => query.has(key)) && !batchKeys.every((key) => query.get(key))) {
       for (const key of [...batchKeys, "batch_generation_id"]) remove(key);
@@ -92,4 +100,13 @@ export function canonicalConsoleQuery(pathname: string, input: URLSearchParams) 
   if (pathname === "/markets/data" && query.has("source") && query.get("source") !== "POLYMARKET") remove("source");
   if (changedScope) query.delete("offset");
   return query;
+}
+
+/** The removed task page has no private result search or saved batch state. */
+export function predictionTasksRedirect(input: URLSearchParams) {
+  const query = canonicalConsoleQuery("/predictions", input);
+  const allowed = new Set(["model", "source", "sources", "scope", "generation_id", "generation_ids", "prediction_as_of"]);
+  for (const key of [...query.keys()]) if (!allowed.has(key)) query.delete(key);
+  const suffix = query.toString();
+  return `/predictions${suffix ? `?${suffix}` : ""}`;
 }

@@ -216,7 +216,7 @@ export function V2Notice({ title, description, error = false }: { title: string;
   return <div className={`notice v2-notice ${error ? "error" : ""}`}><div><strong>{title}</strong><p>{description}</p></div></div>;
 }
 
-export function V2ListPage<T>({ title, description, load, columns, rowKey, renderDetail, params = {}, searchPlaceholder = "搜索 ID、标题或状态", controls, emptyTitle = "没有匹配的数据", emptyDescription = "调整筛选条件后再试。", discardedFilters = [], children }: {
+export function V2ListPage<T>({ title, description, load, columns, rowKey, renderDetail, params = {}, enabled = true, searchPlaceholder = "搜索 ID、标题或状态", controls, emptyTitle = "没有匹配的数据", emptyDescription = "调整筛选条件后再试。", discardedFilters = [], children }: {
   title: string;
   description?: string;
   load: (params: V2Params) => Promise<ConsoleV2Result<ConsoleV2Page<T>>>;
@@ -224,6 +224,7 @@ export function V2ListPage<T>({ title, description, load, columns, rowKey, rende
   rowKey: (item: T) => string;
   renderDetail?: (item: T, close: () => void) => React.ReactNode;
   params?: V2Params;
+  enabled?: boolean;
   searchPlaceholder?: string;
   controls?: React.ReactNode;
   discardedFilters?: readonly string[];
@@ -250,7 +251,8 @@ export function V2ListPage<T>({ title, description, load, columns, rowKey, rende
   const detailDialogRef = useRef<HTMLDialogElement | null>(null);
   const listStateRef = useRef<HTMLElement | null>(null);
   const [error, setError] = useState<string>();
-  const [loading, setLoading] = useState(true);
+  const [requestLoading, setLoading] = useState(true);
+  const loading = requestLoading || !enabled;
   const detailInstanceId = useId().replace(/[^A-Za-z0-9_-]/g, "");
   const serializedParams = useMemo(() => JSON.stringify(params), [params]);
   const previousParamsRef = useRef(serializedParams);
@@ -334,7 +336,7 @@ export function V2ListPage<T>({ title, description, load, columns, rowKey, rende
 
   useEffect(() => {
     let cancelled = false;
-    if (panel && !panel.active) return;
+    if (!enabled || (panel && !panel.active)) return;
     // The request is scheduled so the effect subscribes to the async result
     // without forcing a synchronous render during effect flush.
     const timer = window.setTimeout(() => {
@@ -371,7 +373,7 @@ export function V2ListPage<T>({ title, description, load, columns, rowKey, rende
     return () => { cancelled = true; window.clearTimeout(timer); };
     // The serialized filter object is the dependency boundary for server-side filtering.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [load, serializedParams, offset, query, limit, panel?.active, retryKey]);
+  }, [load, serializedParams, offset, query, limit, panel?.active, retryKey, enabled]);
 
   const submitSearch = (event: React.FormEvent) => {
     event.preventDefault();
@@ -415,7 +417,7 @@ export function V2ListPage<T>({ title, description, load, columns, rowKey, rende
       </form>
       {children}
       {error && <><V2Notice error title="数据不可用" description={error} /><button type="button" className="button" onClick={() => setRetryKey((value) => value + 1)} disabled={loading}>重试</button></>}
-      {loading && !result && <V2Loading />}
+      {enabled && loading && !result && <V2Loading />}
       {loading && result && <div className="v2-list-refreshing" role="status">正在读取新筛选，暂保留上一份结果</div>}
       {result && result.items.length > 0 && <div className={loading ? "table-scroll is-loading" : "table-scroll"}><table className="v2-table" aria-busy={loading || Boolean(error)}><thead><tr>{columns.map((column) => <th key={column.label} className={column.className}>{column.label}</th>)}{renderDetail && <th className="v2-action-column" aria-label="操作">操作</th>}</tr></thead><tbody>{result.items.map((item) => <tr key={rowKey(item)} onClick={() => renderDetail && openDetail(item)} className={renderDetail ? "clickable" : undefined}>{columns.map((column) => <td key={column.label} className={column.className}>{column.render(item)}</td>)}{renderDetail && <td className="v2-action-cell"><button type="button" className="button" aria-label={`查看${title}详情`} aria-expanded={activeItem ? rowKey(activeItem) === rowKey(item) : false} aria-controls={detailDialogId} disabled={loading || Boolean(error)} onClick={(event) => { event.stopPropagation(); openDetail(item, event.currentTarget); }}>查看详情</button></td>}</tr>)}</tbody></table></div>}
       {error && result && <div className="v2-list-stale" role="status">上一份结果已过期；本次读取失败，请重试。列表内容未被当作当前快照。</div>}
