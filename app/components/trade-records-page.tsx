@@ -3,30 +3,33 @@
 import { Fragment, useEffect, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { consoleApi, ConsoleApiError } from "../lib/console-api";
-import type { ApiMode, DailyPnLReport, LedgerActivity, LedgerActivityPage, LedgerActivityParams, LedgerActivityType } from "../lib/types";
+import type { ApiMode, DailyPnLReport, LedgerActivityParams } from "../lib/types";
+import { consoleV2 } from "../lib/console-v2";
+import { formatTradingLedgerMoney } from "../lib/trading-ledger-v2";
+import type { TradingLedgerActivity as LedgerActivity, TradingLedgerPage as LedgerActivityPage, TradingLedgerActivityType as LedgerActivityType } from "../lib/trading-ledger-v2";
 import { ConsoleShell } from "./console-shell";
 import { DailyPnLDashboard } from "./daily-pnl-dashboard";
-import { WORKSPACE_FILTER_CHANGE_EVENT } from "./console-v2-resource";
-import { Icon } from "./icons";
+import { WORKSPACE_FILTER_CHANGE_EVENT, useV2PanelActive } from "./console-v2-resource";
 
 type RangeKey = "24h" | "7d" | "30d" | "all" | "custom";
 type Filters = { range: RangeKey; from: string; to: string; activityType: "" | LedgerActivityType; modelId: string; strategyId: string; executionAccountId: string; query: string };
 
 const defaultFilters: Filters = { range: "24h", from: "", to: "", activityType: "", modelId: "", strategyId: "", executionAccountId: "", query: "" };
 const rangeLabels: Record<RangeKey, string> = { "24h": "最近 24 小时", "7d": "最近 7 天", "30d": "最近 30 天", all: "全部时间", custom: "自定义日期" };
-const activityLabels: Record<LedgerActivityType, string> = { BUY: "买入成交", SELL: "卖出成交", EXTERNAL_SELL: "外部卖出", REDEEM: "赎回结算" };
+const activityLabels: Record<LedgerActivityType, string> = { BUY: "买入成交", SELL: "卖出成交", EXTERNAL_SELL: "外部卖出", REDEEM: "赎回结算", KALSHI_NETTING: "对冲回款", KALSHI_SETTLEMENT: "到期结算" };
 
 /** 交易与结算记录：成交（BUY / SELL）与链上赎回结算（REDEEM）使用统一账本活动接口，避免与预测记录口径混淆。 */
 export function TradeRecordsPage({ embedded = false, sharedAccountOnly = false, showPnL = false, compact = false }: { embedded?: boolean; sharedAccountOnly?: boolean; showPnL?: boolean; compact?: boolean } = {}) {
   const searchParams = useSearchParams();
+  const active = useV2PanelActive();
   const rootRef = useRef<HTMLDivElement | null>(null);
   const initialLimit = normalizeLedgerLimit(searchParams.get("limit"));
-  const initialFilters = ledgerFiltersFromUrl(searchParams);
+  const initialFilters = ledgerFiltersFromUrl(searchParams, compact);
   const [draft, setDraft] = useState<Filters>(initialFilters);
   const [filters, setFilters] = useState<Filters>(initialFilters);
   const [data, setData] = useState<LedgerActivityPage>();
   const [limit, setLimit] = useState(initialLimit);
-  const [offset, setOffset] = useState(normalizeLedgerOffset(searchParams.get("offset"), initialLimit));
+  const [offset, setOffset] = useState(compact && (searchParams.has("model_id") || searchParams.has("strategy_id")) ? 0 : normalizeLedgerOffset(searchParams.get("offset"), initialLimit));
   const [refreshKey, setRefreshKey] = useState(0);
   const [mode, setMode] = useState<ApiMode>("live");
   const [demoEnabled, setDemoEnabled] = useState(false);
@@ -42,27 +45,31 @@ export function TradeRecordsPage({ embedded = false, sharedAccountOnly = false, 
       if (rootRef.current?.closest<HTMLElement>("[role=\"tabpanel\"]")?.hidden) return;
       const url = new URL(window.location.href);
       if (sharedAccountOnly && !["/trading/ledger", "/trades"].includes(url.pathname)) return;
+      if (compact && (url.searchParams.has("model_id") || url.searchParams.has("strategy_id"))) { url.searchParams.delete("model_id"); url.searchParams.delete("strategy_id"); url.searchParams.delete("offset"); window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}`); }
       const nextLimit = normalizeLedgerLimit(url.searchParams.get("limit"));
-      const nextFilters = ledgerFiltersFromUrl(url.searchParams);
+      const nextFilters = ledgerFiltersFromUrl(url.searchParams, compact);
       setLimit(nextLimit);
       setOffset(normalizeLedgerOffset(url.searchParams.get("offset"), nextLimit));
       setFilters(nextFilters);
       setDraft(nextFilters);
     };
+    syncFromUrl();
     window.addEventListener("popstate", syncFromUrl);
     window.addEventListener("v2-workspace-url-change", syncFromUrl);
     window.addEventListener(WORKSPACE_FILTER_CHANGE_EVENT, syncFromUrl);
     return () => { window.removeEventListener("popstate", syncFromUrl); window.removeEventListener("v2-workspace-url-change", syncFromUrl); window.removeEventListener(WORKSPACE_FILTER_CHANGE_EVENT, syncFromUrl); };
-  }, [sharedAccountOnly]);
+  }, [sharedAccountOnly, compact]);
 
   useEffect(() => {
+    if (!active) return;
     let cancelled = false;
     const load = async () => {
       setLoading(true);
       setError(undefined);
       const params = toRequest(filters, limit, offset);
       try {
-        const result = demoEnabled ? consoleApi.demoLedgerActivities(params) : await consoleApi.ledgerActivities(params);
+        const legacyParams: LedgerActivityParams = { ...params, activityType: params.activityType === "KALSHI_NETTING" || params.activityType === "KALSHI_SETTLEMENT" ? undefined : params.activityType };
+        const result = demoEnabled ? consoleApi.demoLedgerActivities(legacyParams) : compact ? await consoleV2.trading.ledgerActivities({ limit, offset, from: params.from, to: filters.to ? `${filters.to}T23:59:59.999999Z` : undefined, execution_account_id: params.executionAccountId, activity_type: params.activityType || undefined, q: params.query }) : await consoleApi.ledgerActivities(legacyParams);
         if (!cancelled) {
           setData(result.data);
           setMode(result.mode);
@@ -89,7 +96,7 @@ export function TradeRecordsPage({ embedded = false, sharedAccountOnly = false, 
     };
     void load();
     return () => { cancelled = true; };
-  }, [demoEnabled, filters, limit, offset, refreshKey]);
+  }, [demoEnabled, filters, limit, offset, refreshKey, compact, active]);
 
   useEffect(() => {
     if (!showPnL) return;
@@ -122,21 +129,22 @@ export function TradeRecordsPage({ embedded = false, sharedAccountOnly = false, 
   const changeLimit = (next: number) => { setLimit(next); setOffset(0); syncLedgerUrl(filters, next, 0); };
   const appliedListParams = ledgerAppliedListParams(filters);
 
-  const content = <div ref={rootRef} className="trade-records-content" data-v2-list-state data-v2-list-query={filters.query} data-v2-list-limit={limit} data-v2-list-offset={offset} data-v2-list-params={JSON.stringify(appliedListParams)}>
+  const content = <div ref={rootRef} className={compact ? "trade-records-content trading-ledger-records" : "trade-records-content"} data-v2-list-state data-v2-list-query={filters.query} data-v2-list-limit={limit} data-v2-list-offset={offset} data-v2-list-params={JSON.stringify(appliedListParams)}>
     {embedded ? <div className="trading-embedded-toolbar">
       <div><strong>{compact ? "成交与结算明细" : "资金账本与结算"}</strong>{!compact && <small>已确认并入账的成交与结算；日期按账本活动发生时间。</small>}</div>
-      <button className="button" onClick={() => setRefreshKey((value) => value + 1)} disabled={loading}><Icon name="refresh" /> {loading ? "刷新中" : "刷新数据"}</button>
+
     </div> : <header className="page-head">
       <div><p className="eyebrow">Trading Execution / Ledger</p><h1>交易与结算记录</h1><p className="description">来自已确认并入账的成交与结算：BUY / SELL 为 Polymarket CLOB 真实成交，EXTERNAL_SELL 为外部卖出记账，REDEEM 为链上赎回结算。订单已接受不等于成交；REDEEM 不是卖出成交。日期按账本活动发生时间。</p></div>
-      <button className="button" onClick={() => setRefreshKey((value) => value + 1)} disabled={loading}><Icon name="refresh" /> 刷新数据</button>
+
     </header>}
     {mode === "demo" && <Notice title="当前为演示数据" description="数据仅用于预览页面，不代表任何钱包的真实成交或赎回。" action="返回真实数据" onAction={() => setDemoEnabled(false)} />}
-    {error && <Notice error title="无法读取交易执行账本" description={error} action={mode === "unavailable" ? "手动查看演示数据" : undefined} onAction={() => setDemoEnabled(true)} />}
+    {error && <Notice error title="无法读取交易执行账本" description={error} action="重试" onAction={() => setRefreshKey((value) => value + 1)} />}
     {showPnL && pnlError && <Notice error title="无法读取钱包 PnL" description={pnlError} />}
     {showPnL && <DailyPnLDashboard report={pnlReport} loading={pnlLoading && !pnlReport} days={pnlDays} onDays={setPnlDays} accountId={filters.executionAccountId || undefined} />}
     {!compact && <LedgerMetrics data={data} loading={loading && !data} range={rangeLabels[filters.range]} />}
     <section className="section panel trade-panel">
       <LedgerFilters draft={draft} setDraft={setDraft} apply={apply} reset={reset} loading={loading} sharedAccountOnly={sharedAccountOnly} compact={compact} />
+      <p className="v2-inline-note">外部卖出与赎回按真实账本记录展示；近期无记录时可扩大时间或账户范围。</p>
       <LedgerTable data={data} loading={loading} onPage={(nextOffset) => { setOffset(nextOffset); syncLedgerUrl(filters, limit, nextOffset); }} onLimit={changeLimit} />
     </section>
   </div>;
@@ -167,8 +175,7 @@ function LedgerFilters({ draft, setDraft, apply, reset, loading, sharedAccountOn
     <label><span>时间范围</span><select className="select" value={draft.range} onChange={(event) => setDraft((current) => ({ ...current, range: event.target.value as RangeKey, from: "", to: "" }))}><option value="24h">最近 24 小时</option><option value="7d">最近 7 天</option><option value="30d">最近 30 天</option><option value="all">全部时间</option><option value="custom">自定义日期</option></select></label>
     {(!compact || draft.range === "custom") && <><label><span>开始日期</span><input className="input" type="date" value={draft.from} onChange={(event) => update("from", event.target.value)} /></label>
     <label><span>结束日期</span><input className="input" type="date" value={draft.to} onChange={(event) => update("to", event.target.value)} /></label></>}
-    <label><span>活动类型</span><select className="select" value={draft.activityType} onChange={(event) => update("activityType", event.target.value)}><option value="">全部类型</option><option value="BUY">BUY · 买入</option><option value="SELL">SELL · 卖出</option><option value="EXTERNAL_SELL">EXTERNAL_SELL · 外部卖出</option><option value="REDEEM">REDEEM · 赎回结算</option></select></label>
-    {compact && <details open={Boolean(draft.modelId || draft.strategyId)}><summary>历史模型与策略筛选</summary><label><span>模型</span><input className="input" value={draft.modelId} onChange={(event) => update("modelId", event.target.value)} /></label><label><span>策略</span><input className="input" value={draft.strategyId} onChange={(event) => update("strategyId", event.target.value)} /></label></details>}
+    <label><span>活动类型</span><select className="select" value={draft.activityType} onChange={(event) => update("activityType", event.target.value)}><option value="">全部类型</option><option value="BUY">BUY · 买入</option><option value="SELL">SELL · 卖出</option><option value="EXTERNAL_SELL">EXTERNAL_SELL · 外部卖出</option><option value="REDEEM">赎回结算</option>{compact && <><option value="KALSHI_NETTING">对冲回款</option><option value="KALSHI_SETTLEMENT">到期结算</option></>}</select></label>
     {!compact && <><label><span>模型</span><input className="input" value={draft.modelId} onChange={(event) => update("modelId", event.target.value)} placeholder="例如 forecast-v2" /></label><label><span>策略</span><input className="input" value={draft.strategyId} onChange={(event) => update("strategyId", event.target.value)} placeholder="例如 multfactor_v2" /></label><label className="account-filter"><span>{sharedAccountOnly ? "执行账户（共享范围）" : "执行账户"}</span><input className="input" value={draft.executionAccountId} readOnly={sharedAccountOnly} disabled={sharedAccountOnly} onChange={(event) => update("executionAccountId", event.target.value)} placeholder="例如 wallet-6" /></label></>}
     <label className="search-filter"><span>搜索</span><input className="input" value={draft.query} onChange={(event) => update("query", event.target.value)} placeholder="市场、订单、Trade ID、Lot、token 或链上哈希" /></label>
     <div className="trade-filter-actions"><button type="button" className="button" onClick={reset}>重置</button><button className="button primary" disabled={loading}>应用筛选</button></div>
@@ -186,20 +193,20 @@ function LedgerTable({ data, loading, onPage, onLimit }: { data?: LedgerActivity
         <tbody>{data.items.map((item) => {
           const open = selected === item.activityKey;
           const detailId = `activity-${safeID(item.activityKey)}`;
-          const redeem = item.activityType === "REDEEM";
+          const redeem = item.activityType === "REDEEM" || item.activityType === "KALSHI_NETTING" || item.activityType === "KALSHI_SETTLEMENT";
           return <Fragment key={item.activityKey}>
             <tr className={open ? "selected-row" : ""}>
               <td><div className="trade-market"><strong title={item.marketLabel}>{item.marketLabel || `Market ${shortID(item.marketId)}`}</strong><span><i className="outcome-chip">{item.outcomeName || "Outcome"}</i><span className="mono muted">{shortID(item.conditionId || item.marketId)}</span></span></div></td>
               <td><ActivityBadge type={item.activityType} /></td>
               <td><div className="trade-identity"><strong className="mono">{item.executionAccountId}</strong></div></td>
-              <td><strong className="mono">{quantity(item.shares)}</strong><span className="trade-at"> @ {redeem ? "—" : price(item.price)}</span>{redeem && <span className="trade-kind-note">赎回份额</span>}</td>
+              <td><strong className="mono">{quantity(item.shares)}{item.quantityUnit === "pairs" ? " 对" : " 份"}</strong><span className="trade-at"> @ {redeem ? "—" : price(item.price)}</span></td>
               <td className="amount-cell">{redeem ? money(item.settlementPayout) : money(item.grossNotional)}{redeem && <span className="trade-kind-note">结算到账</span>}</td>
               <td className="mono muted">{redeem ? "—" : money(item.totalFee)}</td>
               <td><Pnl item={item} /></td>
               <td className="mono muted">{utc(item.occurredAt)}{redeem && <span className="trade-kind-note">入账时间</span>}</td>
               <td><button className="trade-expand" aria-expanded={open} aria-controls={detailId} onClick={() => setSelected(open ? undefined : item.activityKey)}>{open ? "收起" : "详情"}</button></td>
             </tr>
-            {open && <tr className="trade-detail-row"><td colSpan={9}>{redeem ? <RedeemDetail id={detailId} item={item} /> : <TradeDetail id={detailId} item={item} />}</td></tr>}
+            {open && <tr className="trade-detail-row"><td colSpan={9}>{item.activityType.startsWith("KALSHI_") ? <KalshiDetail id={detailId} item={item} /> : redeem ? <RedeemDetail id={detailId} item={item} /> : <TradeDetail id={detailId} item={item} />}</td></tr>}
           </Fragment>;
         })}</tbody>
       </table>
@@ -214,15 +221,15 @@ function ActivityBadge({ type }: { type: LedgerActivityType }) {
 
 /** 成交详情：沿用 Fill 的订单、撮合与确认字段。 */
 function TradeDetail({ id, item }: { id: string; item: LedgerActivity }) {
-  const confirmationSeconds = Math.max(0, (new Date(item.confirmedAt).getTime() - new Date(item.occurredAt).getTime()) / 1000);
+  const confirmationSeconds = item.confirmedAt ? Math.max(0, (new Date(item.confirmedAt).getTime() - new Date(item.occurredAt).getTime()) / 1000) : undefined;
   return <div className="trade-detail" id={id}>
-    <div className="trade-detail-head"><div><ActivityBadge type={item.activityType} /><strong>{item.activityType === "EXTERNAL_SELL" ? "外部卖出" : "成交"} {quantity(item.shares)} shares · {item.outcomeName || "Outcome"}</strong></div><span className="status confirmed">已确认并入账</span></div>
+    <div className="trade-detail-head"><div><ActivityBadge type={item.activityType} /><strong>{item.activityType === "EXTERNAL_SELL" ? "外部卖出" : "成交"} {quantity(item.shares)} shares · {item.outcomeName || "Outcome"}</strong></div><span className="status confirmed">{item.confirmedAt ? "已确认并入账" : item.appliedAt ? "已入账" : "确认与入账时间未提供"}</span></div>
     {item.activityType === "EXTERNAL_SELL" && <p className="v2-inline-note">这是外部卖出记账，可能没有本地订单或 CLOB Trade ID；金额与已实现 PnL 采用账本返回值。</p>}
     <div className="trade-detail-grid">
-      <Detail label="历史模型 / 策略" value={`${item.modelId} / ${item.strategyId}`} /><Detail label="内部订单 ID" value={item.orderId || "—"} mono /><Detail label="Polymarket Trade ID" value={item.venueTradeId || "—"} mono /><Detail label="Venue Order ID" value={item.venueOrderId || "—"} mono />
+      <Detail label="历史模型 / 策略" value={`${item.modelId} / ${item.strategyId}`} /><Detail label="内部订单 ID" value={item.orderId || "—"} mono /><Detail label="交易所成交 ID" value={item.venueTradeId || "—"} mono /><Detail label="Venue Order ID" value={item.venueOrderId || "—"} mono />
       <Detail label="持仓批次 Lot ID" value={item.lotId || "—"} mono /><Detail label="Token ID" value={item.tokenId} mono /><Detail label="Condition ID" value={item.conditionId || "—"} mono />
       <Detail label="成交价" value={price(item.price)} mono /><Detail label="账本现金变化" value={signedMoney(item.netCashDelta)} tone={sign(item.netCashDelta) >= 0 ? "positive" : "negative"} /><Detail label="平仓成本" value={item.activityType === "SELL" || item.activityType === "EXTERNAL_SELL" ? money(item.costBasis) : "—"} />
-      <Detail label="流动性角色" value={item.liquidityRole || "—"} /><Detail label="订单最终状态" value={item.orderStatus || "—"} /><Detail label="确认耗时" value={`${confirmationSeconds.toFixed(0)} 秒`} />
+      <Detail label="流动性角色" value={item.liquidityRole || "—"} /><Detail label="订单最终状态" value={item.orderStatus || "—"} /><Detail label="确认耗时" value={confirmationSeconds === undefined ? "—" : `${confirmationSeconds.toFixed(0)} 秒`} />
       <Detail label="撮合时间（UTC）" value={utc(item.occurredAt)} mono /><Detail label="确认时间（UTC）" value={utc(item.confirmedAt)} mono /><Detail label="入账时间（UTC）" value={utc(item.appliedAt)} mono />
       <Detail label="链上交易哈希" value={item.transactionHash || "—"} mono wide />
     </div>
@@ -268,7 +275,7 @@ function Notice({ title, description, action, onAction, error = false }: { title
   return <div className={`notice ${error ? "error" : ""}`}><div><strong>{title}</strong><p>{description}</p></div>{action && <button className="button" onClick={onAction}>{action}</button>}</div>;
 }
 
-function toRequest(filters: Filters, limit: number, offset: number): LedgerActivityParams {
+function toRequest(filters: Filters, limit: number, offset: number): Omit<LedgerActivityParams, "activityType"> & { activityType: "" | LedgerActivityType } {
   const durations: Partial<Record<RangeKey, number>> = { "24h": 24 * 60 * 60_000, "7d": 7 * 24 * 60 * 60_000, "30d": 30 * 24 * 60 * 60_000 };
   const duration = durations[filters.range];
   return { limit, offset, from: filters.from ? `${filters.from}T00:00:00Z` : duration ? new Date(Date.now() - duration).toISOString() : undefined, to: filters.to ? nextDayStart(filters.to) : undefined, activityType: filters.activityType, modelId: filters.modelId || undefined, strategyId: filters.strategyId || undefined, executionAccountId: filters.executionAccountId || undefined, query: filters.query || undefined };
@@ -281,12 +288,12 @@ function nextDayStart(value: string) {
   return date.toISOString();
 }
 
-function ledgerFiltersFromUrl(params: URLSearchParams): Filters {
+function ledgerFiltersFromUrl(params: URLSearchParams, compact = false): Filters {
   const range = params.get("ledger_range");
   const activityType = params.get("activity_type");
   const from = params.get("from") ?? "";
   const to = params.get("to") ?? "";
-  return { range: from || to ? "custom" : range === "7d" || range === "30d" || range === "all" ? range : "24h", from, to, activityType: activityType === "BUY" || activityType === "SELL" || activityType === "EXTERNAL_SELL" || activityType === "REDEEM" ? activityType : "", modelId: params.get("model_id") ?? "", strategyId: params.get("strategy_id") ?? "", executionAccountId: params.get("execution_account_id") ?? "", query: params.get("q") ?? "" };
+  return { range: from || to ? "custom" : range === "7d" || range === "30d" || range === "all" ? range : "24h", from, to, activityType: activityType === "BUY" || activityType === "SELL" || activityType === "EXTERNAL_SELL" || activityType === "REDEEM" || (compact && (activityType === "KALSHI_NETTING" || activityType === "KALSHI_SETTLEMENT")) ? activityType : "", modelId: compact ? "" : params.get("model_id") ?? "", strategyId: compact ? "" : params.get("strategy_id") ?? "", executionAccountId: params.get("execution_account_id") ?? "", query: params.get("q") ?? "" };
 }
 
 function ledgerAppliedListParams(filters: Filters) {
@@ -314,13 +321,17 @@ function syncLedgerUrl(filters: Filters, limit: number, offset: number) {
 function normalizeLedgerLimit(value: string | number | null | undefined) { const numeric = Number(value); return numeric === 50 || numeric === 100 ? numeric : 20; }
 function normalizeLedgerOffset(value: string | number | null | undefined, limit: number) { const numeric = Number(value); return Number.isSafeInteger(numeric) && numeric >= 0 ? Math.floor(numeric / limit) * limit : 0; }
 
-const moneyFormatter = new Intl.NumberFormat("en-US", { style: "currency", currency: "USD", minimumFractionDigits: 2, maximumFractionDigits: 4 });
-const quantityFormatter = new Intl.NumberFormat("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 4 });
+const quantityFormatter = new Intl.NumberFormat("en-US", { minimumFractionDigits: 0, maximumFractionDigits: 6 });
 const sign = (value?: string) => Number(value ?? 0) || 0;
-const money = (value?: string) => moneyFormatter.format(sign(value));
-const signedMoney = (value?: string) => `${sign(value) > 0 ? "+" : ""}${money(value)}`;
+const money = formatTradingLedgerMoney;
+const signedMoney = (value?: string) => formatTradingLedgerMoney(value, true);
 const quantity = (value: string) => quantityFormatter.format(sign(value));
 const price = (value?: string) => value === undefined || value === "" ? "—" : sign(value).toFixed(4);
-const utc = (value: string) => value ? new Date(value).toISOString().replace("T", " ").replace(/\.\d{3}Z$/, " UTC") : "—";
+const utc = (value?: string) => value ? new Date(value).toISOString().replace("T", " ").replace(/\.\d{3}Z$/, " UTC") : "—";
 const shortID = (value: string, edge = 8) => value.length > edge * 2 + 1 ? `${value.slice(0, edge)}…${value.slice(-edge)}` : value;
 const safeID = (value: string) => value.replace(/[^A-Za-z0-9_-]/g, "-");
+
+function KalshiDetail({ id, item }: { id: string; item: LedgerActivity }) {
+  const netting = item.activityType === "KALSHI_NETTING";
+  return <div id={id} className="trade-detail"><div className="trade-detail-head"><ActivityBadge type={item.activityType} /><strong>{quantity(item.shares)} {netting ? "对" : "份"}</strong></div><p className="v2-inline-note">{netting ? "反向买入抵消原有合约后，每对回款单列；买入扣款和费用不重复计入回款。" : "按持仓批次记录交易所到期结算；零兑付也是合法已入账结果。"}</p><div className="trade-detail-grid"><Detail label="到账金额" value={money(item.settlementPayout)} /><Detail label="已实现盈亏" value={signedMoney(item.realizedPnl)} /><Detail label="成本分配" value={money(item.costBasis)} /><Detail label="关联买单" value={item.orderId || "—"} mono /><Detail label="持仓批次" value={item.lotId || "—"} mono /><Detail label="账本现金变化" value={signedMoney(item.netCashDelta)} /><Detail label="入账时间" value={utc(item.appliedAt)} /></div></div>;
+}

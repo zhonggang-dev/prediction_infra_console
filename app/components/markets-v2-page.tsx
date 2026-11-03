@@ -1,115 +1,81 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo } from "react";
 import { consoleV2, type ConsoleV2Generation, type ConsoleV2RunningMarket, type ConsoleV2RunningPool, type ConsoleV2SelectedMarket, type ConsoleV2SelectionRun, type ConsoleV2Settlement } from "../lib/console-v2";
-import { formatV2Number, formatV2Time, type V2Column, V2ContextLinks, V2Facts, V2Frame, V2ListPage, V2Tabs, V2WorkspacePanel, useV2Filter, useWorkspaceTabs, v2Status, v2Unknown } from "./console-v2-resource";
+import { formatV2Number, formatV2Time, V2ContextLinks, V2Facts, V2Frame, V2ListPage, V2SubViews, V2Tabs, V2WorkspacePanel, useV2Filter, useWorkspaceTabs, v2Status, v2Unknown } from "./console-v2-resource";
 
 type MarketsView = "running" | "selection" | "data";
-
+const tabs = [{ href: "/markets/running", label: "运行市场", aliases: ["/markets"] }, { href: "/markets/selection", label: "选盘与维护" }, { href: "/markets/data", label: "Polymarket 市场结算" }] as const;
 export function MarketsV2Page({ view = "running" }: { view?: MarketsView }) {
-  const tabs = [{ href: "/markets/running", label: "运行市场", aliases: ["/markets"] }, { href: "/markets/selection", label: "选盘记录" }, { href: "/markets/data", label: "市场结算" }] as const;
-  const initialHref = view === "running" ? "/markets/running" : view === "data" ? "/markets/data" : "/markets/selection";
-  const workspace = useWorkspaceTabs(tabs, initialHref);
-  const config = workspace.active === "/markets/running"
-    ? { eyebrow: "Markets / Running", title: "运行市场", description: "按当前维护批次、长期运行池和已退出范围查看市场；选盘记录单独保留。" }
-    : workspace.active === "/markets/data"
-      ? { eyebrow: "Markets / Settlement", title: "市场结算", description: "查看市场终态与结算事实；市场结算完成不等同于账户已经完成赎回。" }
-      : { eyebrow: "Markets / Selection", title: "选盘批次与历史", description: "先看选盘批次，再按批次查看入选市场；历史记录不会混入当前运行范围。" };
-  return <V2Frame eyebrow={config.eyebrow} title={config.title} description={config.description}>
-    <V2ContextLinks links={[{ href: "/predictions", label: "查看对应预测" }, { href: "/markets/selection", label: "发布批次审计" }]} />
-    <V2Tabs tabs={tabs} active={workspace.active} onSelect={(href) => workspace.select(href as typeof workspace.active)} />
-    <V2WorkspacePanel active={workspace.active} href="/markets/running" visited={workspace.visited.has("/markets/running")}><RunningMarketViews /></V2WorkspacePanel>
-    <V2WorkspacePanel active={workspace.active} href="/markets/selection" visited={workspace.visited.has("/markets/selection")}><SelectionViews /></V2WorkspacePanel>
-    <V2WorkspacePanel active={workspace.active} href="/markets/data" visited={workspace.visited.has("/markets/data")}><MarketDataViews /></V2WorkspacePanel>
-  </V2Frame>;
+  const workspace = useWorkspaceTabs(tabs, `/markets/${view}`);
+  const config = workspace.active === "/markets/running" ? { title: "运行市场", description: "查看各平台当前维护批次的成员与预测资格，或查询已退出市场。" } : workspace.active === "/markets/data" ? { title: "Polymarket 市场结算", description: "官方采集快照与钱包结算入账分别核对。" } : { title: "选盘与维护", description: "选盘记录与运行池维护记录分别保留，可按真实批次追查成员。" };
+  return <V2Frame eyebrow="Markets" {...config}><V2ContextLinks links={[{ href: "/predictions", label: "查看预测" }]} /><V2Tabs tabs={tabs} active={workspace.active} onSelect={(href) => workspace.select(href as typeof workspace.active)} /><V2WorkspacePanel active={workspace.active} href="/markets/running" visited={workspace.visited.has("/markets/running")}><RunningMarketViews /></V2WorkspacePanel><V2WorkspacePanel active={workspace.active} href="/markets/selection" visited={workspace.visited.has("/markets/selection")}><V2SubViews parameter="record_view" choices={[{ href: "selection", label: "选盘记录", content: <SelectionViews /> }, { href: "maintenance", label: "维护记录", content: <GenerationList /> }]} /></V2WorkspacePanel><V2WorkspacePanel active={workspace.active} href="/markets/data" visited={workspace.visited.has("/markets/data")}><SettlementList /></V2WorkspacePanel></V2Frame>;
 }
 
+function SourceFilter({ value, onChange }: { value: string; onChange: (value: string) => void }) { return <select className="select" aria-label="市场来源" value={value} onChange={(event) => onChange(event.target.value)}><option value="ALL">全部平台</option><option value="POLYMARKET">Polymarket</option><option value="KALSHI">Kalshi</option></select>; }
+function EligibilityFilter({ value, onChange }: { value: string; onChange: (value: string) => void }) { return <select className="select" aria-label="预测资格" value={value} onChange={(event) => onChange(event.target.value)}><option value="">全部资格</option><option value="true">可预测</option><option value="false">仅资料</option></select>; }
 function RunningMarketViews() {
-  const [scope, setScope] = useV2Filter("market_scope", "pool");
-  return <><div className="market-scope-bar"><label><span>运行范围</span><select className="select" aria-label="运行市场范围" value={scope} onChange={(event) => setScope(event.target.value)}><option value="pool">长期运行池</option><option value="current">当前维护批次</option><option value="retired">已退出运行池</option></select></label><span>{scope === "current" ? "最近一次维护冻结的成员与预测资格。" : scope === "retired" ? "已结束或被移出的历史运行市场。" : "持续维护的活跃市场，维护记录单独查看。"}</span></div>{scope === "current" ? <RunningMembers /> : <RunningPool status={scope === "retired" ? "RETIRED" : "ACTIVE"} />}<details className="market-audit"><summary>查看运行池维护记录</summary><GenerationList /></details></>;
+  const [storedScope, setScope] = useV2Filter("market_scope", "current");
+  const scope = storedScope === "retired" ? "retired" : "current";
+  useEffect(() => { if (storedScope === "pool") setScope("current"); }, [storedScope, setScope]);
+  return <><div className="market-scope-bar"><label><span>运行范围</span><select className="select" aria-label="运行市场范围" value={scope} onChange={(event) => setScope(event.target.value)}><option value="current">当前维护批次</option><option value="retired">已退出运行池</option></select></label></div>{scope === "current" ? <RunningMembers /> : <RetiredMarkets />}</>;
 }
-
 function RunningMembers() {
   const [generationId, setGenerationId] = useV2Filter("generation_id");
-  const params = useMemo(() => ({ generation_id: generationId || undefined }), [generationId]);
-  return <V2ListPage<ConsoleV2RunningMarket> title="运行市场" load={consoleV2.infra.runningMarkets} params={params} rowKey={(item) => item.runningMarketId} searchPlaceholder="搜索 market、condition、问题或发布批次" controls={<input className="input" aria-label="发布批次 ID" inputMode="numeric" placeholder="发布批次 ID（可选）" value={generationId} onChange={(event) => setGenerationId(event.target.value.trim())} />} columns={[
-    { label: "问题 / 来源", className: "primary wide", render: (item) => <div className="v2-cell-copy"><strong>{item.question}</strong><small>当前维护批次 · 选盘批次 {item.sourceSelectionRunId}</small></div> },
-    { label: "市场 / 条件", render: (item) => <div className="v2-cell-copy mono"><span>{item.marketId}</span><small>{item.conditionId}</small></div> },
-    { label: "本批次预测资格", render: (item) => <div className="v2-cell-copy"><span>{item.predictionEnabled === null ? "未知" : item.predictionEnabled ? "本批次启用" : "仅资料"}</span><small>当前发布批次冻结字段</small></div> },
-    { label: "领域 / 排名", render: (item) => <div className="v2-cell-copy"><span>{v2Unknown(item.primaryDomain)}</span><small>排名 {v2Unknown(item.domainRank)}</small></div> },
-    { label: "24h 成交量", render: (item) => <div className="v2-cell-copy"><span>{formatV2Number(item.volume24h, 4)}</span><small>采集于 {formatV2Time(item.marketObservedAt)}</small></div> },
-    { label: "预计结束时间", render: (item) => formatV2Time(item.endAt) },
-  ]} renderDetail={(item) => <><V2Facts values={[{ label: "维护批次 ID", value: item.generationId, mono: true }, { label: "运行市场 ID", value: item.runningMarketId, mono: true }, { label: "来源入选市场 ID", value: item.sourceSelectedMarketId, mono: true }, { label: "本批次预测资格", value: item.predictionEnabled === null ? "未知" : item.predictionEnabled ? "本批次启用" : "仅资料" }, { label: "来源市场观测时间", value: formatV2Time(item.marketObservedAt) }, { label: "匹配领域", value: item.matchedDomains.length ? item.matchedDomains.join(" · ") : "未知" }]} /><p className="v2-inline-note">预测资格是当前维护批次的冻结字段；实时有效性另查市场结算。</p></>} emptyDescription="当前接口没有返回维护批次成员；这不等于历史选盘为空。" />;
+  const [source, setSource] = useV2Filter("source", "ALL");
+  const [enabled, setEnabled] = useV2Filter("prediction_enabled");
+  const params = useMemo(() => ({ generation_id: generationId || undefined, source, prediction_enabled: enabled || undefined, market_scope: "current" }), [generationId, source, enabled]);
+  return <>{generationId && <section className="panel panel-pad selection-context"><strong>{source === "ALL" ? "指定" : source} 维护批次 {generationId}</strong><V2ContextLinks links={[{ href: "/markets/running", label: "返回当前维护成员" }, { href: "/markets/selection?record_view=maintenance", label: "返回维护记录" }, { href: `/predictions?generation_id=${encodeURIComponent(generationId)}&${source === "ALL" ? "sources=POLYMARKET,KALSHI" : `source=${source}`}&scope=history`, label: "查看本轮预测" }]} /></section>}<V2ListPage<ConsoleV2RunningMarket> title="运行市场" description="按平台、领域及域内成交量排名展示；展示排名不等同于预测资格门禁名次。" load={loadRunningMarkets} params={params} rowKey={(item) => `${item.marketSource}:${item.generationId}:${item.runningMarketId}`} controls={<><SourceFilter value={source} onChange={(next) => { setSource(next); setGenerationId(""); }} /><EligibilityFilter value={enabled} onChange={setEnabled} /></>} searchPlaceholder="搜索问题或交易所市场编号" columns={[
+    { label: "平台 / 问题", className: "primary wide", render: (item) => <div className="v2-cell-copy"><strong>{item.question}</strong><small>{item.marketSource} · 维护批次 {item.generationId}</small></div> },
+    { label: "交易所市场 / 条件", className: "mono", render: (item) => <div className="v2-cell-copy"><span>{item.marketId}</span>{item.conditionId && <small>{item.conditionId}</small>}</div> },
+    { label: "领域", render: (item) => v2Unknown(item.primaryDomain) },
+    { label: "域内成交量排名", render: (item) => formatV2Number(item.domainVolumeRank, 0) },
+    { label: "24h 成交量", render: (item) => <div className="v2-cell-copy"><span>{formatV2Number(item.volume24h, 4)}</span><small>{formatV2Time(item.marketObservedAt)}</small></div> },
+    { label: "预测资格", render: (item) => item.predictionEnabled === null ? "未提供" : item.predictionEnabled ? "可预测" : "仅资料" },
+    { label: "预计结束", render: (item) => formatV2Time(item.endAt) },
+  ]} /></>;
 }
-
-function RunningPool({ status }: { status: "ACTIVE" | "RETIRED" }) {
-  const params = useMemo(() => ({ status }), [status]);
-  const columns: V2Column<ConsoleV2RunningPool>[] = [
-    { label: "市场", className: "primary wide", render: (item) => <div className="v2-cell-copy"><strong>{item.question}</strong><small className="mono">{item.marketId} · {item.conditionId}</small></div> },
-    { label: "活跃状态", render: (item) => v2Status(item.isActive === null ? "unknown" : item.isActive ? "active" : "retired", item.isActive === null ? "未知" : item.isActive ? "活跃" : "已退出") },
-    { label: "来源 run", render: (item) => <span className="mono">{item.sourceSelectionRunId}</span> },
-    { label: "24h 成交量", render: (item) => <div className="v2-cell-copy"><span>{formatV2Number(item.volume24h, 4)}</span><small>采集于 {formatV2Time(item.marketObservedAt)}</small></div> },
-    { label: "预计结束时间", render: (item) => formatV2Time(item.endAt) },
-  ];
-  if (status === "RETIRED") columns.push({ label: "退出时间", render: (item: ConsoleV2RunningPool) => formatV2Time(item.retiredAt) }, { label: "退出原因", render: (item: ConsoleV2RunningPool) => v2Unknown(item.retiredReason) });
-  return <V2ListPage<ConsoleV2RunningPool> title={status === "RETIRED" ? "已退出运行池" : "长期运行池"} load={consoleV2.infra.runningPool} params={params} rowKey={(item) => item.runningMarketId} searchPlaceholder="搜索运行市场、market 或 condition" columns={columns} renderDetail={(item) => <><V2Facts values={[{ label: "Running market ID", value: item.runningMarketId, mono: true }, { label: "Selected market ID", value: item.sourceSelectedMarketId, mono: true }, { label: "Condition ID", value: item.conditionId, mono: true }, { label: "匹配领域", value: item.matchedDomains.length ? item.matchedDomains.join(" · ") : "未知" }, ...(status === "RETIRED" ? [{ label: "退出时间", value: formatV2Time(item.retiredAt) }, { label: "退出原因", value: v2Unknown(item.retiredReason) }] : [])]} /><p className="v2-inline-note">市场数据采集时间用于说明快照新鲜度；预计结束时间不等同于结算或赎回到账。</p></>} />;
+const withoutUi = (params: Record<string, string | number | undefined>) => { const result = { ...params }; delete result.market_scope; delete result.record_view; return result; };
+const loadRunningMarkets = (params: Record<string, string | number | undefined>) => consoleV2.infra.runningMarkets(withoutUi(params));
+const loadRetiredMarkets = (params: Record<string, string | number | undefined>) => consoleV2.infra.runningPool(withoutUi(params));
+const loadGenerations = (params: Record<string, string | number | undefined>) => consoleV2.infra.runningGenerations(withoutUi(params));
+const loadSelections = (params: Record<string, string | number | undefined>) => consoleV2.infra.selectionRuns(withoutUi(params));
+const loadSelected = (params: Record<string, string | number | undefined>) => consoleV2.infra.selectedMarkets(withoutUi(params));
+function RetiredMarkets() {
+  const [source, setSource] = useV2Filter("source", "ALL");
+  const params = useMemo(() => ({ status: "RETIRED", source, market_scope: "retired" }), [source]);
+  return <V2ListPage<ConsoleV2RunningPool> title="已退出运行池" load={loadRetiredMarkets} params={params} rowKey={(item) => `${item.marketSource}:${item.runningMarketId}`} controls={<SourceFilter value={source} onChange={setSource} />} columns={[
+    { label: "平台 / 市场", className: "primary wide", render: (item) => <div className="v2-cell-copy"><strong>{item.question}</strong><small>{item.marketSource} · {item.marketId} {item.conditionId}</small></div> },
+    { label: "领域", render: (item) => v2Unknown(item.primaryDomain) }, { label: "退出时间", render: (item) => formatV2Time(item.retiredAt) }, { label: "退出原因", render: (item) => v2Unknown(item.retiredReason) },
+  ]} />;
 }
-
 function GenerationList() {
   const [status, setStatus] = useV2Filter("status");
-  const params = useMemo(() => ({ status: status || undefined }), [status]);
-  return <V2ListPage<ConsoleV2Generation> title="运行池维护记录" load={consoleV2.infra.runningGenerations} params={params} rowKey={(item) => item.generationId} controls={<select className="select" aria-label="维护批次状态" value={status} onChange={(event) => setStatus(event.target.value)}><option value="">全部状态</option><option value="PENDING">处理中</option><option value="PUBLISHED">已完成</option><option value="FAILED">失败</option></select>} searchPlaceholder="搜索维护批次或选盘批次" columns={[
-    { label: "维护批次 ID", className: "mono", render: (item) => item.generationId },
-    { label: "来源选盘批次", className: "mono", render: (item) => item.sourceSelectionRunId },
-    { label: "状态", render: (item) => v2Status(item.status, item.isCurrent === true ? `${item.status === "PUBLISHED" ? "已完成" : item.status} · 当前` : item.status === "PUBLISHED" ? "已完成" : item.status) },
-    { label: "成员数", render: (item) => formatV2Number(item.memberCount, 0) },
-    { label: "预测资格数", render: (item) => formatV2Number(item.predictionEnabledCount, 0) },
-    { label: "发布时间", render: (item) => formatV2Time(item.publishedAt) },
-    { label: "操作", className: "v2-action-cell", render: (item) => <a className="button" href={`/markets/running?market_scope=current&generation_id=${encodeURIComponent(item.generationId)}`}>查看本轮市场</a> },
+  const [source, setSource] = useV2Filter("source", "ALL");
+  const params = useMemo(() => ({ status: status || undefined, source, record_view: "maintenance" }), [status, source]);
+  return <V2ListPage<ConsoleV2Generation> title="运行池维护记录" load={loadGenerations} params={params} rowKey={(item) => `${item.marketSource}:${item.generationId}`} controls={<><SourceFilter value={source} onChange={setSource} /><select className="select" aria-label="维护批次状态" value={status} onChange={(event) => setStatus(event.target.value)}><option value="">全部状态</option><option value="PENDING">处理中</option><option value="PUBLISHED">已完成</option><option value="FAILED">失败</option></select></>} columns={[
+    { label: "平台 / 维护批次", render: (item) => `${item.marketSource} · ${item.generationId}` }, { label: "选盘批次", render: (item) => item.sourceSelectionRunId }, { label: "状态", render: (item) => v2Status(item.status, `${item.status === "PUBLISHED" ? "已完成" : item.status}${item.isCurrent ? " · 当前" : ""}`) }, { label: "成员数", render: (item) => formatV2Number(item.memberCount, 0) }, { label: "可预测", render: (item) => formatV2Number(item.predictionEnabledCount, 0) }, { label: "发布时间", render: (item) => formatV2Time(item.publishedAt) }, { label: "成员", render: (item) => <a className="button" href={`/markets/running?market_scope=current&generation_id=${encodeURIComponent(item.generationId)}&source=${encodeURIComponent(item.marketSource ?? "POLYMARKET")}`}>查看本轮市场</a> },
   ]} />;
 }
-
 function SelectionViews() {
-  const [runId, setRunId] = useV2Filter("selection_run_id");
-  if (runId) return <><section className="panel panel-pad selection-context"><div className="section-head"><div><strong>选盘批次 {runId}</strong><p className="section-caption">当前只展示这个批次的入选市场；列表搜索和分页仍按该批次生效。</p></div><a className="button" href="/markets/selection" onClick={() => setRunId("")}>返回选盘批次</a></div></section><SelectedMarkets runId={runId} /></>;
-  return <SelectionRuns />;
+  const [runId] = useV2Filter("selection_run_id");
+  return runId ? <><section className="panel panel-pad selection-context"><strong>选盘批次 {runId}</strong><V2ContextLinks links={[{ href: "/markets/selection", label: "返回选盘记录" }]} /></section><SelectedMarkets runId={runId} /></> : <SelectionRuns />;
 }
-
 function SelectionRuns() {
-  return <V2ListPage<ConsoleV2SelectionRun> title="选盘批次" load={consoleV2.infra.selectionRuns} rowKey={(item) => item.selectionRunId} searchPlaceholder="搜索选盘批次、策略或来源" columns={[
-    { label: "Run / 来源", className: "mono", render: (item) => <div className="v2-cell-copy"><strong>{item.selectionRunId}</strong><small>{v2Unknown(item.marketSource)}</small></div> },
-    { label: "策略版本", render: (item) => <div className="v2-cell-copy"><strong>{v2Unknown(item.policyName)}</strong><small>{v2Unknown(item.policyVersion)} · {v2Unknown(item.selectorType)}</small></div> },
-    { label: "状态", render: (item) => v2Status(item.status, item.isCurrent === true ? `${item.status} · current` : item.status) },
-    { label: "候选 / 入选 / 拒绝", render: (item) => `${formatV2Number(item.candidateCount, 0)} / ${formatV2Number(item.selectedCount, 0)} / ${formatV2Number(item.rejectedCount, 0)}` },
-    { label: "开始 / 完成", render: (item) => <div className="v2-cell-copy"><span>{formatV2Time(item.startedAt)}</span><small>{formatV2Time(item.completedAt)}</small></div> },
-    { label: "操作", className: "v2-action-cell", render: (item) => <a className="button" href={`/markets/selection?selection_run_id=${encodeURIComponent(item.selectionRunId)}`}>查看入选成员</a> },
+  const params = useMemo(() => ({ record_view: "selection" }), []);
+  return <V2ListPage<ConsoleV2SelectionRun> title="选盘批次" load={loadSelections} params={params} rowKey={(item) => item.selectionRunId} columns={[
+    { label: "平台 / 选盘批次", render: (item) => `${item.marketSource} · ${item.selectionRunId}` }, { label: "策略版本", render: (item) => `${v2Unknown(item.policyName)} · ${v2Unknown(item.policyVersion)}` }, { label: "状态", render: (item) => v2Status(item.status, item.status) }, { label: "候选 / 入选 / 拒绝", render: (item) => `${formatV2Number(item.candidateCount, 0)} / ${formatV2Number(item.selectedCount, 0)} / ${formatV2Number(item.rejectedCount, 0)}` }, { label: "开始 / 完成", render: (item) => `${formatV2Time(item.startedAt)} / ${formatV2Time(item.completedAt)}` }, { label: "成员", render: (item) => <a className="button" href={`/markets/selection?selection_run_id=${encodeURIComponent(item.selectionRunId)}`}>查看入选成员</a> },
   ]} />;
 }
-
 function SelectedMarkets({ runId }: { runId: string }) {
-  const params = useMemo(() => ({ selection_run_id: runId || undefined }), [runId]);
-  return <V2ListPage<ConsoleV2SelectedMarket> title="入选成员" load={consoleV2.infra.selectedMarkets} params={params} rowKey={(item) => item.selectedMarketId} searchPlaceholder="搜索问题、market、condition 或来源" columns={[
-    { label: "问题 / 来源", className: "primary wide", render: (item) => <div className="v2-cell-copy"><strong>{item.question}</strong><small>{v2Unknown(item.marketSource)} · run {item.selectionRunId}</small></div> },
-    { label: "市场 / 条件", render: (item) => <div className="v2-cell-copy mono"><span>{item.marketId}</span><small>{item.conditionId}</small></div> },
-    { label: "Selected market", className: "mono", render: (item) => item.selectedMarketId },
-    { label: "排名 / 24h volume", render: (item) => `${v2Unknown(item.rank)} · ${formatV2Number(item.volume24h, 4)}` },
-    { label: "结束时间", render: (item) => formatV2Time(item.endAt) },
-  ]} renderDetail={(item) => <V2Facts values={[{ label: "Selected market ID", value: item.selectedMarketId, mono: true }, { label: "Selection run ID", value: item.selectionRunId, mono: true }, { label: "Market source", value: v2Unknown(item.marketSource) }, { label: "Primary domain", value: v2Unknown(item.primaryDomain) }, { label: "Selected at", value: formatV2Time(item.selectedAt) }]} />} />;
+  const params = useMemo(() => ({ selection_run_id: runId, record_view: "selection" }), [runId]);
+  return <V2ListPage<ConsoleV2SelectedMarket> title="入选成员" description="业务按领域交易量配额选盘；这里显示完整批次内各平台、领域的成交量排名。" load={loadSelected} params={params} rowKey={(item) => item.selectedMarketId} columns={[
+    { label: "平台 / 问题", className: "primary wide", render: (item) => <div className="v2-cell-copy"><strong>{item.question}</strong><small>{item.marketSource}</small></div> }, { label: "交易所市场 / 条件", className: "mono", render: (item) => `${item.marketId} ${item.conditionId}` }, { label: "领域", render: (item) => v2Unknown(item.primaryDomain) }, { label: "域内成交量排名", render: (item) => formatV2Number(item.domainVolumeRank, 0) }, { label: "24h 成交量", render: (item) => formatV2Number(item.volume24h, 4) }, { label: "预计结束", render: (item) => formatV2Time(item.endAt) },
+  ]} />;
 }
-
-function MarketDataViews() {
-  return <SettlementList />;
-}
-
 function SettlementList() {
-  const [source, setSource] = useV2Filter("source");
-  const params = useMemo(() => ({ source: source || undefined }), [source]);
-  return <V2ListPage<ConsoleV2Settlement> title="市场结算" load={consoleV2.infra.settlements} params={params} rowKey={(item) => `${item.marketSource ?? "unknown"}:${item.marketId}:${item.conditionId}`} searchPlaceholder="搜索 market、condition 或 outcome" controls={<select className="select" aria-label="市场来源" value={source} onChange={(event) => setSource(event.target.value)}><option value="">全部来源</option><option value="POLYMARKET">Polymarket</option><option value="KALSHI">Kalshi</option></select>} columns={[
-    { label: "来源 / Market", className: "primary", render: (item) => <div className="v2-cell-copy"><strong>{v2Unknown(item.marketSource)}</strong><small className="mono">{item.marketId}</small></div> },
-    { label: "条件", className: "mono", render: (item) => item.conditionId },
-    { label: "状态", render: (item) => v2Status(item.status, item.status) },
-    { label: "Outcome", render: (item) => v2Unknown(item.resolvedOutcome) },
-    { label: "Yes / No", render: (item) => `${formatV2Number(item.settlementYes, 4)} / ${formatV2Number(item.settlementNo, 4)}` },
-    { label: "Resolved at", render: (item) => formatV2Time(item.resolvedAt) },
-  ]} renderDetail={(item) => <><V2Facts values={[{ label: "Market source", value: v2Unknown(item.marketSource) }, { label: "Market ID", value: item.marketId, mono: true }, { label: "Condition ID", value: item.conditionId, mono: true }, { label: "Closed at", value: formatV2Time(item.closedAt) }, { label: "Source at", value: formatV2Time(item.sourceAt) }, { label: "Available at", value: formatV2Time(item.availableAt) }]} /><p className="v2-inline-note">市场终态与钱包赎回是两个事实层；请到交易中心的赎回视图核对到账。</p></>} />;
+  const params = useMemo(() => ({ source: "POLYMARKET" }), []);
+  return <V2ListPage<ConsoleV2Settlement> title="Polymarket 市场结算" description="来自 Infra 保存的 Polymarket / Gamma 官方采集快照；未接入 Kalshi 全市场结算采集。市场结果不等于钱包兑付入账。" load={consoleV2.infra.settlements} params={params} rowKey={(item) => `${item.marketSource}:${item.marketId}:${item.conditionId}`} columns={[
+    { label: "交易所市场", className: "primary mono", render: (item) => item.marketId }, { label: "条件", className: "mono", render: (item) => item.conditionId }, { label: "状态", render: (item) => v2Status(item.status, item.status === "OPEN" ? "尚未结算" : item.status) }, { label: "结果", render: (item) => item.resolvedOutcome ?? "—" }, { label: "Yes / No", render: (item) => `${item.settlementYes === null ? "—" : formatV2Number(item.settlementYes, 4)} / ${item.settlementNo === null ? "—" : formatV2Number(item.settlementNo, 4)}` }, { label: "结算时间", render: (item) => item.resolvedAt ? formatV2Time(item.resolvedAt) : "—" },
+  ]} renderDetail={(item) => <V2Facts values={[{ label: "数据来源", value: "Polymarket / Gamma 采集快照" }, { label: "关闭时间", value: item.closedAt ? formatV2Time(item.closedAt) : "—" }, { label: "采集时间", value: item.sourceAt ? formatV2Time(item.sourceAt) : "—" }, { label: "可用时间", value: item.availableAt ? formatV2Time(item.availableAt) : "—" }]} />} />;
 }

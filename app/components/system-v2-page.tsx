@@ -1,23 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { consoleApi } from "../lib/console-api";
-import { consoleV2, type ConsoleV2OutboxEvent, type ConsoleV2PageJob } from "../lib/console-v2";
-import { formatV2Number, formatV2Time, V2Frame, V2ListPage, V2ContextLinks, V2Tabs, V2WorkspacePanel, useV2Filter, useWorkspaceTabs, v2Bool, v2Status, v2Unknown } from "./console-v2-resource";
+import { consoleV2, type ConsoleV2PageJob } from "../lib/console-v2";
+import { formatV2Number, formatV2Time, V2Frame, V2ListPage, v2Status, v2Unknown } from "./console-v2-resource";
 import { ObservabilityV2Page } from "./observability-v2-page";
-
-export function DeliveryV2Page({ embedded = false }: { embedded?: boolean } = {}) {
-  const [status, setStatus] = useV2Filter("status");
-  const params = useMemo(() => ({ status: status || undefined }), [status]);
-  return <V2Frame embedded={embedded} eyebrow="System / Delivery" title="消息交付" description="查看消息投递状态、重试次数和时间；已发布只代表消息完成投递，不代表后续业务已经完成。">{!embedded && <V2ContextLinks links={[{ href: "/system/delivery", label: "消息交付" }, { href: "/system/observability", label: "服务监控" }]} />}<V2ListPage<ConsoleV2OutboxEvent> title="消息交付记录" load={consoleV2.infra.outboxEvents} params={params} controls={<select className="select" aria-label="交付状态" value={status} onChange={(event) => setStatus(event.target.value)}><option value="">全部状态</option><option value="PENDING">PENDING</option><option value="FAILED">FAILED</option><option value="PUBLISHED">PUBLISHED</option></select>} rowKey={(item) => item.outboxEventId} searchPlaceholder="搜索事件、对象或交付 ID" columns={[
-    { label: "事件 / Aggregate", className: "primary", render: (item) => <div className="v2-cell-copy"><strong>{item.eventType}</strong><small>{v2Unknown(item.aggregateType)} · {v2Unknown(item.aggregateId)}</small></div> },
-    { label: "交付状态", render: (item) => v2Status(item.deliveryStatus, item.deliveryStatus) },
-    { label: "尝试次数", render: (item) => formatV2Number(item.attemptCount, 0) },
-    { label: "最近尝试", render: (item) => formatV2Time(item.lastAttemptAt) },
-    { label: "创建时间", render: (item) => formatV2Time(item.createdAt) },
-    { label: "发布时间 / 错误", render: (item) => <div className="v2-cell-copy"><span>{formatV2Time(item.publishedAt)}</span><small>{v2Bool(item.hasLastError, "存在错误", "无错误")}</small></div> },
-  ]} emptyDescription="当前没有可查看的消息交付记录；服务监控中可继续查看消息消费状态。" /></V2Frame>;
-}
 
 export function PageJobsV2Page({ embedded = false }: { embedded?: boolean } = {}) {
   return <V2Frame embedded={embedded} eyebrow="System / Diagnostics" title="网页库任务" description="网页库回填任务仅作为运维诊断保留；日常系统工作区不再展示此入口。"><V2ListPage<ConsoleV2PageJob> title="网页库任务" load={consoleV2.infra.pageJobs} rowKey={(item) => item.jobId} searchPlaceholder="搜索任务、来源、变体或状态" columns={[
@@ -45,20 +32,13 @@ export function SettingsV2Page({ embedded = false }: { embedded?: boolean } = {}
     }, 0);
     return () => { cancelled = true; window.clearTimeout(timer); };
   }, [refreshKey]);
-  return <V2Frame embedded={embedded} eyebrow="System / Diagnostics" title="服务配置诊断" description="这里只显示脱敏后的服务端能力配置；已配置不等于连接健康，真实健康状态请查看服务监控和对应业务页。" onRefresh={() => setRefreshKey((value) => value + 1)} loading={loading}>{error && <div className="notice error"><div><strong>能力接口不可用</strong><p>{error}</p></div></div>}<section className="panel panel-pad v2-capability-list">{capabilities ? <><Capability label="控制台只读" value={capabilities.console_read} /><Capability label="交易只读" value={capabilities.trade_read} /><Capability label="实盘只读" value={capabilities.live_read} /><Capability label="归档下载" value={capabilities.sandbox_download} /></> : <div className="empty"><strong>{loading ? "读取能力…" : "能力未知"}</strong><p>不会以静态绿色图标表示健康。</p></div>}</section><p className="v2-inline-note">令牌、URL、Redis 地址和 webhook 永不下发到浏览器。</p></V2Frame>;
+  return <V2Frame embedded={embedded} eyebrow="System / Diagnostics" title="服务配置诊断" description="这里只显示脱敏后的服务端能力配置；已配置不等于连接健康，真实健康状态请查看服务监控和对应业务页。" onRefresh={() => setRefreshKey((value) => value + 1)} loading={loading}>{error && <div className="notice error"><div><strong>能力接口不可用</strong><p>{error}</p></div><button type="button" className="button" disabled={loading} onClick={() => setRefreshKey((value) => value + 1)}>重试</button></div>}<section className="panel panel-pad v2-capability-list">{capabilities ? <><Capability label="控制台只读" value={capabilities.console_read} /><Capability label="交易只读" value={capabilities.trade_read} /><Capability label="实盘只读" value={capabilities.live_read} /><Capability label="归档下载" value={capabilities.sandbox_download} /></> : <div className="empty"><strong>{loading ? "读取能力…" : "能力未知"}</strong><p>不会以静态绿色图标表示健康。</p></div>}</section><p className="v2-inline-note">令牌、URL、Redis 地址和 webhook 永不下发到浏览器。</p></V2Frame>;
 }
 
-export function SystemV2Page({ view = "observability" }: { view?: "observability" | "delivery" | "page-jobs" | "settings" }) {
+export function SystemV2Page({ view = "observability" }: { view?: "observability" | "page-jobs" | "settings" }) {
   if (view === "page-jobs") return <PageJobsV2Page />;
   if (view === "settings") return <SettingsV2Page />;
-  return <SystemOperationsTabs view={view} />;
-}
-
-function SystemOperationsTabs({ view }: { view: "observability" | "delivery" }) {
-  const tabs = [{ href: "/system/observability", label: "服务监控", aliases: ["/observability"] }, { href: "/system/delivery", label: "消息交付", aliases: ["/delivery"] }] as const;
-  const initial = view === "delivery" ? "/system/delivery" : "/system/observability";
-  const workspace = useWorkspaceTabs(tabs, initial);
-  return <V2Frame eyebrow="System / Operations" title="系统运行" description="服务监控与消息交付集中在一个系统入口；两个视图分别保留独立观测与错误边界。"><V2Tabs tabs={tabs} active={workspace.active} onSelect={(href) => workspace.select(href as typeof workspace.active)} /><V2WorkspacePanel active={workspace.active} href="/system/observability" visited={workspace.visited.has("/system/observability")}><ObservabilityV2Page embedded /></V2WorkspacePanel><V2WorkspacePanel active={workspace.active} href="/system/delivery" visited={workspace.visited.has("/system/delivery")}><DeliveryV2Page embedded /></V2WorkspacePanel></V2Frame>;
+  return <ObservabilityV2Page />;
 }
 
 function Capability({ label, value }: { label: string; value: boolean }) { return <div className="v2-capability-row"><div><strong>{label}</strong><span>{value ? "服务端已配置" : "未配置"}</span></div><span className={`health-badge ${value ? "healthy" : "unavailable"}`}><i />{value ? "已配置" : "不可用"}</span></div>; }

@@ -1,11 +1,11 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useId, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { ConsoleShell } from "./console-shell";
 import { Icon } from "./icons";
 import { ConsoleV2ApiError, ConsoleV2ContractError, type ConsoleV2Page, type ConsoleV2Result } from "../lib/console-v2";
-import { appliedFilterFromUrl, appliedListOffset, mergeSharedQuery, workspaceHrefWithAppliedQuery, workspacePathMatches } from "../lib/console-workspace";
+import { appliedFilterFromUrl, appliedListOffset, canonicalConsoleQuery, mergeSharedQuery, workspaceHrefWithAppliedQuery, workspacePathMatches } from "../lib/console-workspace";
 
 export type V2Params = Record<string, string | number | undefined>;
 /** Keep client URL/page arithmetic aligned with the read-model offset bound. */
@@ -18,12 +18,12 @@ export interface V2Column<T> {
   render: (item: T) => React.ReactNode;
 }
 
-export function V2Frame({ eyebrow, title, description, observedAt, onRefresh, loading, embedded = false, children }: { eyebrow: string; title: string; description: string; observedAt?: string; onRefresh?: () => void; loading?: boolean; embedded?: boolean; children: React.ReactNode }) {
+export function V2Frame({ eyebrow, title, description, observedAt, embedded = false, children }: { eyebrow: string; title: string; description: string; observedAt?: string; onRefresh?: () => void; loading?: boolean; embedded?: boolean; children: React.ReactNode }) {
   if (embedded) return <>{children}</>;
   return <ConsoleShell>
     <header className="page-head v2-page-head">
       <div><p className="eyebrow">{eyebrow}</p><h1>{title}</h1><p className="description">{description}</p></div>
-      <div className="v2-head-actions">{observedAt && <span className="v2-observed">观测于 {formatV2Time(observedAt)}</span>}{onRefresh && <button className="button" onClick={onRefresh} disabled={loading}><Icon name="refresh" /> 刷新</button>}</div>
+      <div className="v2-head-actions">{observedAt && <span className="v2-observed">观测于 {formatV2Time(observedAt)}</span>}</div>
     </header>
     {children}
   </ConsoleShell>;
@@ -73,15 +73,17 @@ export function useVisitedTabs<T extends string>(initial: T) {
 /** Applied resource filters live in the URL so refresh/back-forward can replay them. */
 export function useV2Filter(key: string, fallback = "") {
   const searchParams = useSearchParams();
+  const pathname = usePathname();
   const panel = useContext(V2PanelContext);
   const panelRootHref = panel?.rootHref;
   const panelActive = panel?.active ?? true;
   const read = useCallback((params: URLSearchParams) => normalizeFilterValue(key, params.get(key)?.trim() ?? fallback), [fallback, key]);
-  const [value, setValue] = useState(() => panelActive ? read(searchParams) : fallback);
+  const [value, setValue] = useState(() => panelActive ? read(canonicalConsoleQuery(pathname, searchParams)) : fallback);
   useEffect(() => {
     const sync = (preserveMissing: boolean) => {
       if (!panelActive || (panelRootHref && !workspacePathMatches(panelRootHref, window.location.pathname))) return;
-      const next = appliedFilterFromUrl(new URL(window.location.href).searchParams, key, fallback, preserveMissing);
+      const url = new URL(window.location.href);
+      const next = appliedFilterFromUrl(canonicalConsoleQuery(url.pathname, url.searchParams), key, fallback, preserveMissing);
       if (next !== undefined) setValue(next);
     };
     const onPopState = () => sync(false);
@@ -214,7 +216,7 @@ export function V2Notice({ title, description, error = false }: { title: string;
   return <div className={`notice v2-notice ${error ? "error" : ""}`}><div><strong>{title}</strong><p>{description}</p></div></div>;
 }
 
-export function V2ListPage<T>({ title, description, load, columns, rowKey, renderDetail, params = {}, searchPlaceholder = "搜索 ID、标题或状态", controls, emptyTitle = "没有匹配的数据", emptyDescription = "调整筛选条件后再试。", children }: {
+export function V2ListPage<T>({ title, description, load, columns, rowKey, renderDetail, params = {}, searchPlaceholder = "搜索 ID、标题或状态", controls, emptyTitle = "没有匹配的数据", emptyDescription = "调整筛选条件后再试。", discardedFilters = [], children }: {
   title: string;
   description?: string;
   load: (params: V2Params) => Promise<ConsoleV2Result<ConsoleV2Page<T>>>;
@@ -224,21 +226,25 @@ export function V2ListPage<T>({ title, description, load, columns, rowKey, rende
   params?: V2Params;
   searchPlaceholder?: string;
   controls?: React.ReactNode;
+  discardedFilters?: readonly string[];
   emptyTitle?: string;
   emptyDescription?: string;
   children?: React.ReactNode;
 }) {
   const searchParams = useSearchParams();
+  const pathname = usePathname();
   const panel = useContext(V2PanelContext);
   const panelRootHref = panel?.rootHref;
   const initialQuery = searchParams.get("q")?.trim() ?? "";
   const initialLimit = normalizePageSize(searchParams.get("limit"));
-  const initialOffset = normalizePageOffset(searchParams.get("offset"), initialLimit);
+  const discardedSignature = discardedFilters.join(",");
+  const initialOffset = discardedFilters.some((key) => searchParams.has(key)) ? 0 : normalizePageOffset(canonicalConsoleQuery(pathname, searchParams).get("offset"), initialLimit);
   const [draftQuery, setDraftQuery] = useState(initialQuery);
   const [query, setQuery] = useState(initialQuery);
   const [limit, setLimit] = useState(initialLimit);
   const [offset, setOffset] = useState(initialOffset);
   const [result, setResult] = useState<ConsoleV2Page<T>>();
+  const [retryKey, setRetryKey] = useState(0);
   const [selected, setSelected] = useState<T>();
   const selectedTriggerRef = useRef<HTMLButtonElement | null>(null);
   const detailDialogRef = useRef<HTMLDialogElement | null>(null);
@@ -287,6 +293,14 @@ export function V2ListPage<T>({ title, description, load, columns, rowKey, rende
         ancestor = ancestor.parentElement;
       }
       const url = new URL(window.location.href);
+      const canonical = canonicalConsoleQuery(url.pathname, url.searchParams);
+      if (canonical.toString() !== url.searchParams.toString()) { url.search = canonical.toString(); window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`); }
+      const removed = discardedSignature.split(",").filter(Boolean).some((key) => url.searchParams.has(key));
+      if (removed) {
+        for (const key of discardedSignature.split(",")) url.searchParams.delete(key);
+        url.searchParams.delete("offset");
+        window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+      }
       const nextQuery = url.searchParams.get("q")?.trim() ?? "";
       const nextLimit = normalizePageSize(url.searchParams.get("limit"));
       const nextOffset = normalizePageOffset(url.searchParams.get("offset"), nextLimit);
@@ -295,6 +309,7 @@ export function V2ListPage<T>({ title, description, load, columns, rowKey, rende
       setLimit(nextLimit);
       setOffset(nextOffset);
     };
+    syncFromUrl();
     window.addEventListener("popstate", syncFromUrl);
     window.addEventListener("v2-workspace-url-change", syncFromUrl);
     window.addEventListener(WORKSPACE_FILTER_CHANGE_EVENT, syncFromUrl);
@@ -303,7 +318,7 @@ export function V2ListPage<T>({ title, description, load, columns, rowKey, rende
       window.removeEventListener("v2-workspace-url-change", syncFromUrl);
       window.removeEventListener(WORKSPACE_FILTER_CHANGE_EVENT, syncFromUrl);
     };
-  }, [panelRootHref]);
+  }, [panelRootHref, discardedSignature]);
 
   useEffect(() => {
     const closeWhenWorkspaceChanges = () => {
@@ -319,6 +334,7 @@ export function V2ListPage<T>({ title, description, load, columns, rowKey, rende
 
   useEffect(() => {
     let cancelled = false;
+    if (panel && !panel.active) return;
     // The request is scheduled so the effect subscribes to the async result
     // without forcing a synchronous render during effect flush.
     const timer = window.setTimeout(() => {
@@ -355,7 +371,7 @@ export function V2ListPage<T>({ title, description, load, columns, rowKey, rende
     return () => { cancelled = true; window.clearTimeout(timer); };
     // The serialized filter object is the dependency boundary for server-side filtering.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [load, serializedParams, offset, query, limit]);
+  }, [load, serializedParams, offset, query, limit, panel?.active, retryKey]);
 
   const submitSearch = (event: React.FormEvent) => {
     event.preventDefault();
@@ -398,7 +414,7 @@ export function V2ListPage<T>({ title, description, load, columns, rowKey, rende
         {controls}
       </form>
       {children}
-      {error && <V2Notice error title="数据不可用" description={error} />}
+      {error && <><V2Notice error title="数据不可用" description={error} /><button type="button" className="button" onClick={() => setRetryKey((value) => value + 1)} disabled={loading}>重试</button></>}
       {loading && !result && <V2Loading />}
       {loading && result && <div className="v2-list-refreshing" role="status">正在读取新筛选，暂保留上一份结果</div>}
       {result && result.items.length > 0 && <div className={loading ? "table-scroll is-loading" : "table-scroll"}><table className="v2-table" aria-busy={loading || Boolean(error)}><thead><tr>{columns.map((column) => <th key={column.label} className={column.className}>{column.label}</th>)}{renderDetail && <th className="v2-action-column" aria-label="操作">操作</th>}</tr></thead><tbody>{result.items.map((item) => <tr key={rowKey(item)} onClick={() => renderDetail && openDetail(item)} className={renderDetail ? "clickable" : undefined}>{columns.map((column) => <td key={column.label} className={column.className}>{column.render(item)}</td>)}{renderDetail && <td className="v2-action-cell"><button type="button" className="button" aria-label={`查看${title}详情`} aria-expanded={activeItem ? rowKey(activeItem) === rowKey(item) : false} aria-controls={detailDialogId} disabled={loading || Boolean(error)} onClick={(event) => { event.stopPropagation(); openDetail(item, event.currentTarget); }}>查看详情</button></td>}</tr>)}</tbody></table></div>}
@@ -510,3 +526,29 @@ function normalizePageOffset(value: string | number | null | undefined, limit: n
   if (!Number.isSafeInteger(numeric) || numeric < 0 || numeric > V2_MAX_OFFSET) return 0;
   return Math.floor(numeric / limit) * limit;
 }
+
+/** Secondary views retain their own committed filters and page, like primary workspaces. */
+export function V2SubViews({ parameter, choices, sharedQueryKeys = [] }: { parameter: string; choices: Array<{ href: string; label: string; content: React.ReactNode }>; sharedQueryKeys?: string[] }) {
+  const [stored, setStored] = useV2Filter(parameter, choices[0].href);
+  const active = choices.some((choice) => choice.href === stored) ? stored : choices[0].href;
+  const visited = useVisitedTabs(active);
+  const select = (next: string) => {
+    const state = document.getElementById(panelId(next))?.querySelector<HTMLElement>("[data-v2-list-state]");
+    const url = new URL(window.location.href);
+    const query = new URLSearchParams();
+    for (const key of sharedQueryKeys) { const value = url.searchParams.get(key); if (value) query.set(key, value); }
+    if (state) {
+      for (const [key, attribute] of [["q", "data-v2-list-query"], ["limit", "data-v2-list-limit"], ["offset", "data-v2-list-offset"]]) { const value = state.getAttribute(attribute); if (value) query.set(key, value); }
+      try { for (const [key, value] of Object.entries(JSON.parse(state.getAttribute("data-v2-list-params") ?? "{}"))) if (!sharedQueryKeys.includes(key) && typeof value === "string" && value) query.set(key, value); } catch { /* First visits have no metadata. */ }
+    }
+    query.set(parameter, next);
+    window.history.pushState(window.history.state, "", `${url.pathname}?${query}`);
+    setStored(next);
+    window.history.replaceState(window.history.state, "", `${url.pathname}?${query}`);
+    visited.select(next);
+    window.requestAnimationFrame(() => window.dispatchEvent(new Event("v2-workspace-url-change")));
+  };
+  return <><V2Tabs tabs={choices} active={active} onSelect={select} variant="local" />{choices.map((choice) => <V2WorkspacePanel key={choice.href} active={active} href={choice.href} visited={visited.visited.has(choice.href) || active === choice.href}>{choice.content}</V2WorkspacePanel>)}</>;
+}
+
+export function useV2PanelActive() { return useContext(V2PanelContext)?.active ?? true; }

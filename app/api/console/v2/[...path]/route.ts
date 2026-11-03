@@ -5,7 +5,6 @@ type ProxyTarget = {
   token?: string;
   endpoint: string;
   serviceName: string;
-  legacyEnvelope?: "outbox";
 };
 
 const INFRA_RESOURCES = new Set([
@@ -25,11 +24,13 @@ const INFRA_RESOURCES = new Set([
   "market-settlements",
   "page-jobs",
   "backtest-products",
-  "outbox-events",
   "service-metrics",
 ]);
 
 const TRADING_RESOURCES = new Set([
+  "accounts",
+  "ledger-activities",
+  "settlements",
   "runtime",
   "decision-cycles",
   "orders",
@@ -84,26 +85,7 @@ async function forward(request: Request, path: string[]): Promise<Response> {
     return json({ code: "UPSTREAM_UNAVAILABLE", message: `${target.serviceName} 暂时不可用。` }, 502);
   }
   const headers = copyHeaders(response.headers);
-  if (target.legacyEnvelope === "outbox") {
-    if (!response.ok) return new Response(response.body, { status: response.status, headers });
-    const payload = await response.json().catch(() => ({}));
-    const root = asRecord(payload);
-    const data = asRecord(root.data);
-    const items = Array.isArray(data.items) ? data.items : [];
-    const limit = exactPageInteger(data.limit, false);
-    const offset = exactPageInteger(data.offset, true);
-    const total = exactPageInteger(data.total, true);
-    if (limit === undefined || offset === undefined) {
-      return json({ code: "PAGINATION_UNAVAILABLE", message: "Outbox 列表返回了无效的分页范围。" }, 502);
-    }
-    if (total === undefined) {
-      return json({ code: "TOTAL_UNAVAILABLE", message: "Outbox 列表没有返回当前筛选下的准确总数。" }, 502);
-    }
-    const hasMore = offset + items.length < total;
-    headers.delete("content-length");
-    headers.set("content-type", "application/json");
-    return Response.json({ ...root, data: { items, total, limit, offset, has_more: hasMore, observed_at: new Date().toISOString(), summary: { basis: "legacy_outbox_projection" } } }, { status: response.status, headers });
-  }
+
   return new Response(response.body, { status: response.status, headers });
 }
 
@@ -113,7 +95,6 @@ function resolveTarget(path: string[]): ProxyTarget | undefined {
   const resource = segments[0];
   if (service === "infra") {
     if (segments.length !== 1 || !INFRA_RESOURCES.has(resource)) return undefined;
-    if (resource === "outbox-events") return { baseUrl: process.env.PREDICTION_INFRA_BASE_URL, token: process.env.CONSOLE_API_TOKEN, endpoint: "/api/v1/console/outbox-events", serviceName: "Prediction Infra", legacyEnvelope: "outbox" };
     return { baseUrl: process.env.PREDICTION_INFRA_BASE_URL, token: process.env.CONSOLE_API_TOKEN, endpoint: `/api/v1/console/v2/${resource}`, serviceName: "Prediction Infra" };
   }
   if (service !== "trading") return undefined;
@@ -146,15 +127,4 @@ function methodNotAllowed(): Response {
 
 function json(body: Record<string, string>, status: number): Response {
   return Response.json(body, { status, headers: { "cache-control": "no-store" } });
-}
-
-function asRecord(value: unknown): Record<string, unknown> {
-  return value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
-}
-
-/** Legacy outbox values must already be JSON numbers; coercing null/false/""
- * to zero would turn a missing count into a successful empty page. */
-function exactPageInteger(value: unknown, allowZero: boolean): number | undefined {
-  if (typeof value !== "number" || !Number.isSafeInteger(value) || (allowZero ? value < 0 : value <= 0)) return undefined;
-  return value;
 }

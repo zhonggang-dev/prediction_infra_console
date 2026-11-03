@@ -59,9 +59,9 @@ export function FactorsPanel() {
         <div className="v2-local-tabs" role="radiogroup" aria-label="因子范围">{([["all", "全部"], ["pool", `因子池（${poolCount}）`], ["experiment", "实验空间"]] as const).map(([key, label]) => <button type="button" role="radio" aria-checked={view === key} key={key} className={view === key ? "active" : ""} onClick={() => refilter(() => setView(key))}>{label}</button>)}</div>
         <input className="input" aria-label="搜索因子" placeholder="搜索因子、表名或版本" value={query} onChange={(event) => refilter(() => setQuery(event.target.value))} />
         {groups.length > 1 && <select className="select" aria-label="因子分组" value={group} onChange={(event) => refilter(() => setGroup(event.target.value))}><option value="">全部分组</option>{groups.map((name) => <option key={name} value={name}>{name}</option>)}</select>}
-        <button type="button" className="button" onClick={() => setTick((v) => v + 1)}>刷新</button>
+
       </div>
-      {error && <V2Notice error title="因子目录不可用" description={error} />}
+      {error && <><V2Notice error title="因子目录不可用" description={error} /><button type="button" className="button" onClick={() => setTick((value) => value + 1)}>重试</button></>}
       {actionError && <V2Notice error title="操作失败" description={actionError} />}
       {!items && !error && <V2Loading />}
       {pending && <div className="bt-confirm" role="alertdialog" aria-label="确认移动因子">

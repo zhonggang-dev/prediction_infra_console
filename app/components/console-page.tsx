@@ -5,7 +5,6 @@ import { consoleApi, ConsoleApiError } from "../lib/console-api";
 import type { ApiMode, ConsoleList, ConsolePageName, ConsoleResource, OverviewData } from "../lib/types";
 import { BacktestPanel } from "./backtest-panel";
 import { ConsoleShell } from "./console-shell";
-import { Icon } from "./icons";
 import { OverviewPanel } from "./overview-panel";
 import { ResourcePanel } from "./resource-panel";
 import { SettingsPanel } from "./settings-panel";
@@ -29,7 +28,7 @@ export function ConsolePage({ page }: { page: ConsolePageName }) {
   const [overview, setOverview] = useState<OverviewData>();
   const [list, setList] = useState<ConsoleList>();
   const [error, setError] = useState<string>();
-  const [refreshKey, setRefreshKey] = useState(0);
+  const [refreshKey] = useState(0);
   const [demoEnabled, setDemoEnabled] = useState(false);
   const [offset, setOffset] = useState(0);
 
@@ -66,7 +65,7 @@ export function ConsolePage({ page }: { page: ConsolePageName }) {
   return <ConsoleShell>
     <header className="page-head">
       <div><p className="eyebrow">{pageConfig.eyebrow}</p><h1>{pageConfig.title}</h1><p className="description">{pageConfig.description}</p></div>
-      <button className="button" onClick={() => setRefreshKey((value) => value + 1)}><Icon name="refresh" /> 刷新数据</button>
+
     </header>
     {mode === "demo" && <Notice title="当前为演示数据" description="演示模式由你手动开启；页面没有读取或写入任何业务数据。" action="返回真实数据" onAction={() => setDemoEnabled(false)} />}
     {error && <Notice error title="无法连接控制台接口" description={error} action={mode === "unavailable" ? "手动查看演示数据" : undefined} onAction={() => setDemoEnabled(true)} />}

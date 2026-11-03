@@ -128,7 +128,7 @@ export function RunPage({ runId }: { runId: string }) {
   const title = run ? runTitle(run.board, run.item) : "运行详情";
   return <V2Frame eyebrow="Backtest Platform / Run" title={title} description={run ? (run.result?.headline ? prettyHeadline(run.result.headline) : `运行 ${run.runId}`) : `运行 ${runId}`} observedAt={undefined} onRefresh={reload} loading={loading}>
     <nav className="v2-context-links" aria-label="相关页面"><a href="/backtest-platform/runs">← 运行记录</a>{run?.parentRunId && <a href={`/backtest-platform/runs/${encodeURIComponent(run.parentRunId)}`}>重跑自 {run.parentRunId}</a>}{run && <a href={`/backtest-platform/runs?compare=${encodeURIComponent(run.runId)}`}>与另一次运行对比</a>}</nav>
-    {error && <V2Notice error title={run ? "最近一次刷新失败，下面的内容可能已陈旧" : "运行不可用"} description={error} />}
+    {error && <><V2Notice error title={run ? "最近一次刷新失败，下面的内容可能已陈旧" : "运行不可用"} description={error} /><button type="button" className="button" disabled={loading} onClick={reload}>重试</button></>}
     {action.error && <V2Notice error title="操作失败" description={action.error} />}
     {loading && !run && <V2Loading />}
     {run && <>

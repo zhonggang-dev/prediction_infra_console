@@ -120,17 +120,16 @@ test("服务端直达订单页应用 URL 查询并暴露 tab 语义", async () =
 });
 
 test("中文列表详情 dialog 具有实例身份并正确关联标题", async () => {
-  const html = await (await render("/markets")).text();
+  const html = await (await render("/trading/orders")).text();
   const dialogs = [...html.matchAll(/<dialog id="([^"]+)"[^>]*aria-labelledby="([^"]+)"/g)];
-  assert.ok(dialogs.length >= 1, "长期运行池应提供中文详情 dialog");
+  assert.ok(dialogs.length >= 1, "订单应提供中文详情 dialog");
   assert.equal(new Set(dialogs.map((match) => match[1])).size, dialogs.length, "详情 dialog ID 必须唯一");
   for (const [, dialogId, headingId] of dialogs) {
     assert.equal(dialogId, `${headingId}-dialog`);
     assert.notEqual(headingId, "v2-detail-title--", "中文标题不能退化为共享的常量ID");
     assert.match(html, new RegExp(`<h2 id="${headingId}"[^>]*>[^<]+</h2>`));
   }
-  assert.match(html, /<h2[^>]*>长期运行池<\/h2>/);
-  assert.match(html, /查看运行池维护记录/);
+  assert.match(html, /<h2[^>]*>订单<\/h2>/);
 });
 
 test("交易对账默认打开开放问题并保留局部视图范围", async () => {
@@ -166,9 +165,9 @@ test("选盘批次直达链接先展示目标成员列表", async () => {
   assert.equal(response.status, 200);
   const html = await response.text();
   assert.match(html, /选盘批次(?:\s|<!-- -->)+477/);
-  assert.match(html, /<h2[^>]*>入选成员<\/h2>/);
+  assert.match(html, /aria-label="入选成员搜索"/);
   assert.doesNotMatch(html, /<h2[^>]*>选盘批次<\/h2>/);
-  assert.match(html, /返回选盘批次/);
+  assert.match(html, /返回选盘记录/);
 });
 
 test("数据集轮转的三个兼容入口复用同一类型→版本→用途页面", async () => {
@@ -178,7 +177,7 @@ test("数据集轮转的三个兼容入口复用同一类型→版本→用途�
     const html = await response.text();
     assert.match(html, /<h1>数据集轮转<\/h1>/, path);
     assert.match(html, /选择资料类型 → 版本/, path);
-    assert.match(html, /刷新/, path);
+    assert.doesNotMatch(html, /<button[^>]*>[^<]*刷新/, path);
     assert.doesNotMatch(html, /高级归档工具/, path);
     assert.doesNotMatch(html, /打开 PM Backtest/, path);
     assert.doesNotMatch(html, /历史回测导出/, path);
@@ -233,17 +232,16 @@ test("交易入口默认订单，四个主Tab保留一个业务壳", async () =>
   assert.doesNotMatch(html, /实盘概况|决策记录|连接设置|所有时间均为 UTC/);
 });
 
-test("账本嵌入工作区只共享账户，模型策略和日期保留本页筛选", async () => {
+test("账本嵌入工作区只共享账户，清理历史模型策略并保留日期", async () => {
   const response = await render("/trading/ledger?execution_account_id=wallet-1&model_id=model-1&strategy_id=strategy-1&from=2026-10-15&to=2026-10-16");
   const html = await response.text();
   const filters = html.match(/<form class="trade-filters"[\s\S]*?<\/form>/)?.[0] ?? "";
   assert.ok(filters, "嵌入账本应渲染筛选区域");
   assert.match(filters, /开始日期/);
   assert.match(filters, /结束日期/);
-  assert.match(filters, /模型/);
-  assert.match(filters, /策略/);
+  assert.doesNotMatch(filters, /模型|策略/);
   assert.doesNotMatch(filters, /执行账户（共享范围）/);
-  assert.match(filters, /历史模型与策略筛选/);
+  assert.doesNotMatch(filters, /历史模型与策略筛选/);
   assert.doesNotMatch(filters, /顶部上下文|账本共享时间上下文/);
 });
 
@@ -458,4 +456,16 @@ test("回测平台 BFF 未配置时安全失败，写方法不走只读 V2 BFF",
   assert.equal(v2Write.status, 405, "只读的 V2 BFF 仍然拒绝写请求");
   const patch = await render("/api/console/backtest/runs", { method: "PATCH" });
   assert.equal(patch.status, 405);
+});
+
+test("旧水位批次即使不在最新目录中仍呈现固定范围及原生下载身份", async () => {
+  const query = new URLSearchParams({ scope: "history", source: "KALSHI", generation_id: "468", batch_model: "v4.1 flash", batch_source: "KALSHI", batch_prediction_as_of: "2026-11-03T07:00:00.123456Z", batch_max_result_id: "9007199254741001", batch_generation_id: "468" });
+  const html = await (await render(`/predictions?${query}`)).text();
+  assert.match(html, /value="fixed" selected/);
+  assert.match(html, /已固定范围/);
+  assert.match(html, /范围已固定，结果总数见下方列表/);
+  assert.match(html, /action="\/api\/console\/downloads\/prediction-batches\/archive"/);
+  for (const [name, value] of [["model_id", "v4.1 flash"], ["market_source", "KALSHI"], ["prediction_as_of", "2026-11-03T07:00:00.123456Z"], ["max_result_id", "9007199254741001"], ["generation_id", "468"]]) {
+    assert.ok(html.includes(`name="${name}" value="${value}"`), `${name} should preserve the fixed selection`);
+  }
 });

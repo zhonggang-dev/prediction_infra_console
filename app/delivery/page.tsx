@@ -1,3 +1,3 @@
-import { DeliveryV2Page } from "../components/system-v2-page";
+import { redirect } from "next/navigation";
 
-export default function DeliveryPage() { return <DeliveryV2Page />; }
+export default function DeliveryPage() { redirect("/system/observability"); }

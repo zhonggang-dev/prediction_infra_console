@@ -60,9 +60,9 @@ function SubmissionHistory({ refreshKey }: { refreshKey: number }) {
   };
 
   return <section className="bt-section">
-    <div className="section-head"><h3 className="bt-section-title">提交历史</h3><button type="button" className="button" disabled={loading} onClick={() => load(0, true)}>刷新</button></div>
+    <div className="section-head"><h3 className="bt-section-title">提交历史</h3></div>
     <p className="bt-caption">按提交校验运行还原，同一份提交只列一次。点「查看」读取提交状态与逐项错误。</p>
-    {error && <V2Notice error title="提交历史不可用" description={error} />}
+    {error && <><V2Notice error title="提交历史不可用" description={error} /><button type="button" className="button" disabled={loading} onClick={() => load(0, true)}>重试</button></>}
     {loading && entries.length === 0 && !error && <V2Loading />}
     {!loading && !error && entries.length === 0 && <div className="empty"><strong>还没有提交记录</strong><p>通过上方表单或接口提交后，校验运行会出现在这里。</p></div>}
     {entries.length > 0 && <div className="table-scroll"><table className="v2-table">

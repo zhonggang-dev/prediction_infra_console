@@ -14,7 +14,6 @@ import {
   type RotationVariant,
 } from "../lib/dataset-rotation";
 import { ConsoleShell } from "./console-shell";
-import { Icon } from "./icons";
 
 type Detail =
   | { kind: "current" }
@@ -75,7 +74,6 @@ export function DatasetRotationPage({ embedded = false, focusVersion, showCurren
         <p className="description">查看可用版本，跟踪自动轮换。</p>
       </div>
       <div className="rotation-head-actions">
-        <button className="button" onClick={() => void load()} disabled={loading || refreshing}><Icon name="refresh" />{refreshing ? "刷新中" : "刷新数据"}</button>
       </div>
     </header>}
 
@@ -274,4 +272,3 @@ function stageState(execution: DatasetRotationExecution | undefined, index: numb
   const activeIndex = { idle: 0, waiting_input: 0, registering: 1, preparing: 2, publishing: 3 }[status] ?? 0;
   return index < activeIndex ? "done" : index === activeIndex ? "current" : "";
 }
-

@@ -957,3 +957,16 @@ tbody tr:hover { background: #f7faf6; }
 
 .service-observed{padding:14px 22px;margin:0;color:var(--muted);font-size:13px;white-space:normal}.service-technical{padding:0 22px 18px}.service-technical summary{cursor:pointer;color:var(--muted)}.service-technical .service-runtime-row{padding:14px 0;grid-template-columns:repeat(3,minmax(0,1fr))}.service-technical .service-runtime-row strong{white-space:normal;overflow-wrap:anywhere}.v2-dataset-selector-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
 @media(max-width:720px){.service-technical .service-runtime-row,.v2-dataset-selector-grid{grid-template-columns:1fr}}
+
+/* The two runtime facts in the service workspace have their own compact scale. */
+.service-card-compact .service-vitals { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.service-card-compact .service-vital { padding: 2px 8px; }
+.service-card-compact .service-vital strong { font-size: 19px; line-height: 1.35; letter-spacing: -.02em; display: flex; flex-wrap: wrap; gap: 0 5px; }
+.service-unit { white-space: nowrap; }
+.prediction-batch-controls { display: flex; flex-direction: column; align-items: stretch; gap: 16px; }
+.prediction-batch-controls label { min-width: 0; }
+.prediction-batch-controls select { max-width: 100%; width: 100%; }
+.prediction-batch-summary { display: flex; flex-wrap: wrap; gap: 8px 18px; }
+.prediction-batch-summary small { flex-basis: 100%; }
+.prediction-batch-download { align-self: flex-start; }
+@media (max-width: 600px) { .service-card-compact .service-vitals { grid-template-columns: 1fr; } .service-card-compact .service-vital { padding: 10px 0; } .prediction-batch-download { max-width: 100%; } .prediction-batch-download .button { white-space: normal; } }

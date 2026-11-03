@@ -64,9 +64,9 @@ export function RunsPanel() {
         <input className="input" aria-label="批次" placeholder="批次 ID（btb-…）" value={draftBatch} onChange={(event) => setDraftBatch(event.target.value)} />
         <button className="button primary" type="submit">筛选</button>
         {filters.batchId && <button className="button" type="button" onClick={() => { setDraftBatch(""); update({ batchId: "" }); }}>清除批次</button>}
-        <button className="button" type="button" onClick={() => setTick((v) => v + 1)}>刷新</button>
+
       </form>
-      {error && <V2Notice error title="运行记录不可用" description={error} />}
+      {error && <><V2Notice error title="运行记录不可用" description={error} /><button type="button" className="button" disabled={loading} onClick={() => setTick((value) => value + 1)}>重试</button></>}
       {loading && !page && <V2Loading />}
       {!error && page && page.items.length === 0 && <div className="empty"><strong>{view === "intake" ? "没有提交校验记录" : "没有匹配的运行"}</strong><p>{view === "intake" ? "到「提交」页上传预测表、因子表或策略后，校验运行会出现在这里。" : "调整筛选，或到其它 Tab 发起一次运行。"}</p></div>}
       {!error && page && page.items.length > 0 && <div className={loading ? "table-scroll is-loading" : "table-scroll"}><table className="v2-table">
