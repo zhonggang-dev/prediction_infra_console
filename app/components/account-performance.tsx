@@ -5,7 +5,7 @@ import { accountCoreMetrics, type AccountCoreMetrics, type AccountCoreMetricsRes
 import { formatV2Time } from "./console-v2-resource";
 import "./account-performance.css";
 
-const sourceLabels: Record<CorePriceSource, string> = { PM_CURRENT_PRICE: "Polymarket 官方现价", PM_CLOB_MID: "Polymarket 盘口中间价（参考）", KALSHI_BOOK_MID: "Kalshi 盘口中间价（参考）", OFFICIAL_SETTLEMENT: "官方确认结算价" };
+const sourceLabels: Record<CorePriceSource, string> = { PM_CURRENT_PRICE: "Polymarket 官方现价", PM_CLOB_MID: "Polymarket 盘口中间价（参考）", KALSHI_BOOK_MID: "Kalshi 盘口中间价（参考）", KALSHI_LAST_TRADE: "Kalshi 官方最近成交价", OFFICIAL_SETTLEMENT: "官方确认结算价" };
 const reasonLabels: Record<CorePriceReason, string> = { missing_price: "未返回价格", one_sided: "缺少有效双边盘口", invalid_price: "价格无效", identity_mismatch: "资产身份不一致", stale: "报价已过期", timeout: "取价超时", source_unavailable: "价格来源暂不可用", unconfirmed_settlement: "结算结果尚未最终确认" };
 const money = (value: string | null, signed = false) => value === null ? "—" : `${signed && Number(value) > 0 ? "+" : ""}${new Intl.NumberFormat("zh-CN", { style: "currency", currency: "USD", currencyDisplay: "narrowSymbol", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value))}`;
 const tone = (value: string | null) => value === null ? "" : Number(value) > 0 ? "positive" : Number(value) < 0 ? "negative" : "";
@@ -53,7 +53,7 @@ export function AccountCoreMetricsPanel({ active, account, accountOrder = [] }: 
             : <LocalScroll label="全部账户核心指标表格"><table className="trading-core-table"><thead><tr><th scope="col">账户 / 平台</th>{LABELS.map(label => <th scope="col" key={label}>{label}</th>)}</tr></thead><tbody>{items.map(item => <AccountTableRow key={item.executionAccountId} item={item} />)}</tbody></table></LocalScroll>}
     <details className="trading-core-explanation"><summary>指标口径</summary><ol>
       <li><strong>纳管资产数</strong><p>按本地当前持仓统计，同一种结果资产的多次买入合并为一项，包含待赎回资产。</p></li>
-      <li><strong>当前持仓估值</strong><p>各项本地持仓数量 × 对应价格，再求和。</p><p>已确认结算的资产优先使用官方结算价。Polymarket 未结算资产优先用官方现价，缺失才用有效盘口中间价；Kalshi 使用对应 Yes／No 的有效双边盘口中间价，属于参考估值。</p></li>
+      <li><strong>当前持仓估值</strong><p>各项本地持仓数量 × 对应价格，再求和。</p><p>已确认结算的资产优先使用官方结算价。Polymarket 未结算资产优先用官方现价，缺失才用有效盘口中间价；Kalshi 优先用官方最近成交价，缺失或无效时用有效双边盘口中间价。最近成交价不代表当前可卖出的价格。</p></li>
       <li><strong>历史最高持仓成本</strong><p>从本地账本重放，取历史上同时持有资产成本的最高值，包含已入账的买入手续费。</p></li>
       <li><strong>累计投入成本</strong><p>累计买入、接管和导入资产时增加的成本。资金重复买入会重复累计，不是充值额。</p></li>
       <li><strong>累计已实现盈亏</strong><p>本地已入账的卖出、赎回、Kalshi 净对冲和到期结算收益，手续费只计入一次。</p></li>

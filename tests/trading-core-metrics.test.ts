@@ -69,3 +69,14 @@ test("官方PnL窄BFF向下游传播调用方取消", async () => {
     assert.equal(result.status, 502); assert.ok(seen?.aborted);
   } finally { globalThis.fetch = oldFetch; if (oldUrl === undefined) delete process.env.TRADING_EXECUTION_BASE_URL; else process.env.TRADING_EXECUTION_BASE_URL = oldUrl; if (oldToken === undefined) delete process.env.TRADING_EXECUTION_LIVE_READ_ONLY_TOKEN; else process.env.TRADING_EXECUTION_LIVE_READ_ONLY_TOKEN = oldToken; }
 });
+
+
+test("Kalshi官方最近成交价保留来源且不冒充mid，拒绝串入PM", () => {
+  const last = { ...asset, price_source: "KALSHI_LAST_TRADE", source_at: null };
+  const result = decodeAccountCoreMetrics(data([{ ...item, has_reference_prices: false, valuation_assets: [last] }]));
+  assert.equal(result.items[0].valuationAssets[0].priceSource, "KALSHI_LAST_TRADE");
+  assert.equal(result.items[0].valuationAssets[0].sourceAt, null);
+  assert.equal(result.items[0].hasReferencePrices, false);
+  assert.throws(() => decodeAccountCoreMetrics(data([{ ...item, valuation_assets: [last] }])));
+  assert.throws(() => decodeAccountCoreMetrics(data([{ ...item, market_source: "POLYMARKET", has_reference_prices: false, valuation_assets: [{ ...last, market_source: "POLYMARKET" }] }])));
+});
