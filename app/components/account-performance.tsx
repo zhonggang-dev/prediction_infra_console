@@ -48,22 +48,19 @@ export function AccountCoreMetricsPanel({ active, account, accountOrder = [] }: 
       : !items ? <p className="trading-core-state">正在读取账户核心指标…</p>
         : !items.length ? <p className="trading-core-state">暂无受管账户。</p>
           : account ? <SingleAccount key={items[0].executionAccountId} item={items[0]} />
-            : <LocalScroll label="全部账户核心指标表格"><table className="trading-core-table"><thead><tr><th scope="col">账户 / 平台</th>{LABELS.map(label => <th scope="col" key={label}>{label}</th>)}<th scope="col">估值状态</th></tr></thead><tbody>{items.map(item => <AccountTableRow key={item.executionAccountId} item={item} />)}</tbody></table></LocalScroll>}
+            : <LocalScroll label="全部账户核心指标表格"><table className="trading-core-table"><thead><tr><th scope="col">账户 / 平台</th>{LABELS.map(label => <th scope="col" key={label}>{label}</th>)}</tr></thead><tbody>{items.map(item => <AccountTableRow key={item.executionAccountId} item={item} />)}</tbody></table></LocalScroll>}
     <details className="trading-core-explanation"><summary>指标口径</summary><p>纳管资产数按本地当前结果资产合并多次买入，含待赎回。估值＝本地数量×来源价格，已确认结算价优先；Polymarket 未结算优先官方现价、缺失才用有效盘口中间价，Kalshi 使用对应 Yes/No 的双边盘口中间价，属于参考估值。累计投入含买入、接管和导入，资金重复买入会重复累计，不是充值额。已实现含卖出、赎回、净对冲和到期结算，手续费已计入一次。浮动盈亏＝持仓估值−剩余成本，不预扣未来卖出费用；总盈亏＝已实现＋浮动；成本收益率＝总盈亏／历史最高持仓成本，不是官方ROI。回撤按近14个UTC自然日的本地已实现盈亏日累计计算，不含浮盈和日内峰谷。</p></details>
   </section>;
 }
-function CoverageButton({ item, open, id, toggle }: { item: AccountCoreMetrics; open: boolean; id: string; toggle: () => void }) {
-  return <button type="button" className={`trading-core-coverage${item.valuationState === "incomplete" ? " incomplete" : ""}`} aria-label={`${item.executionAccountId} 估值明细`} aria-expanded={open} aria-controls={id} onClick={toggle}>{item.valuationState === "incomplete" ? `缺价 ${item.assetCount - item.pricedAssetCount} 项` : item.assetCount === 0 ? "无持仓" : `已估值 ${item.pricedAssetCount}/${item.assetCount}`}{item.hasReferencePrices && <small>参考估值</small>}</button>;
-}
 function AccountTableRow({ item }: { item: AccountCoreMetrics }) {
   const [open, setOpen] = useState(false); const id = useId();
-  return <Fragment><tr data-core-metrics-account={item.executionAccountId}><th scope="row"><strong>{item.executionAccountId}</strong><small>{item.marketSource === "KALSHI" ? "Kalshi" : "Polymarket"}</small></th>{stats(item).map(stat => <td key={stat.label} data-core-metric={stat.label} className={stat.tone}>{stat.value}</td>)}<td><CoverageButton item={item} open={open} id={id} toggle={() => setOpen(v => !v)} /></td></tr>{open && <tr className="trading-core-detail-row"><td colSpan={11}><div id={id}><AssetDetails item={item} /></div></td></tr>}</Fragment>;
+  return <Fragment><tr data-core-metrics-account={item.executionAccountId}><th scope="row"><button type="button" className="trading-core-coverage" aria-label={`${item.executionAccountId} 取价明细`} aria-expanded={open} aria-controls={id} onClick={() => setOpen(v => !v)}>{item.executionAccountId}</button><small>{item.marketSource === "KALSHI" ? "Kalshi" : "Polymarket"}</small></th>{stats(item).map(stat => <td key={stat.label} data-core-metric={stat.label} className={stat.tone}>{stat.value}</td>)}</tr>{open && <tr className="trading-core-detail-row"><td colSpan={10}><div id={id}><AssetDetails item={item} /></div></td></tr>}</Fragment>;
 }
 function SingleAccount({ item }: { item: AccountCoreMetrics }) {
   const [open, setOpen] = useState(false); const id = useId();
   return <article data-core-metrics-account={item.executionAccountId} className="trading-core-single" aria-label={`${item.executionAccountId} 账户核心指标`}>
     <LocalScroll label="单账户核心指标横条"><dl className="trading-core-strip">{stats(item).map(stat => <div key={stat.label} data-core-metric={stat.label}><dt>{stat.label}</dt><dd className={stat.tone}>{stat.value}</dd></div>)}</dl></LocalScroll>
-    <div className="trading-core-single-status"><CoverageButton item={item} open={open} id={id} toggle={() => setOpen(v => !v)} />{item.quoteObservedFrom && <span>报价观测 {formatV2Time(item.quoteObservedFrom ?? undefined)}{item.quoteObservedTo !== item.quoteObservedFrom && <> 至 {formatV2Time(item.quoteObservedTo ?? undefined)}</>}</span>}</div>
+    <div className="trading-core-single-status"><button type="button" className="trading-core-coverage" aria-label={`${item.executionAccountId} 取价明细`} aria-expanded={open} aria-controls={id} onClick={() => setOpen(v => !v)}>取价明细</button>{item.quoteObservedFrom && <span>报价观测 {formatV2Time(item.quoteObservedFrom ?? undefined)}{item.quoteObservedTo !== item.quoteObservedFrom && <> 至 {formatV2Time(item.quoteObservedTo ?? undefined)}</>}</span>}</div>
     {open && <div id={id}><AssetDetails item={item} /></div>}
   </article>;
 }

@@ -266,8 +266,9 @@ export function walletPnlHourCandidates(value: string): number[] {
 
 export function validateWalletPnlRange(startDate: string, endDate: string, now = Date.now(), selected: { startMs?: number; endMs?: number } = {}): { range: WalletPnlCustomRange; error?: never } | { error: string; range?: never } {
   if (!startDate || !endDate) return { error: "请选择开始时间和结束时间。" };
+  if (![startDate, endDate].every(value => /^[1-9]\d{3}-\d{2}-\d{2}T\d{2}:00$/.test(value))) return { error: "请选择日期和小时，时间仅支持整点。" };
   const starts = walletPnlHourCandidates(startDate), ends = walletPnlHourCandidates(endDate);
-  if (!starts.length || !ends.length) return { error: "时间无效，请选择有效的本地整点；夏令时跳过的小时不可选。" };
+  if (!starts.length || !ends.length) return { error: "所选日期或小时在本地时区不存在，请重新选择。" };
   if ((starts.length > 1 && !starts.includes(selected.startMs ?? NaN)) || (ends.length > 1 && !ends.includes(selected.endMs ?? NaN))) return { error: "该本地小时重复，请明确选择对应的时区偏移。" };
   const startMs = starts.length === 1 ? starts[0] : selected.startMs!, endMs = ends.length === 1 ? ends[0] : selected.endMs!;
   if (startMs >= endMs) return { error: "结束时间必须晚于开始时间。" };
