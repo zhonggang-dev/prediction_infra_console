@@ -29,6 +29,7 @@ const INFRA_RESOURCES = new Set([
 
 const TRADING_RESOURCES = new Set([
   "accounts",
+  "account-performance",
   "ledger-activities",
   "settlements",
   "runtime",
@@ -71,6 +72,11 @@ export async function DELETE() {
 async function forward(request: Request, path: string[]): Promise<Response> {
   const target = resolveTarget(path);
   if (!target) return json({ code: "V2_ROUTE_NOT_FOUND", message: "不支持的控制台接口。" }, 404);
+  if (path[0] === "trading" && path[1] === "account-performance") {
+    const query = new URL(request.url).searchParams;
+    const account = query.get("execution_account_id");
+    if ([...query.keys()].some((key) => key !== "execution_account_id") || query.getAll("execution_account_id").length > 1 || (account !== null && (!account || account.length > 128 || account.trim() !== account || [...account].some((char) => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127)))) return json({ code: "INVALID_CONSOLE_V2_FILTER", message: "账户筛选无效。" }, 400);
+  }
   if (!target.baseUrl || !target.token) return json({ code: "BACKEND_NOT_CONFIGURED", message: `${target.serviceName} 的只读连接尚未配置。` }, 503);
 
   const url = new URL(target.endpoint, target.baseUrl);
@@ -80,7 +86,7 @@ async function forward(request: Request, path: string[]): Promise<Response> {
     response = await fetch(url, {
       method: "GET",
       headers: { authorization: `Bearer ${target.token}`, accept: request.headers.get("accept") ?? "application/json" },
-      signal: AbortSignal.timeout(10_000),
+      signal: AbortSignal.any([request.signal, AbortSignal.timeout(10_000)]),
     });
   } catch {
     return json({ code: "UPSTREAM_UNAVAILABLE", message: `${target.serviceName} 暂时不可用。` }, 502);

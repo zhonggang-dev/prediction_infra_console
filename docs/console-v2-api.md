@@ -25,3 +25,21 @@ Trading 资源转发到 `/api/v1/console/v2/{resource}`：`runtime`、`decision-
 交易工作区共享 `execution_account_id/model_id/strategy_id/from/to`。统一工具条先编辑草稿再应用；周期、订单与仓位支持完整条件，对账和赎回按账户与时间读取，实盘只显示当前账户快照，账本按自身接口筛选。UI 日期为 UTC 整天；Trading V2 的包含式 `to` 使用当日 `23:59:59.999999Z`，账本的排除式 `to` 使用次日零点。
 
 Tab 仅继承显式共享字段。各列表将已应用查询和分页保存在页面元数据中，激活时按目标 URL 严格恢复，隐藏页面不会被别的页面条件清空；共享重置在重新激活页面时也必须清除旧值。工具条应用/重置事件立即刷新当前列表，不能只更改地址。
+
+
+## Account performance and official custom dates (2026-11-04)
+
+GET `/api/console/v2/trading/account-performance` maps only to Trading's read-only
+`/api/v1/console/v2/account-performance`. The sole optional parameter is a single
+`execution_account_id`; the browser never sends chart or ledger date filters to this endpoint.
+The response contains `data.observed_at` and independently identified `data.items`.
+Decimal strings and explicit nulls are validated before display. Missing or stale
+quotes make the account's market value, unrealized PnL, total PnL and return unknown;
+coverage and the actual quote time remain visible. Current/accumulated account metrics
+and the 14-UTC-day realized drawdown do not change with the official curve's dates.
+
+Official custom dates reuse cached `all/1d` wallet series. Local calendar end dates
+are inclusive through the next local midnight. Amount and hover values use the same
+real baseline sample and show interval changes, even for a young wallet. Actual sample
+coverage is disclosed; missing interval observations never become zero or all-time PnL.
+Legacy-console, Trading writes and the lower activity list's date filters are unchanged.
