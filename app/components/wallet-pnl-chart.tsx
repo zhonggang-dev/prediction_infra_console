@@ -37,7 +37,6 @@ export function OfficialWalletPnlPanel({ active, account }: { active: boolean; a
   const [endDate, setEndDate] = useState("");
   const [customRange, setCustomRange] = useState<WalletPnlCustomRange>();
   const [rangeError, setRangeError] = useState<string>();
-  const [localZone, setLocalZone] = useState("浏览器本地时区");
   const [today, setToday] = useState("");
   const [startInstant, setStartInstant] = useState("");
   const [endInstant, setEndInstant] = useState("");
@@ -58,14 +57,14 @@ export function OfficialWalletPnlPanel({ active, account }: { active: boolean; a
   }, [active, retry]);
   const selected = account ? accounts?.filter((item) => item.executionAccountId === account) : accounts;
   return <section className="section official-wallet-pnl-workspace" aria-label="官方钱包盈亏">
-    <div className="section-head official-wallet-pnl-head"><h2 className="section-title">Polymarket 官方钱包盈亏</h2><div className="wallet-pnl-periods" role="group" aria-label="官方盈亏周期">{PERIODS.map((item) => <button key={item.key} type="button" aria-pressed={period === item.key} className={period === item.key ? "active" : ""} onClick={() => { setPeriod(item.key); setCustomOpen(false); setRangeError(undefined); }}>{item.label}</button>)}<button type="button" aria-pressed={period === "CUSTOM"} aria-expanded={customOpen} className={period === "CUSTOM" ? "active" : ""} onClick={() => { setCustomOpen(true); setLocalZone(Intl.DateTimeFormat().resolvedOptions().timeZone); setToday(walletPnlLocalHour()); }}>自定义</button></div></div>
+    <div className="section-head official-wallet-pnl-head"><h2 className="section-title">Polymarket 官方钱包盈亏</h2><div className="wallet-pnl-periods" role="group" aria-label="官方盈亏周期">{PERIODS.map((item) => <button key={item.key} type="button" aria-pressed={period === item.key} className={period === item.key ? "active" : ""} onClick={() => { setPeriod(item.key); setCustomOpen(false); setRangeError(undefined); }}>{item.label}</button>)}<button type="button" aria-pressed={period === "CUSTOM"} aria-expanded={customOpen} className={period === "CUSTOM" ? "active" : ""} onClick={() => { setCustomOpen(true); setToday(walletPnlLocalHour()); }}>自定义</button></div></div>
     <p className="section-caption">曲线为 Polymarket 官方钱包口径，明细为系统成交与结算账本。</p>
     {customOpen && <form className="wallet-pnl-custom-range" onSubmit={applyRange} aria-label="官方盈亏自定义时间" noValidate>
       <LocalHourInput label="开始" value={startDate} max={today} onChange={value => { setStartDate(value); setStartInstant(""); setRangeError(undefined); }} />
       {startCandidates.length > 1 && <label>开始时区偏移<select className="select" aria-label="开始小时偏移" value={startInstant} onChange={event => setStartInstant(event.target.value)}><option value="">请选择重复小时</option>{startCandidates.map(time => <option value={time} key={time}>{formatWalletPnlOffset(time)}</option>)}</select></label>}
       <LocalHourInput label="结束" value={endDate} max={today} onChange={value => { setEndDate(value); setEndInstant(""); setRangeError(undefined); }} />
       {endCandidates.length > 1 && <label>结束时区偏移<select className="select" aria-label="结束小时偏移" value={endInstant} onChange={event => setEndInstant(event.target.value)}><option value="">请选择重复小时</option>{endCandidates.map(time => <option value={time} key={time}>{formatWalletPnlOffset(time)}</option>)}</select></label>}
-      <button className="button primary" type="submit">应用时间</button><span>本地时区 {localZone}；结束于所选小时。应用后按官方小时序列计算期间变化。</span>
+      <button className="button primary" type="submit">应用时间</button>
       {rangeError && <p role="alert">{rangeError}</p>}
     </form>}
     {period === "CUSTOM" && customRange && <p className="wallet-pnl-range-note" data-wallet-pnl-range={`${customRange.startDate}/${customRange.endDate}`}>已应用 {customRange.startDate.replace("T", " ")} 至 {customRange.endDate.replace("T", " ")}（{customRange.timeZone}，{customRange.startOffset}{customRange.endOffset !== customRange.startOffset ? ` → ${customRange.endOffset}` : ""}）；图表范围与所选时间一致。</p>}
@@ -156,7 +155,7 @@ function WalletPnlCard({ active, executionAccountId, period, customRange, refres
               : !view?.points.length || view.amount === null ? <PnlState title="暂无足够盈亏数据" detail={period === "CUSTOM" ? "所选起止边界缺少一小时内的官方有效数据；不会以日线替代或将缺失显示为零。" : "接口没有返回至少两个有效采样点；不会把缺失数据显示成零。"} />
               : <>
                   <div className="wallet-pnl-summary"><div><span>{period === "CUSTOM" ? "所选期间盈亏" : "盈亏"}</span><strong className={amountTone} data-wallet-pnl-amount="">{amountLabel}</strong><small>{pointTime}（本地时间）</small></div><details className="wallet-pnl-meta"><summary>钱包信息</summary><code>{series?.walletAddress ?? "—"}</code><small>{series ? `更新于 ${formatFetchedAt(series.fetchedAt)}（本地时间）` : "—"}</small></details></div>
-                  {period === "CUSTOM" && view.baselineAt !== null && view.baselineAt !== undefined && view.endSampleAt !== null && view.endSampleAt !== undefined && <p className="wallet-pnl-sampling">官方小时序列 · 原始精度：{sourceFidelityLabel(series?.sourceFidelity)}。计算采用返回点 {formatSampleTime(view.baselineAt)} 至 {formatSampleTime(view.endSampleAt)}（本地时间），不代表每小时独立估值。</p>}
+                  {period === "CUSTOM" && <p className="wallet-pnl-sampling">按官方小时数据计算所选期间盈亏；部分小时可能沿用此前数据，并非实时收益。</p>}
                   <PnlSvg custom={period === "CUSTOM"} label={period === "CUSTOM" ? "官方钱包所选期间盈亏曲线" : "官方钱包累计盈亏曲线"} fillId={fillId} chart={chart} points={view.points} hoverIndex={hoverIndex} onHover={(index) => setHoverState({ key: identity, index })} />
                 </>}
     </div>
@@ -203,13 +202,6 @@ function formatShortDate(timestamp: number): string {
   return new Intl.DateTimeFormat("zh-CN", { month: "numeric", day: "numeric" }).format(new Date(timestamp * 1000));
 }
 
-function formatSampleTime(timestamp: number): string {
-  return new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit" }).format(new Date(timestamp * 1000));
-}
-
-function sourceFidelityLabel(value: string | null | undefined): string {
-  return ({ "1d": "日级", "1h": "小时", "3h": "3小时", "12h": "12小时", "18h": "18小时" } as Record<string, string>)[value ?? ""] ?? "未知";
-}
 function formatHourAxis(timestamp: number): string {
   return new Intl.DateTimeFormat("zh-CN", { month: "numeric", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: false }).format(new Date(timestamp * 1000));
 }

@@ -49,7 +49,17 @@ export function AccountCoreMetricsPanel({ active, account, accountOrder = [] }: 
         : !items.length ? <p className="trading-core-state">暂无受管账户。</p>
           : account ? <SingleAccount key={items[0].executionAccountId} item={items[0]} />
             : <LocalScroll label="全部账户核心指标表格"><table className="trading-core-table"><thead><tr><th scope="col">账户 / 平台</th>{LABELS.map(label => <th scope="col" key={label}>{label}</th>)}</tr></thead><tbody>{items.map(item => <AccountTableRow key={item.executionAccountId} item={item} />)}</tbody></table></LocalScroll>}
-    <details className="trading-core-explanation"><summary>指标口径</summary><p>纳管资产数按本地当前结果资产合并多次买入，含待赎回。估值＝本地数量×来源价格，已确认结算价优先；Polymarket 未结算优先官方现价、缺失才用有效盘口中间价，Kalshi 使用对应 Yes/No 的双边盘口中间价，属于参考估值。累计投入含买入、接管和导入，资金重复买入会重复累计，不是充值额。已实现含卖出、赎回、净对冲和到期结算，手续费已计入一次。浮动盈亏＝持仓估值−剩余成本，不预扣未来卖出费用；总盈亏＝已实现＋浮动；成本收益率＝总盈亏／历史最高持仓成本，不是官方ROI。回撤按近14个UTC自然日的本地已实现盈亏日累计计算，不含浮盈和日内峰谷。</p></details>
+    <details className="trading-core-explanation"><summary>指标口径</summary><ol>
+      <li><strong>纳管资产数</strong><p>按本地当前持仓统计，同一种结果资产的多次买入合并为一项，包含待赎回资产。</p></li>
+      <li><strong>当前持仓估值</strong><p>各项本地持仓数量 × 对应价格，再求和。</p><p>已确认结算的资产优先使用官方结算价。Polymarket 未结算资产优先用官方现价，缺失才用有效盘口中间价；Kalshi 使用对应 Yes／No 的有效双边盘口中间价，属于参考估值。</p></li>
+      <li><strong>历史最高持仓成本</strong><p>从本地账本重放，取历史上同时持有资产成本的最高值，包含已入账的买入手续费。</p></li>
+      <li><strong>累计投入成本</strong><p>累计买入、接管和导入资产时增加的成本。资金重复买入会重复累计，不是充值额。</p></li>
+      <li><strong>累计已实现盈亏</strong><p>本地已入账的卖出、赎回、Kalshi 净对冲和到期结算收益，手续费只计入一次。</p></li>
+      <li><strong>当前浮动盈亏</strong><p>当前持仓估值 − 当前剩余持仓成本。不预扣未来卖出费用。</p></li>
+      <li><strong>总盈亏</strong><p>累计已实现盈亏 ＋ 当前浮动盈亏，表示系统纳管范围的累计表现。</p></li>
+      <li><strong>成本收益率</strong><p>总盈亏 ÷ 历史最高持仓成本 × 100%。不是官方 ROI，分母为零时显示“—”。</p></li>
+      <li><strong>近14日已实现盈亏回撤</strong><p>按包含今天的14个 UTC 自然日，累计本地已实现盈亏，取从高点最大回落的美元金额。包含 Kalshi 净对冲和到期结算，不含浮盈亏及日内波动。</p></li>
+    </ol></details>
   </section>;
 }
 function AccountTableRow({ item }: { item: AccountCoreMetrics }) {

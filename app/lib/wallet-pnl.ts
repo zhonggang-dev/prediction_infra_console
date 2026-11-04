@@ -151,12 +151,8 @@ export function buildWalletPnlChartGeometry(view: WalletPnlView, width = 720, he
   const low = min - pad; const high = max + pad; const range = high - low || 1;
   const firstTimestamp = view.period === "CUSTOM" ? view.startAt ?? view.points[0].timestamp : view.points[0].timestamp; const lastTimestamp = view.period === "CUSTOM" ? view.endAt ?? view.points.at(-1)!.timestamp : view.points.at(-1)!.timestamp; const timeRange = Math.max(1, lastTimestamp - firstTimestamp);
   const points = view.points.map((point) => ({ x: left + ((point.timestamp - firstTimestamp) / timeRange) * plotWidth, y: top + (1 - (point.value - low) / range) * plotHeight }));
-  const linePath = points.length === 1 ? `M ${points[0].x} ${points[0].y}` : view.period === "CUSTOM" ? stepPath(points) : monotonePath(points); const areaPath = points.length === 1 ? "" : `${linePath} L ${points[points.length - 1].x} ${bottom} L ${points[0].x} ${bottom} Z`;
+  const linePath = points.length === 1 ? `M ${points[0].x} ${points[0].y}` : monotonePath(points); const areaPath = points.length === 1 ? "" : `${linePath} L ${points[points.length - 1].x} ${bottom} L ${points[0].x} ${bottom} Z`;
   return { width, height, left, top, bottom, plotWidth, plotHeight, points, linePath, areaPath, domainStartAt: firstTimestamp, domainEndAt: lastTimestamp };
-}
-
-function stepPath(points: { x: number; y: number }[]): string {
-  return points.slice(1).reduce((path, point) => `${path} H ${point.x} V ${point.y}`, `M ${points[0].x} ${points[0].y}`);
 }
 
 function monotonePath(points: { x: number; y: number }[]): string {

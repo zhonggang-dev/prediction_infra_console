@@ -2,3 +2,4 @@
 @media(max-width:520px){.trading-core-strip>div{padding:12px 10px}.trading-core-strip dd{font-size:17px}.trading-core-table th,.trading-core-table td{padding:10px 8px}.trading-core-metrics>.section-head{align-items:flex-start}.trading-core-metrics>.section-head>.section-caption{font-size:11px}}
 
 .trading-core-scroll-wrap{min-width:0;max-width:100%}.trading-core-scroll-actions{display:flex;justify-content:flex-end;gap:4px;margin:0 0 4px}.trading-core-scroll-actions button{border:1px solid var(--line);border-radius:4px;color:var(--muted);background:var(--surface);font-size:13px;min-width:28px;min-height:24px;cursor:pointer}
+.trading-core-explanation ol{margin:12px 0 0;padding-left:22px;max-width:960px}.trading-core-explanation li{padding-left:4px;margin-bottom:12px}.trading-core-explanation li>strong{display:block;color:var(--text);font-size:13px}.trading-core-explanation li>p{margin:4px 0 0;line-height:1.75}
