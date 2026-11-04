@@ -28,8 +28,8 @@ test("官方曲线支持账户来自服务端，不硬编码四钱包，不接�
 });
 
 test("官方曲线解码保留合法0和缺失的区别，冲突或坏点不伪装空收益", () => {
-  const base = { execution_account_id: "pm-one", wallet_address: `0x${"1".repeat(40)}`, metric: "trade_pnl", interval: "1w", fidelity: "3h", fetched_at: observed, points: [{ timestamp: 100, trade_pnl: "0" }, { timestamp: 200, trade_pnl: null }] };
-  assert.deepEqual(decodeWalletPnl(base).points, [{ timestamp: 100, tradePnl: 0 }]);
+  const base = { execution_account_id: "pm-one", wallet_address: `0x${"1".repeat(40)}`, metric: "trade_pnl", interval: "1w", fidelity: "3h", fetched_at: observed, source_fidelity: "1d", points: [{ timestamp: 100, trade_pnl: "0", source_block: "123" }, { timestamp: 200, trade_pnl: null }] };
+  assert.deepEqual(decodeWalletPnl(base).points, [{ timestamp: 100, tradePnl: 0, sourceBlock: "123" }]);
   for (const trade_pnl of [false, "", undefined]) assert.throws(() => decodeWalletPnl({ ...base, points: [{ timestamp: 100, trade_pnl }] }));
   assert.throws(() => decodeWalletPnl({ ...base, points: [{ timestamp: 100, trade_pnl: "1" }, { timestamp: 100, trade_pnl: "2" }] }), /无效/);
 });

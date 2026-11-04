@@ -40,7 +40,9 @@ export function decodeWalletPnl(data: Record<string, unknown>): WalletPnlSeries 
   if (!/^0x[0-9a-f]{40}$/i.test(walletAddress) || data.metric !== "trade_pnl" || !Number.isFinite(Date.parse(fetchedAt)) ||
     (interval !== "1d" && interval !== "1w" && interval !== "1m" && interval !== "all") ||
     (fidelity !== "1h" && fidelity !== "3h" && fidelity !== "12h" && fidelity !== "18h" && fidelity !== "1d") || !Array.isArray(data.points)) throw new Error("官方钱包盈亏返回了无效数据。");
-  const points = new Map<number, number>();
+  if (!("source_fidelity" in data) || (data.source_fidelity !== null && (typeof data.source_fidelity !== "string" || !data.source_fidelity || data.source_fidelity.length > 64 || [...data.source_fidelity].some(c => c.charCodeAt(0) < 32 || c.charCodeAt(0) === 127)))) throw new Error("官方钱包盈亏源精度无效。");
+  if (data.points.length > 10_000) throw new Error("官方钱包盈亏采样点超出读取预算。");
+  const points = new Map<number, { tradePnl: number; sourceBlock: string | null }>();
   for (const raw of data.points) {
     const point = record(raw);
     if (!("timestamp" in point) || !("trade_pnl" in point)) throw new Error("官方钱包盈亏采样点不完整。");
@@ -49,10 +51,13 @@ export function decodeWalletPnl(data: Record<string, unknown>): WalletPnlSeries 
       (typeof point.trade_pnl !== "number" && typeof point.trade_pnl !== "string") || String(point.trade_pnl).trim() === "") throw new Error("官方钱包盈亏采样点无效。");
     const timestamp = Number(point.timestamp);
     const tradePnl = Number(point.trade_pnl);
-    if (!Number.isSafeInteger(timestamp) || timestamp <= 0 || !Number.isFinite(tradePnl) || (points.has(timestamp) && points.get(timestamp) !== tradePnl)) throw new Error("官方钱包盈亏采样点无效。");
-    points.set(timestamp, tradePnl);
+    if (!Number.isSafeInteger(timestamp) || timestamp <= 0 || !Number.isFinite(tradePnl)) throw new Error("官方钱包盈亏采样点无效。");
+    if (!("source_block" in point) || (point.source_block !== null && (typeof point.source_block !== "string" || !/^\d+$/.test(point.source_block)))) throw new Error("官方钱包盈亏来源区块无效。");
+    const sourceBlock = point.source_block as string | null;
+    if (points.has(timestamp) && (points.get(timestamp)!.tradePnl !== tradePnl || points.get(timestamp)!.sourceBlock !== sourceBlock)) throw new Error("官方钱包盈亏采样点冲突。");
+    points.set(timestamp, { tradePnl, sourceBlock });
   }
-  return { executionAccountId, walletAddress, metric: "trade_pnl", interval, fidelity, fetchedAt, points: [...points.entries()].map(([timestamp, tradePnl]) => ({ timestamp, tradePnl })).sort((a, b) => a.timestamp - b.timestamp) };
+  return { executionAccountId, walletAddress, metric: "trade_pnl", interval, fidelity, fetchedAt, sourceFidelity: data.source_fidelity as string | null, points: [...points.entries()].map(([timestamp, value]) => ({ timestamp, ...value })).sort((a, b) => a.timestamp - b.timestamp) };
 }
 export async function walletPnl(executionAccountId: string, interval: WalletPnlSeries["interval"], fidelity: WalletPnlSeries["fidelity"], signal?: AbortSignal) {
   const query = new URLSearchParams({ execution_account_id: executionAccountId, interval, fidelity });

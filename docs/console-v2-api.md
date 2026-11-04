@@ -43,3 +43,13 @@ are inclusive through the next local midnight. Amount and hover values use the s
 real baseline sample and show interval changes, even for a young wallet. Actual sample
 coverage is disclosed; missing interval observations never become zero or all-time PnL.
 Legacy-console, Trading writes and the lower activity list's date filters are unchanged.
+
+## 账户核心指标与官方小时盈亏（2026-11-04）
+
+根前端 `/trading/ledger` 使用新增固定BFF `GET /api/console/v2/trading/account-core-metrics`，仅可选单值 `execution_account_id`，转发Trading同名只读资源；原account-performance及旧13001保持兼容。
+
+`app/lib/trading-core-metrics.ts`严格解码九项金额、资产覆盖及完整`valuation_assets`，未知与0分开；每项保留本地资产身份、份额、成本、价格、来源、来源/观测时间与稳定缺价原因。PM未结算优先官方current_price，缺失再参考mid；Kalshi mid为参考估值，两平台可靠官方结算价优先。全部账户共用紧凑表，单账户九格横条；覆盖按钮原位展开资产证据。
+
+官方wallet-pnl响应新增nullable `source_fidelity`，points新增nullable十进制字符串`source_block`；前端完整保留，大于JS安全整数的区块不转number，缺字段/错误类型/冲突点失败。source_fidelity=1d仍允许直接使用官方小时序列原值，文案保留源精度说明。
+
+自定义输入改为本地日期小时，`datetime-local step=3600`，结束即所选时刻，不再自动含结束日全天；重复DST小时须选明确UTC偏移，不存在小时拒绝。先取最小覆盖1d/1w/1m小时网格，否则有界all/1h（10000点/8MiB界不变）；不回退日线冒充小时。累计差额取边界前最近且1小时以内的有效官方网格值，合法同值可0；缺覆盖明确不足。绘图域严格等于输入域，域外基准只算差额不画点，域内单点可绘圆点，阶梯线不增加财务观察。轴、鼠标、触摸、键盘使用同一时间域/基准；六快捷及账本范围保持。PnL窄BFF透传父取消并组合10秒上限。

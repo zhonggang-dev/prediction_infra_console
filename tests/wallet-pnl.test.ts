@@ -117,80 +117,74 @@ test("重复采样点必须一致，冲突点不能静默覆盖", () => {
   ], "ALL", 1_000), /冲突的重复时间点/);
 });
 
-// Custom windows are financial differences on the same official cumulative series.
-import { buildCustomWalletPnlView, validateWalletPnlRange, walletPnlLocalDate } from "../app/lib/wallet-pnl.ts";
+// Custom hourly windows use original upstream grid values and an independent chart domain.
+import { buildCustomWalletPnlView, validateWalletPnlRange, walletPnlLocalDate, walletPnlLocalHour, walletPnlHourCandidates, chooseCustomWalletPnlQuery } from "../app/lib/wallet-pnl.ts";
 
-test("自定义本地日界包含结束全天，基准和轴保持真实前置采样时间", () => {
-  const previous = process.env.TZ; process.env.TZ = "Asia/Shanghai";
-  try {
-    const now = Date.parse("2026-11-04T10:00:00Z");
-    const parsed = validateWalletPnlRange("2026-10-31", "2026-11-02", now);
-    assert.ok(parsed.range);
-    assert.equal(parsed.range.startMs, Date.parse("2026-10-30T16:00:00Z"));
-    assert.equal(parsed.range.endExclusiveMs, Date.parse("2026-11-02T16:00:00Z"));
-    const point = (time: string, tradePnl: number) => ({ timestamp: Date.parse(time) / 1000, tradePnl });
-    const view = buildCustomWalletPnlView([
-      point("2026-10-30T00:00:00Z", -200),
-      point("2026-10-31T00:00:00Z", -190),
-      point("2026-11-01T00:00:00Z", -205),
-      point("2026-11-02T00:00:00Z", -180),
-      point("2026-11-02T16:00:00Z", 900), // next local day is excluded
-    ], parsed.range, now);
-    assert.equal(view.amount, 20);
-    assert.equal(view.baseline, -200);
-    assert.equal(view.absolute, false);
-    assert.deepEqual(view.points.map((item) => item.value), [0, 10, -5, 20]);
-    assert.equal(view.startAt, Date.parse("2026-10-30T00:00:00Z") / 1000);
-    assert.equal(view.partialHistory, false);
-    assert.equal(view.points[2].value, -5, "hover points must use the same baseline");
-  } finally { if (previous === undefined) delete process.env.TZ; else process.env.TZ = previous; }
-});
+function withTimezone(zone: string, action: () => void) { const previous = process.env.TZ; process.env.TZ = zone; try { action(); } finally { if (previous === undefined) delete process.env.TZ; else process.env.TZ = previous; } }
 
-test("自定义短历史必须计算差额，历史缺口显示实际覆盖；没有区间新点不伪零", () => {
-  const now = new Date(2026, 10, 4, 12).getTime();
-  const parsed = validateWalletPnlRange("2026-10-01", "2026-11-04", now);
-  assert.ok(parsed.range);
-  const first = new Date(2026, 10, 1).getTime() / 1000;
-  const second = new Date(2026, 10, 3).getTime() / 1000;
-  const points = [{ timestamp: first, tradePnl: -100 }, { timestamp: second, tradePnl: -110 }];
-  const view = buildCustomWalletPnlView(points, parsed.range, now);
-  assert.equal(view.amount, -10);
-  assert.equal(view.partialHistory, true);
-  assert.equal(view.startAt, first);
-  const afterHistory = validateWalletPnlRange("2026-11-04", "2026-11-04", now);
-  assert.ok(afterHistory.range);
-  const missing = buildCustomWalletPnlView(points, afterHistory.range, now);
-  assert.equal(missing.amount, null);
-  assert.equal(missing.points.length, 1);
-  assert.equal(buildCustomWalletPnlView([], parsed.range, now).amount, null);
-  assert.equal(buildCustomWalletPnlView(points.slice(0, 1), parsed.range, now).amount, null);
-});
+test("小时范围金额与选择域一致，域外基准不画入或参与悬停", () => withTimezone("Asia/Shanghai", () => {
+  const now = Date.parse("2026-11-04T10:00:00Z"), parsed = validateWalletPnlRange("2026-10-29T10:00", "2026-11-02T15:00", now);
+  assert.ok(parsed.range); const range = parsed.range;
+  assert.equal(range.startMs, Date.parse("2026-10-29T02:00:00Z"));
+  assert.equal(range.endMs, Date.parse("2026-11-02T07:00:00Z"));
+  assert.equal(range.startOffset, "UTC+08:00");
+  const points = Array.from({ length: 104 }, (_, i) => ({ timestamp: range.startMs / 1000 + (i - 1) * hour, tradePnl: -200 + i, sourceBlock: "123" }));
+  const view = buildCustomWalletPnlView(points, range, now);
+  assert.equal(view.amount, 101); assert.equal(view.absolute, false);
+  assert.equal(view.startAt, range.startMs / 1000); assert.equal(view.endAt, range.endMs / 1000);
+  assert.ok(view.points.every(p => p.timestamp >= range.startMs / 1000 && p.timestamp <= range.endMs / 1000));
+  assert.equal(view.points[0].value, 0); assert.equal(view.points.at(-1)?.value, 101);
+  const geometry = buildWalletPnlChartGeometry(view)!;
+  assert.equal(geometry.domainStartAt, range.startMs / 1000); assert.equal(geometry.domainEndAt, range.endMs / 1000);
+  assert.match(geometry.linePath, / H /); assert.doesNotMatch(geometry.linePath, / C /);
+  assert.equal(nearestWalletPnlPointIndex(view.points, 0, { startAt: view.startAt!, endAt: view.endAt! }), 0);
+}));
 
-test("自定义日期拒绝缺失、非法闰日、倒序和未来，跨年同日及DST按本地日历", () => {
-  const previous = process.env.TZ; process.env.TZ = "America/New_York";
-  try {
-    const now = new Date(2026, 10, 4, 12).getTime();
-    for (const [start, end] of [["", "2026-01-01"], ["2026-02-29", "2026-03-01"], ["2026-11-03", "2026-11-02"], ["2026-11-04", "2026-11-05"], ["2026-1-1", "2026-01-02"]]) assert.ok(validateWalletPnlRange(start, end, now).error, `${start}/${end}`);
-    const dst = validateWalletPnlRange("2026-11-01", "2026-11-01", now);
-    assert.ok(dst.range);
-    assert.equal(dst.range.endExclusiveMs - dst.range.startMs, 25 * 3_600_000);
-    const year = validateWalletPnlRange("2025-12-31", "2026-01-01", now);
-    assert.ok(year.range);
-    assert.equal(year.range.endExclusiveMs - year.range.startMs, 48 * 3_600_000);
-    assert.equal(walletPnlLocalDate(Date.parse("2026-11-04T02:00:00Z")), "2026-11-03");
-  } finally { if (previous === undefined) delete process.env.TZ; else process.env.TZ = previous; }
-});
+test("单个域内点可绘制，外部基准仅用于差额；缺边界覆盖保持未知", () => withTimezone("Asia/Shanghai", () => {
+  const now = Date.parse("2026-11-04T10:00:00Z"), parsed = validateWalletPnlRange("2026-11-02T10:00", "2026-11-02T11:00", now);
+  assert.ok(parsed.range); const range = parsed.range;
+  const before = { timestamp: range.startMs / 1000 - hour / 2, tradePnl: -20 };
+  const inside = { timestamp: range.endMs / 1000 - hour / 2, tradePnl: -17 };
+  const view = buildCustomWalletPnlView([before, inside], range, now);
+  assert.equal(view.amount, 3); assert.equal(view.points.length, 1); assert.equal(view.points[0].timestamp, inside.timestamp);
+  assert.equal(view.baselineAt, before.timestamp);
+  const geometry = buildWalletPnlChartGeometry(view)!; assert.equal(geometry.points.length, 1); assert.equal(geometry.areaPath, "");
+  assert.ok(geometry.points[0].x > geometry.left && geometry.points[0].x < geometry.left + geometry.plotWidth);
+  assert.equal(nearestWalletPnlPointIndex([{ timestamp: 100 }, { timestamp: 150 }], 0.75, { startAt: 0, endAt: 200 }), 1);
+  assert.equal(buildCustomWalletPnlView([inside], range, now).amount, null);
+  assert.equal(buildCustomWalletPnlView([{ ...before, timestamp: range.startMs / 1000 - 2 * hour }, inside], range, now).amount, null);
+  assert.equal(buildCustomWalletPnlView([before], range, now).amount, null);
+}));
 
-test("自定义今日范围不把接口观测之后样本纳入，也不插值财务金额", () => {
-  const now = new Date(2026, 10, 4, 10).getTime();
-  const parsed = validateWalletPnlRange("2026-11-04", "2026-11-04", now);
-  assert.ok(parsed.range);
-  const view = buildCustomWalletPnlView([
-    { timestamp: (parsed.range.startMs - 3_600_000) / 1000, tradePnl: 5 },
-    { timestamp: (parsed.range.startMs + 3_600_000) / 1000, tradePnl: 8 },
-    { timestamp: (now + 3_600_000) / 1000, tradePnl: 100 },
-  ], parsed.range, now);
-  assert.equal(view.amount, 3);
-  assert.equal(view.points.length, 2);
-  assert.equal(view.points[0].value, 0);
-});
+test("官方小时同值允许0，不以来源区块重复或源精度日级误判缺数据", () => withTimezone("Asia/Shanghai", () => {
+  const now = Date.parse("2026-11-04T10:00:00Z"), parsed = validateWalletPnlRange("2026-11-02T10:00", "2026-11-02T12:00", now);
+  assert.ok(parsed.range); const range = parsed.range;
+  const pts = [0, 1, 2].map(i => ({ timestamp: range.startMs / 1000 + i * hour, tradePnl: -10, sourceBlock: "42" }));
+  assert.equal(buildCustomWalletPnlView(pts, range, now).amount, 0);
+  assert.equal(buildCustomWalletPnlView([], range, now).amount, null);
+  assert.equal(buildCustomWalletPnlView(pts.slice(0, 1), range, now).amount, null);
+  assert.equal(buildCustomWalletPnlView(pts, range, range.startMs).amount, null);
+}));
+
+test("小时输入拒绝未来/倒序/非整点，DST缺失与重复小时明确偏移", () => withTimezone("America/New_York", () => {
+  const now = Date.parse("2026-11-04T15:30:00Z");
+  for (const [start, end] of [["", "2026-01-01T00:00"], ["2026-02-29T00:00", "2026-03-01T00:00"], ["2026-11-03T01:00", "2026-11-02T01:00"], ["2026-11-04T10:00", "2026-11-04T11:00"], ["2026-11-02T01:30", "2026-11-02T02:00"], ["2026-03-08T02:00", "2026-03-08T03:00"]]) assert.ok(validateWalletPnlRange(start, end, now).error, `${start}/${end}`);
+  const repeated = walletPnlHourCandidates("2026-11-01T01:00"); assert.equal(repeated.length, 2);
+  assert.ok(validateWalletPnlRange("2026-11-01T01:00", "2026-11-01T02:00", now).error);
+  const first = validateWalletPnlRange("2026-11-01T01:00", "2026-11-01T02:00", now, { startMs: repeated[0] });
+  const second = validateWalletPnlRange("2026-11-01T01:00", "2026-11-01T02:00", now, { startMs: repeated[1] });
+  assert.ok(first.range && second.range); assert.equal(first.range.endMs - first.range.startMs, 2 * hour * 1000); assert.equal(second.range.endMs - second.range.startMs, hour * 1000);
+  assert.equal(first.range.startOffset, "UTC−04:00"); assert.equal(second.range.startOffset, "UTC−05:00");
+  assert.equal(walletPnlLocalDate(Date.parse("2026-11-04T02:00:00Z")), "2026-11-03");
+  assert.equal(walletPnlLocalHour(Date.parse("2026-11-04T02:47:00Z")), "2026-11-03T21:00");
+}));
+
+test("小时窗口使用最小官方覆盖及读取预算，不降级日线", () => withTimezone("Asia/Shanghai", () => {
+  const now = Date.parse("2026-11-04T10:00:00Z");
+  const make = (start: string) => { const parsed = validateWalletPnlRange(start, "2026-11-04T17:00", now); assert.ok(parsed.range); return parsed.range; };
+  assert.deepEqual(chooseCustomWalletPnlQuery(make("2026-11-04T10:00"), now), { interval: "1d", fidelity: "1h" });
+  assert.deepEqual(chooseCustomWalletPnlQuery(make("2026-11-01T10:00"), now), { interval: "1w", fidelity: "1h" });
+  assert.deepEqual(chooseCustomWalletPnlQuery(make("2026-10-10T10:00"), now), { interval: "1m", fidelity: "1h" });
+  assert.deepEqual(chooseCustomWalletPnlQuery(make("2026-09-10T10:00"), now, now / 1000 - 200 * 24 * hour), { interval: "all", fidelity: "1h" });
+  assert.throws(() => chooseCustomWalletPnlQuery(make("2026-09-10T10:00"), now, now / 1000 - 500 * 24 * hour), /预算/);
+}));
