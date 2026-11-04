@@ -7,19 +7,21 @@ import "./account-performance.css";
 
 const sourceLabels: Record<CorePriceSource, string> = { PM_CURRENT_PRICE: "Polymarket 官方现价", PM_CLOB_MID: "Polymarket 盘口中间价（参考）", KALSHI_BOOK_MID: "Kalshi 盘口中间价（参考）", OFFICIAL_SETTLEMENT: "官方确认结算价" };
 const reasonLabels: Record<CorePriceReason, string> = { missing_price: "未返回价格", one_sided: "缺少有效双边盘口", invalid_price: "价格无效", identity_mismatch: "资产身份不一致", stale: "报价已过期", timeout: "取价超时", source_unavailable: "价格来源暂不可用", unconfirmed_settlement: "结算结果尚未最终确认" };
-const money = (value: string | null) => value === null ? "—" : new Intl.NumberFormat("zh-CN", { style: "currency", currency: "USD", currencyDisplay: "narrowSymbol", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value));
+const money = (value: string | null, signed = false) => value === null ? "—" : `${signed && Number(value) > 0 ? "+" : ""}${new Intl.NumberFormat("zh-CN", { style: "currency", currency: "USD", currencyDisplay: "narrowSymbol", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value))}`;
 const tone = (value: string | null) => value === null ? "" : Number(value) > 0 ? "positive" : Number(value) < 0 ? "negative" : "";
 function stats(item: AccountCoreMetrics) {
+  // The API returns drawdown as a nonnegative magnitude; display the loss.
+  const drawdown = Number(item.realizedDrawdown14d) > 0 ? `-${item.realizedDrawdown14d}` : "0";
   return [
     { label: "纳管资产数", value: String(item.assetCount) },
     { label: "当前持仓估值", value: money(item.marketValue) },
     { label: "历史最高持仓成本", value: money(item.peakHoldingCost) },
     { label: "累计投入成本", value: money(item.cumulativeInvestedCost) },
-    { label: "累计已实现盈亏", value: money(item.realizedPnl), tone: tone(item.realizedPnl) },
-    { label: "当前浮动盈亏", value: money(item.unrealizedPnl), tone: tone(item.unrealizedPnl) },
-    { label: "总盈亏", value: money(item.totalPnl), tone: tone(item.totalPnl) },
-    { label: "成本收益率", value: item.returnRate === null ? "—" : `${(Number(item.returnRate) * 100).toFixed(2)}%`, tone: tone(item.returnRate) },
-    { label: "近14日已实现盈亏回撤", value: money(item.realizedDrawdown14d) },
+    { label: "累计已实现盈亏", value: money(item.realizedPnl, true), tone: tone(item.realizedPnl) },
+    { label: "当前浮动盈亏", value: money(item.unrealizedPnl, true), tone: tone(item.unrealizedPnl) },
+    { label: "总盈亏", value: money(item.totalPnl, true), tone: tone(item.totalPnl) },
+    { label: "成本收益率", value: item.returnRate === null ? "—" : `${Number(item.returnRate) > 0 ? "+" : ""}${(Number(item.returnRate) * 100).toFixed(2)}%`, tone: tone(item.returnRate) },
+    { label: "近14日已实现盈亏回撤", value: money(drawdown), tone: tone(drawdown) },
   ];
 }
 const LABELS = ["纳管资产数", "当前持仓估值", "历史最高持仓成本", "累计投入成本", "累计已实现盈亏", "当前浮动盈亏", "总盈亏", "成本收益率", "近14日已实现盈亏回撤"];
@@ -58,7 +60,7 @@ export function AccountCoreMetricsPanel({ active, account, accountOrder = [] }: 
       <li><strong>当前浮动盈亏</strong><p>当前持仓估值 − 当前剩余持仓成本。不预扣未来卖出费用。</p></li>
       <li><strong>总盈亏</strong><p>累计已实现盈亏 ＋ 当前浮动盈亏，表示系统纳管范围的累计表现。</p></li>
       <li><strong>成本收益率</strong><p>总盈亏 ÷ 历史最高持仓成本 × 100%。不是官方 ROI，分母为零时显示“—”。</p></li>
-      <li><strong>近14日已实现盈亏回撤</strong><p>按包含今天的14个 UTC 自然日，累计本地已实现盈亏，取从高点最大回落的美元金额。包含 Kalshi 净对冲和到期结算，不含浮盈亏及日内波动。</p></li>
+      <li><strong>近14日已实现盈亏回撤</strong><p>按包含今天的14个 UTC 自然日，累计本地已实现盈亏，取从高点最大回落的美元金额，以负数显示；没有回撤时为零。包含 Kalshi 净对冲和到期结算，不含浮盈亏及日内波动。</p></li>
     </ol></details>
   </section>;
 }
