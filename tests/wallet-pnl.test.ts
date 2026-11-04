@@ -136,7 +136,7 @@ test("小时范围金额与选择域一致，域外基准不画入或参与悬�
   assert.equal(view.points[0].value, 0); assert.equal(view.points.at(-1)?.value, 101);
   const geometry = buildWalletPnlChartGeometry(view)!;
   assert.equal(geometry.domainStartAt, range.startMs / 1000); assert.equal(geometry.domainEndAt, range.endMs / 1000);
-  assert.match(geometry.linePath, / H /); assert.doesNotMatch(geometry.linePath, / C /);
+  assert.match(geometry.linePath, / C /); assert.doesNotMatch(geometry.linePath, / H | V /);
   assert.equal(nearestWalletPnlPointIndex(view.points, 0, { startAt: view.startAt!, endAt: view.endAt! }), 0);
 }));
 
