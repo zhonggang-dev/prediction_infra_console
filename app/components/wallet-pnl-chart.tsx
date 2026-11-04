@@ -61,9 +61,9 @@ export function OfficialWalletPnlPanel({ active, account }: { active: boolean; a
     <div className="section-head official-wallet-pnl-head"><h2 className="section-title">Polymarket 官方钱包盈亏</h2><div className="wallet-pnl-periods" role="group" aria-label="官方盈亏周期">{PERIODS.map((item) => <button key={item.key} type="button" aria-pressed={period === item.key} className={period === item.key ? "active" : ""} onClick={() => { setPeriod(item.key); setCustomOpen(false); setRangeError(undefined); }}>{item.label}</button>)}<button type="button" aria-pressed={period === "CUSTOM"} aria-expanded={customOpen} className={period === "CUSTOM" ? "active" : ""} onClick={() => { setCustomOpen(true); setLocalZone(Intl.DateTimeFormat().resolvedOptions().timeZone); setToday(walletPnlLocalHour()); }}>自定义</button></div></div>
     <p className="section-caption">曲线为 Polymarket 官方钱包口径，明细为系统成交与结算账本。</p>
     {customOpen && <form className="wallet-pnl-custom-range" onSubmit={applyRange} aria-label="官方盈亏自定义时间" noValidate>
-      <label>开始时间<input className="input" type="datetime-local" step={3600} aria-label="官方盈亏开始时间" value={startDate} max={today || undefined} onChange={(event) => { setStartDate(event.target.value); setStartInstant(""); }} /></label>
+      <LocalHourInput label="开始" value={startDate} max={today} onChange={value => { setStartDate(value); setStartInstant(""); setRangeError(undefined); }} />
       {startCandidates.length > 1 && <label>开始时区偏移<select className="select" aria-label="开始小时偏移" value={startInstant} onChange={event => setStartInstant(event.target.value)}><option value="">请选择重复小时</option>{startCandidates.map(time => <option value={time} key={time}>{formatWalletPnlOffset(time)}</option>)}</select></label>}
-      <label>结束时间<input className="input" type="datetime-local" step={3600} aria-label="官方盈亏结束时间" value={endDate} max={today || undefined} onChange={(event) => { setEndDate(event.target.value); setEndInstant(""); }} /></label>
+      <LocalHourInput label="结束" value={endDate} max={today} onChange={value => { setEndDate(value); setEndInstant(""); setRangeError(undefined); }} />
       {endCandidates.length > 1 && <label>结束时区偏移<select className="select" aria-label="结束小时偏移" value={endInstant} onChange={event => setEndInstant(event.target.value)}><option value="">请选择重复小时</option>{endCandidates.map(time => <option value={time} key={time}>{formatWalletPnlOffset(time)}</option>)}</select></label>}
       <button className="button primary" type="submit">应用时间</button><span>本地时区 {localZone}；结束于所选小时。应用后按官方小时序列计算期间变化。</span>
       {rangeError && <p role="alert">{rangeError}</p>}
@@ -71,6 +71,17 @@ export function OfficialWalletPnlPanel({ active, account }: { active: boolean; a
     {period === "CUSTOM" && customRange && <p className="wallet-pnl-range-note" data-wallet-pnl-range={`${customRange.startDate}/${customRange.endDate}`}>已应用 {customRange.startDate.replace("T", " ")} 至 {customRange.endDate.replace("T", " ")}（{customRange.timeZone}，{customRange.startOffset}{customRange.endOffset !== customRange.startOffset ? ` → ${customRange.endOffset}` : ""}）；图表范围与所选时间一致。</p>}
     {error ? <PnlState title="官方盈亏暂时不可用" detail={error} retry={() => setRetry((value) => value + 1)} /> : !accounts ? <PnlState title="正在读取钱包" detail="" /> : !selected?.length ? <PnlState title={account ? "该账户暂无 Polymarket 官方盈亏曲线" : "暂无支持官方盈亏的钱包"} detail="" /> : <div className={account ? "official-wallet-pnl-single" : "official-wallet-pnl-grid"}>{selected.map((item) => <WalletPnlCard key={item.executionAccountId} active={active} executionAccountId={item.executionAccountId} period={period} customRange={customRange} refreshToken={retry} accountLabel={item.executionAccountId} />)}</div>}
   </section>;
+}
+
+function LocalHourInput({ label, value, max, onChange }: { label: string; value: string; max: string; onChange: (value: string) => void }) {
+  const date = value.split("T")[0];
+  const hour = value ? value.slice(11, 13) : "00";
+  const maxDate = max.split("T")[0];
+  const maxHour = max.slice(11, 13);
+  return <fieldset className="wallet-pnl-hour-input"><legend>{label}时间</legend><div>
+    <input className="input" type="date" aria-label={`官方盈亏${label}日期`} value={date} max={maxDate || undefined} onChange={event => onChange(event.target.value ? `${event.target.value}T${hour}:00` : "")} />
+    <select className="select" aria-label={`官方盈亏${label}小时`} value={hour} disabled={!date} onChange={event => onChange(`${date}T${event.target.value}:00`)}>{Array.from({ length: 24 }, (_, index) => String(index).padStart(2, "0")).map(item => <option key={item} value={item} disabled={Boolean(maxDate && date === maxDate && item > maxHour)}>{item}时</option>)}</select>
+  </div></fieldset>;
 }
 
 type WalletPnlCardProps = { active: boolean; executionAccountId: string; refreshToken: number; period: WalletPnlSelection; customRange?: WalletPnlCustomRange; accountLabel: string };
