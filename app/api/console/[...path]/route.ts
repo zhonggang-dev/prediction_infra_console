@@ -37,7 +37,7 @@ async function forward(request: Request, path: string[]): Promise<Response> {
       method: request.method,
       headers,
       body: request.method === "GET" ? undefined : await request.text(),
-      signal: target.stream ? undefined : AbortSignal.timeout(10_000),
+      signal: target.stream ? undefined : path[0] === "wallet-pnl" ? AbortSignal.any([request.signal, AbortSignal.timeout(10_000)]) : AbortSignal.timeout(10_000),
     });
   } catch {
     return Response.json({ message: `上游 ${target.serviceName} 暂时不可用。`, code: "UPSTREAM_UNAVAILABLE" }, { status: 502 });

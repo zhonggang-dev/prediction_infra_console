@@ -17,7 +17,8 @@ test("production asset keeps trading workspace layout rules", async () => {
   assert.match(css, /\.trading-account-context[^{}]*\{[^{}]*display:flex/);
   assert.match(css, /\.trading-account-context label>span\{(?=[^{}]*white-space:nowrap)(?=[^{}]*flex:(?:none|0 0 auto)(?:;|\}))/, "account label must not collapse into a vertical column beside the full-width select");
   assert.match(css, /\.trading-account-context \.select\{(?=[^{}]*min-width:0)(?=[^{}]*flex:(?:auto|1(?: 1 auto)?)(?:;|\}))/, "account select must shrink within the available row width");
-  assert.match(css, /\.trading-performance-stats[^{}]*\{[^{}]*display:grid/, "account metrics layout must ship with the trading entry");
+  assert.match(css, /\.trading-core-strip[^{}]*\{[^{}]*display:grid/, "account metrics layout must ship with the trading entry");
+  assert.match(css, /\.trading-core-scroll[^{}]*\{[^{}]*overflow-x:auto/, "metrics local scroll must ship");
   assert.match(css, /\.wallet-pnl-custom-range[^{}]*\{[^{}]*display:flex/, "custom date layout must ship with the trading entry");
   assert.match(css, /\.trading-runtime-summary[^{}]*\{[^{}]*display:flex/);
   assert.match(css, /\.trading-attention-grid[^{}]*\{[^{}]*display:grid/);

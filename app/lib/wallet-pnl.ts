@@ -1,4 +1,4 @@
-export interface WalletPnlPoint { timestamp: number; tradePnl: number }
+export interface WalletPnlPoint { timestamp: number; tradePnl: number; sourceBlock?: string | null }
 export interface WalletPnlSeries {
   executionAccountId: string;
   walletAddress: string;
@@ -6,12 +6,13 @@ export interface WalletPnlSeries {
   interval: "1d" | "1w" | "1m" | "all";
   fidelity: "1h" | "3h" | "12h" | "18h" | "1d";
   fetchedAt: string;
+  sourceFidelity?: string | null;
   points: WalletPnlPoint[];
 }
 
 export type WalletPnlPeriod = "1D" | "1W" | "1M" | "1Y" | "YTD" | "ALL";
 export type WalletPnlSelection = WalletPnlPeriod | "CUSTOM";
-export interface WalletPnlCustomRange { startDate: string; endDate: string; startMs: number; endExclusiveMs: number }
+export interface WalletPnlCustomRange { startDate: string; endDate: string; startMs: number; endMs: number; timeZone: string; startOffset: string; endOffset: string }
 
 export type WalletPnlQuery = Pick<WalletPnlSeries, "interval" | "fidelity">;
 
@@ -23,6 +24,8 @@ export interface WalletPnlViewPoint extends WalletPnlPoint {
 export interface WalletPnlView {
   period: WalletPnlSelection;
   partialHistory?: boolean;
+  baselineAt?: number | null;
+  endSampleAt?: number | null;
   points: WalletPnlViewPoint[];
   amount: number | null;
   absolute: boolean;
@@ -42,6 +45,8 @@ export interface WalletPnlChartGeometry {
   points: { x: number; y: number }[];
   linePath: string;
   areaPath: string;
+  domainStartAt: number;
+  domainEndAt: number;
 }
 
 export function isOfficialWalletPnlResponse(series: Pick<WalletPnlSeries, "executionAccountId" | "interval" | "fidelity">, requested: { executionAccountId: string } & WalletPnlQuery): boolean {
@@ -125,10 +130,10 @@ export function chooseWalletPnlQuery(period: WalletPnlPeriod, historyStartTimest
 }
 
 /** 按实际时间轴寻找最近采样点，避免缺采样时按数组下标偏移。 */
-export function nearestWalletPnlPointIndex(points: Array<{ timestamp: number }>, ratio: number): number {
+export function nearestWalletPnlPointIndex(points: Array<{ timestamp: number }>, ratio: number, domain?: { startAt: number; endAt: number }): number {
   const boundedRatio = Math.max(0, Math.min(1, ratio));
-  const first = points[0]?.timestamp ?? 0;
-  const last = points[points.length - 1]?.timestamp ?? first;
+  const first = domain?.startAt ?? points[0]?.timestamp ?? 0;
+  const last = domain?.endAt ?? points[points.length - 1]?.timestamp ?? first;
   const target = first + (last - first) * boundedRatio;
   return points.reduce((best, point, index) => Math.abs(point.timestamp - target) < Math.abs(points[best].timestamp - target) ? index : best, 0);
 }
@@ -139,15 +144,19 @@ export function formatWalletPnlUsd(value: number): string {
 }
 
 export function buildWalletPnlChartGeometry(view: WalletPnlView, width = 720, height = 210): WalletPnlChartGeometry | undefined {
-  if (view.points.length < 2) return undefined;
+  if (!view.points.length) return undefined;
   const left = 10; const right = 10; const top = 18; const bottom = height - 30;
   const plotWidth = width - left - right; const plotHeight = bottom - top;
   const values = view.points.map((point) => point.value); const min = Math.min(...values); const max = Math.max(...values); const pad = Math.max((max - min) * 0.08, 0.01);
   const low = min - pad; const high = max + pad; const range = high - low || 1;
-  const firstTimestamp = view.points[0].timestamp; const lastTimestamp = view.points[view.points.length - 1].timestamp; const timeRange = Math.max(1, lastTimestamp - firstTimestamp);
+  const firstTimestamp = view.period === "CUSTOM" ? view.startAt ?? view.points[0].timestamp : view.points[0].timestamp; const lastTimestamp = view.period === "CUSTOM" ? view.endAt ?? view.points.at(-1)!.timestamp : view.points.at(-1)!.timestamp; const timeRange = Math.max(1, lastTimestamp - firstTimestamp);
   const points = view.points.map((point) => ({ x: left + ((point.timestamp - firstTimestamp) / timeRange) * plotWidth, y: top + (1 - (point.value - low) / range) * plotHeight }));
-  const linePath = monotonePath(points); const areaPath = `${linePath} L ${points[points.length - 1].x} ${bottom} L ${points[0].x} ${bottom} Z`;
-  return { width, height, left, top, bottom, plotWidth, plotHeight, points, linePath, areaPath };
+  const linePath = points.length === 1 ? `M ${points[0].x} ${points[0].y}` : view.period === "CUSTOM" ? stepPath(points) : monotonePath(points); const areaPath = points.length === 1 ? "" : `${linePath} L ${points[points.length - 1].x} ${bottom} L ${points[0].x} ${bottom} Z`;
+  return { width, height, left, top, bottom, plotWidth, plotHeight, points, linePath, areaPath, domainStartAt: firstTimestamp, domainEndAt: lastTimestamp };
+}
+
+function stepPath(points: { x: number; y: number }[]): string {
+  return points.slice(1).reduce((path, point) => `${path} H ${point.x} V ${point.y}`, `M ${points[0].x} ${points[0].y}`);
 }
 
 function monotonePath(points: { x: number; y: number }[]): string {
@@ -232,35 +241,56 @@ export function walletPnlLocalDate(timestamp = Date.now()): string {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
 }
 
-export function validateWalletPnlRange(startDate: string, endDate: string, now = Date.now()): { range: WalletPnlCustomRange; error?: never } | { error: string; range?: never } {
-  if (!startDate || !endDate) return { error: "请选择开始日期和结束日期。" };
-  const parse = (value: string) => {
-    if (!/^[1-9]\d{3}-\d{2}-\d{2}$/.test(value)) return undefined;
-    const [year, month, day] = value.split("-").map(Number);
-    const date = new Date(year, month - 1, day);
-    return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day ? date : undefined;
-  };
-  const start = parse(startDate); const end = parse(endDate);
-  if (!start || !end) return { error: "日期格式无效，请重新选择。" };
-  if (start > end) return { error: "开始日期不能晚于结束日期。" };
-  if (endDate > walletPnlLocalDate(now)) return { error: "结束日期不能晚于今天。" };
-  const exclusive = new Date(end.getFullYear(), end.getMonth(), end.getDate() + 1);
-  return { range: { startDate, endDate, startMs: start.getTime(), endExclusiveMs: exclusive.getTime() } };
+export function walletPnlLocalHour(timestamp = Date.now()): string {
+  const date = new Date(timestamp);
+  return `${walletPnlLocalDate(timestamp)}T${String(date.getHours()).padStart(2, "0")}:00`;
 }
 
-/** Custom periods always show the change from a real baseline sample, never all-time PnL. */
+export function formatWalletPnlOffset(timestamp: number): string {
+  const offset = -new Date(timestamp).getTimezoneOffset();
+  return `UTC${offset < 0 ? "−" : "+"}${String(Math.floor(Math.abs(offset) / 60)).padStart(2, "0")}:${String(Math.abs(offset) % 60).padStart(2, "0")}`;
+}
+
+/** Returns both instants for a repeated DST hour; nonexistent hours have no candidates. */
+export function walletPnlHourCandidates(value: string): number[] {
+  const match = /^([1-9]\d{3})-(\d{2})-(\d{2})T(\d{2}):00$/.exec(value);
+  if (!match) return [];
+  const [year, month, day, hour] = match.slice(1).map(Number);
+  const first = new Date(year, month - 1, day, hour).getTime();
+  const matches = (timestamp: number) => { const d = new Date(timestamp); return d.getFullYear() === year && d.getMonth() === month - 1 && d.getDate() === day && d.getHours() === hour && d.getMinutes() === 0; };
+  if (!matches(first)) return [];
+  const candidates: number[] = [];
+  for (let delta = -3 * 60; delta <= 3 * 60; delta += 15) { const timestamp = first + delta * 60_000; if (matches(timestamp)) candidates.push(timestamp); }
+  return candidates;
+}
+
+export function validateWalletPnlRange(startDate: string, endDate: string, now = Date.now(), selected: { startMs?: number; endMs?: number } = {}): { range: WalletPnlCustomRange; error?: never } | { error: string; range?: never } {
+  if (!startDate || !endDate) return { error: "请选择开始时间和结束时间。" };
+  const starts = walletPnlHourCandidates(startDate), ends = walletPnlHourCandidates(endDate);
+  if (!starts.length || !ends.length) return { error: "时间无效，请选择有效的本地整点；夏令时跳过的小时不可选。" };
+  if ((starts.length > 1 && !starts.includes(selected.startMs ?? NaN)) || (ends.length > 1 && !ends.includes(selected.endMs ?? NaN))) return { error: "该本地小时重复，请明确选择对应的时区偏移。" };
+  const startMs = starts.length === 1 ? starts[0] : selected.startMs!, endMs = ends.length === 1 ? ends[0] : selected.endMs!;
+  if (startMs >= endMs) return { error: "结束时间必须晚于开始时间。" };
+  if (endMs > now) return { error: "结束时间不能晚于当前时间。" };
+  return { range: { startDate, endDate, startMs, endMs, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, startOffset: formatWalletPnlOffset(startMs), endOffset: formatWalletPnlOffset(endMs) } };
+}
+
+/** Select an official hourly window with room for its leading baseline point. */
+export function chooseCustomWalletPnlQuery(range: WalletPnlCustomRange, asOf = Date.now(), historyStartTimestamp?: number): WalletPnlQuery {
+  const hours = Math.max(0, (asOf - range.startMs) / 3_600_000) + 1;
+  const interval = hours <= 24 ? "1d" : hours <= 7 * 24 ? "1w" : hours <= 30 * 24 ? "1m" : "all";
+  if (interval === "all" && historyStartTimestamp !== undefined && (asOf / 1000 - historyStartTimestamp) / 3600 + 1 > 10_000) throw new Error("该历史范围超出官方小时序列的读取预算；可查看近30天小时数据或使用长期快捷周期。");
+  return { interval, fidelity: "1h" };
+}
+
+/** Difference of official hourly grid values. Chart domain always remains the requested domain. */
 export function buildCustomWalletPnlView(points: WalletPnlPoint[], range: WalletPnlCustomRange, asOf = Date.now()): WalletPnlView {
-  if (!Number.isFinite(asOf) || !Number.isFinite(range.startMs) || !Number.isFinite(range.endExclusiveMs) || range.startMs >= range.endExclusiveMs) return emptyView("CUSTOM");
-  const available = normalizePoints(points).filter((point) => point.timestamp * 1000 < range.endExclusiveMs && point.timestamp * 1000 <= asOf);
-  if (!available.length) return emptyView("CUSTOM");
-  const baseline = available.filter((point) => point.timestamp * 1000 <= range.startMs).at(-1) ?? available[0];
-  const selected = [baseline, ...available.filter((point) => point.timestamp > baseline.timestamp && point.timestamp * 1000 >= range.startMs)];
-  const last = selected.at(-1)!;
-  return {
-    period: "CUSTOM", absolute: false, baseline: baseline.tradePnl,
-    partialHistory: baseline.timestamp * 1000 > range.startMs,
-    points: selected.map((point) => ({ ...point, value: point.tradePnl - baseline.tradePnl })),
-    amount: selected.length < 2 ? null : last.tradePnl - baseline.tradePnl,
-    startAt: baseline.timestamp, endAt: last.timestamp,
-  };
+  const view = { ...emptyView("CUSTOM"), startAt: range.startMs / 1000, endAt: range.endMs / 1000 };
+  if (!Number.isFinite(asOf) || !Number.isFinite(range.startMs) || !Number.isFinite(range.endMs) || range.startMs >= range.endMs || range.endMs > asOf) return view;
+  const available = normalizePoints(points).filter(point => point.timestamp * 1000 <= range.endMs && point.timestamp * 1000 <= asOf);
+  const baseline = available.filter(point => point.timestamp * 1000 <= range.startMs).at(-1), last = available.at(-1);
+  if (!baseline || !last || range.startMs - baseline.timestamp * 1000 > 3_600_000 || range.endMs - last.timestamp * 1000 > 3_600_000 || last.timestamp <= baseline.timestamp) return view;
+  return { ...view, absolute: false, baseline: baseline.tradePnl, baselineAt: baseline.timestamp, endSampleAt: last.timestamp,
+    points: available.filter(point => point.timestamp * 1000 >= range.startMs).map(point => ({ ...point, value: point.tradePnl - baseline.tradePnl })),
+    amount: last.tradePnl - baseline.tradePnl };
 }
