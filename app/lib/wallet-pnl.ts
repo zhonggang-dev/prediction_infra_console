@@ -10,6 +10,8 @@ export interface WalletPnlSeries {
 }
 
 export type WalletPnlPeriod = "1D" | "1W" | "1M" | "1Y" | "YTD" | "ALL";
+export type WalletPnlSelection = WalletPnlPeriod | "CUSTOM";
+export interface WalletPnlCustomRange { startDate: string; endDate: string; startMs: number; endExclusiveMs: number }
 
 export type WalletPnlQuery = Pick<WalletPnlSeries, "interval" | "fidelity">;
 
@@ -19,7 +21,8 @@ export interface WalletPnlViewPoint extends WalletPnlPoint {
 }
 
 export interface WalletPnlView {
-  period: WalletPnlPeriod;
+  period: WalletPnlSelection;
+  partialHistory?: boolean;
   points: WalletPnlViewPoint[];
   amount: number | null;
   absolute: boolean;
@@ -218,6 +221,46 @@ function localYearStart(timestamp: number): number {
   return new Date(date.getFullYear(), 0, 1).getTime();
 }
 
-function emptyView(period: WalletPnlPeriod): WalletPnlView {
+function emptyView(period: WalletPnlSelection): WalletPnlView {
   return { period, points: [], amount: null, absolute: period === "ALL", baseline: null, startAt: null, endAt: null };
+}
+
+
+/** Calendar dates belong to the browser timezone, including DST day lengths. */
+export function walletPnlLocalDate(timestamp = Date.now()): string {
+  const date = new Date(timestamp);
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+}
+
+export function validateWalletPnlRange(startDate: string, endDate: string, now = Date.now()): { range: WalletPnlCustomRange; error?: never } | { error: string; range?: never } {
+  if (!startDate || !endDate) return { error: "请选择开始日期和结束日期。" };
+  const parse = (value: string) => {
+    if (!/^[1-9]\d{3}-\d{2}-\d{2}$/.test(value)) return undefined;
+    const [year, month, day] = value.split("-").map(Number);
+    const date = new Date(year, month - 1, day);
+    return date.getFullYear() === year && date.getMonth() === month - 1 && date.getDate() === day ? date : undefined;
+  };
+  const start = parse(startDate); const end = parse(endDate);
+  if (!start || !end) return { error: "日期格式无效，请重新选择。" };
+  if (start > end) return { error: "开始日期不能晚于结束日期。" };
+  if (endDate > walletPnlLocalDate(now)) return { error: "结束日期不能晚于今天。" };
+  const exclusive = new Date(end.getFullYear(), end.getMonth(), end.getDate() + 1);
+  return { range: { startDate, endDate, startMs: start.getTime(), endExclusiveMs: exclusive.getTime() } };
+}
+
+/** Custom periods always show the change from a real baseline sample, never all-time PnL. */
+export function buildCustomWalletPnlView(points: WalletPnlPoint[], range: WalletPnlCustomRange, asOf = Date.now()): WalletPnlView {
+  if (!Number.isFinite(asOf) || !Number.isFinite(range.startMs) || !Number.isFinite(range.endExclusiveMs) || range.startMs >= range.endExclusiveMs) return emptyView("CUSTOM");
+  const available = normalizePoints(points).filter((point) => point.timestamp * 1000 < range.endExclusiveMs && point.timestamp * 1000 <= asOf);
+  if (!available.length) return emptyView("CUSTOM");
+  const baseline = available.filter((point) => point.timestamp * 1000 <= range.startMs).at(-1) ?? available[0];
+  const selected = [baseline, ...available.filter((point) => point.timestamp > baseline.timestamp && point.timestamp * 1000 >= range.startMs)];
+  const last = selected.at(-1)!;
+  return {
+    period: "CUSTOM", absolute: false, baseline: baseline.tradePnl,
+    partialHistory: baseline.timestamp * 1000 > range.startMs,
+    points: selected.map((point) => ({ ...point, value: point.tradePnl - baseline.tradePnl })),
+    amount: selected.length < 2 ? null : last.tradePnl - baseline.tradePnl,
+    startAt: baseline.timestamp, endAt: last.timestamp,
+  };
 }

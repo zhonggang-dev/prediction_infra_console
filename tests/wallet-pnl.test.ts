@@ -116,3 +116,81 @@ test("重复采样点必须一致，冲突点不能静默覆盖", () => {
     { timestamp: 1, tradePnl: 2 },
   ], "ALL", 1_000), /冲突的重复时间点/);
 });
+
+// Custom windows are financial differences on the same official cumulative series.
+import { buildCustomWalletPnlView, validateWalletPnlRange, walletPnlLocalDate } from "../app/lib/wallet-pnl.ts";
+
+test("自定义本地日界包含结束全天，基准和轴保持真实前置采样时间", () => {
+  const previous = process.env.TZ; process.env.TZ = "Asia/Shanghai";
+  try {
+    const now = Date.parse("2026-11-04T10:00:00Z");
+    const parsed = validateWalletPnlRange("2026-10-31", "2026-11-02", now);
+    assert.ok(parsed.range);
+    assert.equal(parsed.range.startMs, Date.parse("2026-10-30T16:00:00Z"));
+    assert.equal(parsed.range.endExclusiveMs, Date.parse("2026-11-02T16:00:00Z"));
+    const point = (time: string, tradePnl: number) => ({ timestamp: Date.parse(time) / 1000, tradePnl });
+    const view = buildCustomWalletPnlView([
+      point("2026-10-30T00:00:00Z", -200),
+      point("2026-10-31T00:00:00Z", -190),
+      point("2026-11-01T00:00:00Z", -205),
+      point("2026-11-02T00:00:00Z", -180),
+      point("2026-11-02T16:00:00Z", 900), // next local day is excluded
+    ], parsed.range, now);
+    assert.equal(view.amount, 20);
+    assert.equal(view.baseline, -200);
+    assert.equal(view.absolute, false);
+    assert.deepEqual(view.points.map((item) => item.value), [0, 10, -5, 20]);
+    assert.equal(view.startAt, Date.parse("2026-10-30T00:00:00Z") / 1000);
+    assert.equal(view.partialHistory, false);
+    assert.equal(view.points[2].value, -5, "hover points must use the same baseline");
+  } finally { if (previous === undefined) delete process.env.TZ; else process.env.TZ = previous; }
+});
+
+test("自定义短历史必须计算差额，历史缺口显示实际覆盖；没有区间新点不伪零", () => {
+  const now = new Date(2026, 10, 4, 12).getTime();
+  const parsed = validateWalletPnlRange("2026-10-01", "2026-11-04", now);
+  assert.ok(parsed.range);
+  const first = new Date(2026, 10, 1).getTime() / 1000;
+  const second = new Date(2026, 10, 3).getTime() / 1000;
+  const points = [{ timestamp: first, tradePnl: -100 }, { timestamp: second, tradePnl: -110 }];
+  const view = buildCustomWalletPnlView(points, parsed.range, now);
+  assert.equal(view.amount, -10);
+  assert.equal(view.partialHistory, true);
+  assert.equal(view.startAt, first);
+  const afterHistory = validateWalletPnlRange("2026-11-04", "2026-11-04", now);
+  assert.ok(afterHistory.range);
+  const missing = buildCustomWalletPnlView(points, afterHistory.range, now);
+  assert.equal(missing.amount, null);
+  assert.equal(missing.points.length, 1);
+  assert.equal(buildCustomWalletPnlView([], parsed.range, now).amount, null);
+  assert.equal(buildCustomWalletPnlView(points.slice(0, 1), parsed.range, now).amount, null);
+});
+
+test("自定义日期拒绝缺失、非法闰日、倒序和未来，跨年同日及DST按本地日历", () => {
+  const previous = process.env.TZ; process.env.TZ = "America/New_York";
+  try {
+    const now = new Date(2026, 10, 4, 12).getTime();
+    for (const [start, end] of [["", "2026-01-01"], ["2026-02-29", "2026-03-01"], ["2026-11-03", "2026-11-02"], ["2026-11-04", "2026-11-05"], ["2026-1-1", "2026-01-02"]]) assert.ok(validateWalletPnlRange(start, end, now).error, `${start}/${end}`);
+    const dst = validateWalletPnlRange("2026-11-01", "2026-11-01", now);
+    assert.ok(dst.range);
+    assert.equal(dst.range.endExclusiveMs - dst.range.startMs, 25 * 3_600_000);
+    const year = validateWalletPnlRange("2025-12-31", "2026-01-01", now);
+    assert.ok(year.range);
+    assert.equal(year.range.endExclusiveMs - year.range.startMs, 48 * 3_600_000);
+    assert.equal(walletPnlLocalDate(Date.parse("2026-11-04T02:00:00Z")), "2026-11-03");
+  } finally { if (previous === undefined) delete process.env.TZ; else process.env.TZ = previous; }
+});
+
+test("自定义今日范围不把接口观测之后样本纳入，也不插值财务金额", () => {
+  const now = new Date(2026, 10, 4, 10).getTime();
+  const parsed = validateWalletPnlRange("2026-11-04", "2026-11-04", now);
+  assert.ok(parsed.range);
+  const view = buildCustomWalletPnlView([
+    { timestamp: (parsed.range.startMs - 3_600_000) / 1000, tradePnl: 5 },
+    { timestamp: (parsed.range.startMs + 3_600_000) / 1000, tradePnl: 8 },
+    { timestamp: (now + 3_600_000) / 1000, tradePnl: 100 },
+  ], parsed.range, now);
+  assert.equal(view.amount, 3);
+  assert.equal(view.points.length, 2);
+  assert.equal(view.points[0].value, 0);
+});
