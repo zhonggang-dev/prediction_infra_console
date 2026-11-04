@@ -1,5 +1,5 @@
 /** System-managed account metrics; upstream prices never replace local quantities. */
-export type CorePriceSource = "PM_CURRENT_PRICE" | "PM_CLOB_MID" | "KALSHI_BOOK_MID" | "OFFICIAL_SETTLEMENT";
+export type CorePriceSource = "PM_CURRENT_PRICE" | "PM_CLOB_MID" | "KALSHI_BOOK_MID" | "KALSHI_LAST_TRADE" | "OFFICIAL_SETTLEMENT";
 export type CorePriceReason = "missing_price" | "one_sided" | "invalid_price" | "identity_mismatch" | "stale" | "timeout" | "source_unavailable" | "unconfirmed_settlement";
 export interface CoreValuationAsset {
   executionAccountId: string; marketSource: "POLYMARKET" | "KALSHI";
@@ -16,7 +16,7 @@ export interface AccountCoreMetrics {
   hasReferencePrices: boolean; valuationAssets: CoreValuationAsset[];
 }
 export interface AccountCoreMetricsResponse { observedAt: string; items: AccountCoreMetrics[] }
-const SOURCES: CorePriceSource[] = ["PM_CURRENT_PRICE", "PM_CLOB_MID", "KALSHI_BOOK_MID", "OFFICIAL_SETTLEMENT"];
+const SOURCES: CorePriceSource[] = ["PM_CURRENT_PRICE", "PM_CLOB_MID", "KALSHI_BOOK_MID", "KALSHI_LAST_TRADE", "OFFICIAL_SETTLEMENT"];
 const REASONS: CorePriceReason[] = ["missing_price", "one_sided", "invalid_price", "identity_mismatch", "stale", "timeout", "source_unavailable", "unconfirmed_settlement"];
 const isZero = (value: string) => /^-?0+(?:\.0+)?$/.test(value);
 const invalid = () => new Error("账户核心指标数据无效，请稍后重试。");
@@ -41,7 +41,7 @@ function decodeAsset(raw: unknown, account: string, marketSource: AccountCoreMet
   if (priceSource === undefined || reason === undefined) throw invalid();
   const observedAt = nullableTime(a.observed_at), sourceAt = nullableTime(a.source_at);
   if (a.state === "priced" ? (price === null || marketValue === null || priceSource === null || reason !== null || observedAt === null) : (price !== null || marketValue !== null || priceSource !== null || reason === null)) throw invalid();
-  if ((marketSource === "POLYMARKET" && priceSource === "KALSHI_BOOK_MID") || (marketSource === "KALSHI" && (priceSource === "PM_CURRENT_PRICE" || priceSource === "PM_CLOB_MID"))) throw invalid();
+  if ((marketSource === "POLYMARKET" && (priceSource === "KALSHI_BOOK_MID" || priceSource === "KALSHI_LAST_TRADE")) || (marketSource === "KALSHI" && (priceSource === "PM_CURRENT_PRICE" || priceSource === "PM_CLOB_MID"))) throw invalid();
   const remainingShares = decimal(a.remaining_shares, true); if (Number(remainingShares) <= 0) throw invalid();
   return { executionAccountId: account, marketSource, marketId: text(a.market_id, true), conditionId: text(a.condition_id, true), tokenId: text(a.token_id), outcomeIndex: a.outcome_index, outcomeName: nullableText(a.outcome_name), marketQuestion: nullableText(a.market_question), remainingShares, remainingCost: decimal(a.remaining_cost, true), price, marketValue, state: a.state, priceSource, sourceAt, observedAt, reason };
 }
