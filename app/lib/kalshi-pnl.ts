@@ -9,9 +9,10 @@ export interface KalshiPnlSeries {
   fetchedAt: string;
   processedThrough: string;
   points: KalshiPnlPoint[];
+  recentSampling?: { from: number; intervalMinutes: number };
 }
 export interface KalshiPnlAccount { executionAccountId: string; marketSource: "KALSHI" }
-export interface KalshiPnlView extends WalletPnlView { notice?: string; error?: string; approximate?: boolean }
+export interface KalshiPnlView extends WalletPnlView { notice?: string; error?: string; approximate?: boolean; samplingIntervalMinutes?: number; recentIntervalMinutes?: number }
 const RANGES: KalshiPnlRange[] = ["1d", "1w", "1m", "1y", "all"];
 const DAY = 86_400_000;
 
@@ -81,6 +82,39 @@ export function chooseKalshiPnlRange(period: WalletPnlSelection, range?: WalletP
   if (range.startMs >= now - 30 * DAY + 3_600_000) return "1m";
   return "all";
 }
+/** Only custom long history ending in the recent window needs an extra source. */
+export function shouldSupplementKalshiPnl(period: WalletPnlSelection, range: WalletPnlCustomRange | undefined, series: KalshiPnlSeries): boolean {
+  return period === "CUSTOM" && series.periodIntervalMinutes === 1440 && range !== undefined && range.endMs >= Date.parse(series.fetchedAt) - 30 * DAY + 3_600_000;
+}
+
+/** Keep raw official cumulative values; never shift either source to force a join. */
+export function combineKalshiPnlSeries(history: KalshiPnlSeries, recent: KalshiPnlSeries): KalshiPnlSeries {
+  if (history.executionAccountId !== recent.executionAccountId || history.periodIntervalMinutes !== 1440 || recent.periodIntervalMinutes !== 60 || recent.range !== "1m" || history.recentSampling || !recent.points.length) throw new Error("官方历史与近期数据不一致，请刷新后重试。");
+  const stableThrough = Math.min(Date.parse(history.processedThrough), Date.parse(recent.processedThrough)) / 1000;
+  const recentPoints = new Map(recent.points.map(point => [point.timestamp, point]));
+  let overlap = 0;
+  for (const point of history.points) {
+    const matching = recentPoints.get(point.timestamp);
+    if (!matching || point.timestamp > stableThrough) continue;
+    if (matching.cumulativePnl !== point.cumulativePnl || matching.portfolioValue !== point.portfolioValue) throw new Error("官方历史与近期数据尚未对齐，请稍后刷新。");
+    overlap++;
+  }
+  if (!overlap) throw new Error("官方历史与近期数据缺少共同采样点，暂时无法衔接。");
+  const from = recent.points[0].timestamp;
+  const points = [...history.points.filter(point => point.timestamp < from), ...recent.points];
+  if (points.length > 10_000) throw new Error("官方盈亏采样点超出读取预算。");
+  return { ...history, fetchedAt: Date.parse(history.fetchedAt) > Date.parse(recent.fetchedAt) ? history.fetchedAt : recent.fetchedAt,
+    processedThrough: Date.parse(history.processedThrough) < Date.parse(recent.processedThrough) ? history.processedThrough : recent.processedThrough,
+    points, recentSampling: { from, intervalMinutes: recent.periodIntervalMinutes } };
+}
+function samplingMinutesAt(series: KalshiPnlSeries, timestamp: number): number {
+  return series.recentSampling && timestamp >= series.recentSampling.from ? series.recentSampling.intervalMinutes : series.periodIntervalMinutes;
+}
+function samplingTolerance(series: KalshiPnlSeries, timestamp: number): number {
+  const minutes = samplingMinutesAt(series, timestamp);
+  return (minutes >= 1440 ? 26 * 60 : minutes) * 60_000;
+}
+
 function displayTime(timestamp: number): string {
   return new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", hour12: false }).format(timestamp * 1000);
 }
@@ -88,7 +122,7 @@ export function buildKalshiPnlView(series: KalshiPnlSeries, period: WalletPnlSel
   const empty: KalshiPnlView = { period, points: [], amount: null, absolute: period === "ALL", baseline: null, startAt: null, endAt: null };
   const now = Date.parse(series.fetchedAt), points = series.points.filter(p => p.timestamp * 1000 <= now);
   if (points.length < 2) return { ...empty, error: "官方尚未提供足够的历史数据。" };
-  if (now - points.at(-1)!.timestamp * 1000 > Math.max(series.periodIntervalMinutes * 60_000, 3_600_000)) return { ...empty, error: "官方序列尚未更新到当前周期，请稍后重试。" };
+  if (now - points.at(-1)!.timestamp * 1000 > Math.max(samplingMinutesAt(series, points.at(-1)!.timestamp) * 60_000, 3_600_000)) return { ...empty, error: "官方序列尚未更新到当前周期，请稍后重试。" };
   if (period === "CUSTOM" || period === "YTD") {
     const date = new Date(now);
     const startMs = period === "YTD" ? new Date(date.getFullYear(), 0, 1).getTime() : range?.startMs;
@@ -99,18 +133,18 @@ export function buildKalshiPnlView(series: KalshiPnlSeries, period: WalletPnlSel
     let baseline = beforeEnd.filter(p => p.timestamp * 1000 <= startMs).at(-1);
     let partialHistory = false;
     if (!baseline && period === "YTD") { baseline = beforeEnd[0]; partialHistory = true; }
-    const last = beforeEnd.at(-1), daily = series.periodIntervalMinutes >= 1440;
-    const tolerance = daily ? 26 * 3_600_000 : series.periodIntervalMinutes * 60_000;
+    const last = beforeEnd.at(-1), startDaily = samplingMinutesAt(series, startMs / 1000) >= 1440, endDaily = samplingMinutesAt(series, endMs / 1000) >= 1440;
     const exact = baseline?.timestamp === startMs / 1000 && last?.timestamp === endMs / 1000;
-    if (daily && endMs - startMs <= DAY && !exact) return { ...domain, error: "该时间段仅有每日数据，请扩大范围或按整日查看。" };
-    if (!baseline || !last || last.timestamp <= baseline.timestamp || (!partialHistory && startMs - baseline.timestamp * 1000 > tolerance) || endMs - last.timestamp * 1000 > tolerance) return { ...domain, error: "所选起止时间缺少对应的官方采样数据，暂无法计算期间盈亏。" };
+    if ((startDaily || endDaily) && endMs - startMs <= DAY && !exact) return { ...domain, error: "该时间段仅有每日数据，请扩大范围或按整日查看。" };
+    if (!baseline || !last || last.timestamp <= baseline.timestamp || (!partialHistory && startMs - baseline.timestamp * 1000 > samplingTolerance(series, startMs / 1000)) || endMs - last.timestamp * 1000 > samplingTolerance(series, endMs / 1000)) return { ...domain, error: "所选起止时间缺少对应的官方采样数据，暂无法计算期间盈亏。" };
     const selected = beforeEnd.filter(p => p.timestamp >= baseline.timestamp);
-    if (selected.some((p, i) => i > 0 && (p.timestamp - selected[i - 1].timestamp) * 1000 > tolerance * 1.5)) return { ...domain, error: "所选期间存在官方历史数据缺口，暂无法计算完整曲线。" };
-    const approximate = !partialHistory && (!exact && daily);
+    if (selected.some((p, i) => i > 0 && (p.timestamp - selected[i - 1].timestamp) * 1000 > samplingTolerance(series, selected[i - 1].timestamp) * 1.5)) return { ...domain, error: "所选期间存在官方历史数据缺口，暂无法计算完整曲线。" };
+    const approximate = !partialHistory && ((startDaily && baseline.timestamp !== startMs / 1000) || (endDaily && last.timestamp !== endMs / 1000));
+    const samplingIntervalMinutes = samplingMinutesAt(series, baseline.timestamp), endingIntervalMinutes = samplingMinutesAt(series, last.timestamp);
     const visible = selected.filter(p => p.timestamp * 1000 >= startMs);
-    return { ...domain, baseline: baseline.cumulativePnl, baselineAt: baseline.timestamp, endSampleAt: last.timestamp, partialHistory, approximate,
+    return { ...domain, baseline: baseline.cumulativePnl, baselineAt: baseline.timestamp, endSampleAt: last.timestamp, partialHistory, approximate, samplingIntervalMinutes, recentIntervalMinutes: samplingIntervalMinutes !== endingIntervalMinutes ? endingIntervalMinutes : undefined,
       points: visible.map(p => ({ timestamp: p.timestamp, tradePnl: p.cumulativePnl, value: p.cumulativePnl - baseline.cumulativePnl })), amount: last.cumulativePnl - baseline.cumulativePnl,
-      notice: partialHistory ? `历史从 ${displayTime(baseline.timestamp)} 开始，展示已有期间的变化。` : !exact ? `实际计算采用 ${displayTime(baseline.timestamp)} 至 ${displayTime(last.timestamp)} 的官方采样点（本地时间）。${daily ? "日级数据不代表小时收益。" : ""}` : undefined };
+      notice: partialHistory ? `历史从 ${displayTime(baseline.timestamp)} 开始，展示已有期间的变化。` : !exact ? `实际计算采用 ${displayTime(baseline.timestamp)} 至 ${displayTime(last.timestamp)} 的官方采样点（本地时间）。${startDaily || endDaily ? "较早历史采用每日采样，边界可能为近似值。" : ""}` : undefined };
   }
   const first = points[0], last = points.at(-1)!, absolute = period === "ALL";
   return { ...empty, absolute, baseline: absolute ? null : first.cumulativePnl, baselineAt: first.timestamp, startAt: first.timestamp, endAt: last.timestamp, endSampleAt: last.timestamp,
