@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useId, useRef, useState } from "react";
-import { accountCohortMetrics, cohortOpeningRangeError, type AccountCohortMetrics as AccountCoreMetrics, type AccountCohortMetricsResponse as AccountCoreMetricsResponse, type AccountCohortQuery, type CorePriceSource, type CorePriceReason } from "../lib/trading-core-metrics";
+import { accountCohortMetrics, cohortOpeningRangeError, type AccountCohortMetrics as AccountCoreMetrics, type AccountCohortMetricsResponse as AccountCoreMetricsResponse, type AccountCohortQuery, type UnavailableCohortAccount, type CorePriceSource, type CorePriceReason } from "../lib/trading-core-metrics";
 import { formatV2Time, useV2Filter } from "./console-v2-resource";
 import { LocalHourInput } from "./wallet-pnl-chart";
 import { validateWalletPnlRange, walletPnlLocalHour, walletPnlHourCandidates, formatWalletPnlOffset } from "../lib/wallet-pnl";
@@ -45,19 +45,22 @@ export function AccountCoreMetricsPanel({ active, account, accountOrder = [], ac
     return () => controller.abort();
   }, [active, account, accountScope, openingFrom, openingTo, retry, identity]);
   const current = state.key === identity ? state : undefined;
-  const items = current?.data?.items.toSorted((a, b) => {
+  const rows = current?.data ? [
+    ...current.data.items.map(item => ({ kind: "available" as const, executionAccountId: item.executionAccountId, item })),
+    ...current.data.unavailableAccounts.map(item => ({ kind: "unavailable" as const, executionAccountId: item.executionAccountId, item })),
+  ].toSorted((a, b) => {
     const ai = accountOrder.indexOf(a.executionAccountId), bi = accountOrder.indexOf(b.executionAccountId);
     return (ai < 0 ? Number.MAX_SAFE_INTEGER : ai) - (bi < 0 ? Number.MAX_SAFE_INTEGER : bi) || a.executionAccountId.localeCompare(b.executionAccountId);
-  });
+  }) : undefined;
   return <section className="section trading-core-metrics" data-v2-extra-query={JSON.stringify({ opening_from: openingFrom, opening_to: openingTo })} aria-label="账户核心指标" aria-busy={active && !current?.data && !current?.error}>
     <div className="section-head"><h2 className="section-title">账户核心指标</h2>{current?.data && <span className="section-caption">账本观测 {formatV2Time(current.data.observedAt)}</span>}</div>
     <p className="section-caption trading-core-basis">系统纳管口径 · 追踪所选时间内开的仓位，截至现在的表现；剩余持仓按最新价格计算。各项收益未扣手续费。</p>
     <OpeningRangeForm key={`${openingFrom}/${openingTo}`} from={openingFrom} to={openingTo} />
     {current?.error ? <div className="notice error" role="alert"><p>{current.error}</p><button type="button" className="button" onClick={() => setRetry(v => v + 1)}>重试</button></div>
-      : !items ? <p className="trading-core-state">正在读取账户核心指标…</p>
-        : !items.length ? <p className="trading-core-state">暂无受管账户。</p>
-          : account ? <SingleAccount key={items[0].executionAccountId} item={items[0]} />
-            : <LocalScroll label="全部账户核心指标表格"><table className="trading-core-table"><thead><tr><th scope="col">账户 / 平台</th>{LABELS.map(label => <th scope="col" key={label}>{label}</th>)}</tr></thead><tbody>{items.map(item => <AccountTableRow key={item.executionAccountId} item={item} />)}</tbody></table></LocalScroll>}
+      : !rows ? <p className="trading-core-state">正在读取账户核心指标…</p>
+        : !rows.length ? <p className="trading-core-state">暂无受管账户。</p>
+          : account ? rows[0].kind === "available" ? <SingleAccount key={rows[0].executionAccountId} item={rows[0].item} /> : <UnavailableSingleAccount item={rows[0].item} />
+            : <LocalScroll label="全部账户核心指标表格"><table className="trading-core-table"><thead><tr><th scope="col">账户 / 平台</th>{LABELS.map(label => <th scope="col" key={label}>{label}</th>)}</tr></thead><tbody>{rows.map(row => row.kind === "available" ? <AccountTableRow key={row.executionAccountId} item={row.item} /> : <UnavailableAccountRow key={row.executionAccountId} item={row.item} />)}</tbody></table></LocalScroll>}
     <details className="trading-core-explanation"><summary>指标口径</summary><ol>
       <li><strong>区间开仓资产数</strong><p>按开仓时间选择批次，同一种结果资产合并计数。区间开仓资产数 ＝ 当前持仓 ＋ 已平仓；部分平仓仍算持仓，包含待赎回资产。区间外买入的份额不计入。</p></li>
       <li><strong>当前持仓估值</strong><p>入选批次的当前剩余数量 × 最新价格，再求和。已确认结算价优先；Polymarket 其次用官方现价、有效盘口中间价；Kalshi 其次用官方最近成交价、有效盘口中间价。</p></li>
@@ -71,6 +74,13 @@ export function AccountCoreMetricsPanel({ active, account, accountOrder = [], ac
       <li><strong>买入手续费与卖出手续费</strong><p>只列实际记录并归属入选批次的费用，其余指标全部不含手续费。Kalshi 反向买入产生的净对冲费用仍计入买入手续费；到期结算不生成卖出手续费。接管前未记录的费用不补算。</p></li>
     </ol></details>
   </section>;
+}
+const missingDispositionMessage = "历史仓位缺少平仓流水，暂时无法核算。可调整开仓范围后重试。";
+function UnavailableAccountRow({ item }: { item: UnavailableCohortAccount }) {
+  return <tr data-core-metrics-account={item.executionAccountId} className="trading-core-unavailable"><th scope="row"><span>{item.executionAccountId}</span><small>{item.marketSource === "KALSHI" ? "Kalshi" : "Polymarket"}</small></th><td colSpan={LABELS.length}><p>{missingDispositionMessage}</p></td></tr>;
+}
+function UnavailableSingleAccount({ item }: { item: UnavailableCohortAccount }) {
+  return <div className="notice trading-core-unavailable" role="status" data-core-metrics-account={item.executionAccountId}><p>{missingDispositionMessage}</p></div>;
 }
 function AccountTableRow({ item }: { item: AccountCoreMetrics }) {
   const [open, setOpen] = useState(false); const id = useId();

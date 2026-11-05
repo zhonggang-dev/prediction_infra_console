@@ -84,10 +84,22 @@ export interface AccountCohortMetrics extends AccountCoreMetrics {
   roi: string | null; buyFees: string; sellFees: string;
   maxDrawdown: string | null; drawdownState: "available" | "history_unavailable";
 }
-export interface AccountCohortMetricsResponse { observedAt: string; openingFrom: string | null; openingTo: string | null; items: AccountCohortMetrics[] }
+export interface UnavailableCohortAccount {
+  executionAccountId: string; marketSource: "POLYMARKET" | "KALSHI"; reason: "missing_disposition_evidence";
+}
+export interface AccountCohortMetricsResponse { observedAt: string; openingFrom: string | null; openingTo: string | null; items: AccountCohortMetrics[]; unavailableAccounts: UnavailableCohortAccount[] }
 export interface AccountCohortQuery { execution_account_id?: string; account_scope?: "active" | "all"; opening_from?: string; opening_to?: string }
 export function decodeAccountCohortMetrics(data: Record<string, unknown>, requested: AccountCohortQuery = {}): AccountCohortMetricsResponse {
-  const core = decodeAccountCoreMetrics(data, requested.execution_account_id);
+  const core = decodeAccountCoreMetrics(data);
+  if (!Array.isArray(data.unavailable_accounts)) throw invalid();
+  const seen = new Set(core.items.map(item => item.executionAccountId));
+  const unavailableAccounts = data.unavailable_accounts.map((raw): UnavailableCohortAccount => {
+    const item = record(raw), executionAccountId = id(item.execution_account_id), marketSource = source(item.market_source);
+    if (seen.has(executionAccountId) || item.reason !== "missing_disposition_evidence") throw invalid();
+    seen.add(executionAccountId);
+    return { executionAccountId, marketSource, reason: item.reason };
+  });
+  if (requested.execution_account_id && (seen.size !== 1 || !seen.has(requested.execution_account_id))) throw invalid();
   const openingFrom = nullableTime(data.opening_from), openingTo = nullableTime(data.opening_to);
   if ((openingFrom === null) !== (openingTo === null) || (openingFrom && openingTo && Date.parse(openingFrom) >= Date.parse(openingTo))) throw invalid();
   if ((requested.opening_from ? Date.parse(requested.opening_from) : null) !== (openingFrom ? Date.parse(openingFrom) : null) || (requested.opening_to ? Date.parse(requested.opening_to) : null) !== (openingTo ? Date.parse(openingTo) : null)) throw invalid();
@@ -102,7 +114,7 @@ export function decodeAccountCohortMetrics(data: Record<string, unknown>, reques
     if ((raw.drawdown_state === "available") !== (maxDrawdown !== null)) throw invalid();
     return { ...item, openedAssetCount, holdingAssetCount, closedAssetCount, roi, buyFees, sellFees, maxDrawdown, drawdownState: raw.drawdown_state };
   });
-  return { observedAt: core.observedAt, openingFrom, openingTo, items };
+  return { observedAt: core.observedAt, openingFrom, openingTo, items, unavailableAccounts };
 }
 /** Browser-local whole hours may map to :30 UTC in half-hour time zones. */
 export function cohortOpeningRangeError(params: Pick<AccountCohortQuery, "opening_from" | "opening_to">): string | undefined {
