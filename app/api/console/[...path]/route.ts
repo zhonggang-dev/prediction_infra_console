@@ -24,6 +24,7 @@ async function forward(request: Request, path: string[]): Promise<Response> {
   }
   const target = resolveTarget(path, request.method);
   if (!target) return Response.json({ error: "不支持的控制台接口" }, { status: 404 });
+  if (path[0] === "kalshi-pnl" && !validKalshiPnlQuery(request, path)) return Response.json({ error: "Kalshi 官方盈亏筛选无效", code: "INVALID_KALSHI_PNL_FILTER" }, { status: 400 });
   if (!target.baseUrl || !target.token) return Response.json({ error: "后端连接尚未配置，请在前端服务环境中设置对应变量。", code: "BACKEND_NOT_CONFIGURED" }, { status: 503 });
   const url = new URL(target.endpoint, target.baseUrl);
   url.search = new URL(request.url).search;
@@ -37,7 +38,7 @@ async function forward(request: Request, path: string[]): Promise<Response> {
       method: request.method,
       headers,
       body: request.method === "GET" ? undefined : await request.text(),
-      signal: target.stream ? undefined : path[0] === "wallet-pnl" ? AbortSignal.any([request.signal, AbortSignal.timeout(10_000)]) : AbortSignal.timeout(10_000),
+      signal: target.stream ? undefined : path[0] === "wallet-pnl" || path[0] === "kalshi-pnl" ? AbortSignal.any([request.signal, AbortSignal.timeout(10_000)]) : AbortSignal.timeout(10_000),
     });
   } catch {
     return Response.json({ message: `上游 ${target.serviceName} 暂时不可用。`, code: "UPSTREAM_UNAVAILABLE" }, { status: 502 });
@@ -109,6 +110,13 @@ function asRecord(value: unknown): Record<string, unknown> {
   return value !== null && typeof value === "object" && !Array.isArray(value) ? value as Record<string, unknown> : {};
 }
 
+function validKalshiPnlQuery(request: Request, path: string[]): boolean {
+  const query = new URL(request.url).searchParams;
+  if (path.length === 2) return [...query].length === 0;
+  if ([...query.keys()].some(key => !["execution_account_id", "range"].includes(key) || query.getAll(key).length !== 1)) return false;
+  return /^kalshi:[A-Za-z0-9._-]{1,120}$/.test(query.get("execution_account_id") ?? "") && ["1d", "1w", "1m", "1y", "all"].includes(query.get("range") ?? "");
+}
+
 /** 只允许代理固定的 Console 与回测数据集路径。 */
 function resolveTarget(path: string[], method: string): ProxyTarget | undefined {
   const first = path[0];
@@ -143,6 +151,9 @@ function resolveTarget(path: string[], method: string): ProxyTarget | undefined 
   }
   if (first === "wallet-pnl" && method === "GET" && (path.length === 1 || (path.length === 2 && path[1] === "accounts"))) {
     return { baseUrl: process.env.TRADING_EXECUTION_BASE_URL, token: process.env.TRADING_EXECUTION_LIVE_READ_ONLY_TOKEN, endpoint: path.length === 1 ? "/api/v1/wallet-pnl" : "/api/v1/wallet-pnl/accounts", stream: false, serviceName: "Trading Execution" };
+  }
+  if (first === "kalshi-pnl" && method === "GET" && (path.length === 1 || (path.length === 2 && path[1] === "accounts"))) {
+    return { baseUrl: process.env.TRADING_EXECUTION_BASE_URL, token: process.env.TRADING_EXECUTION_LIVE_READ_ONLY_TOKEN, endpoint: path.length === 1 ? "/api/v1/kalshi-pnl" : "/api/v1/kalshi-pnl/accounts", stream: false, serviceName: "Trading Execution" };
   }
   if (first === "live-operations" && method === "GET" && path.length === 1) {
     return {
