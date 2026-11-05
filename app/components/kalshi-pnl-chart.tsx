@@ -11,7 +11,8 @@ const PERIODS: { key: WalletPnlSelection; label: string }[] = [
 ];
 const cache = new Map<string, KalshiPnlSeries>();
 
-export function KalshiPnlPanel({ active, account, allowedAccounts }: { active: boolean; account: string; allowedAccounts: readonly string[] }) {
+export function KalshiPnlPanel({ active, account, allowedAccounts, embedded = false }: { active: boolean; account: string; allowedAccounts: readonly string[]; embedded?: boolean }) {
+  const Heading = embedded ? "h3" : "h2";
   const [directory, setDirectory] = useState<KalshiPnlAccount[]>();
   const [directoryError, setDirectoryError] = useState(false);
   const [retry, setRetry] = useState(0);
@@ -38,7 +39,7 @@ export function KalshiPnlPanel({ active, account, allowedAccounts }: { active: b
     setRange(result.range); setPeriod("CUSTOM"); setRangeError(undefined);
   };
   return <section className="section official-wallet-pnl-workspace" aria-label="Kalshi 官方账户盈亏">
-    <div className="section-head official-wallet-pnl-head"><h2 className="section-title">Kalshi 官方账户盈亏</h2><div className="wallet-pnl-periods" role="group" aria-label="Kalshi 官方盈亏周期">{PERIODS.map(item => <button type="button" key={item.key} aria-pressed={period === item.key} className={period === item.key ? "active" : ""} onClick={() => { setPeriod(item.key); setCustomOpen(false); setRangeError(undefined); }}>{item.label}</button>)}<button type="button" aria-pressed={period === "CUSTOM"} aria-expanded={customOpen} className={period === "CUSTOM" ? "active" : ""} onClick={() => { setCustomOpen(true); setMax(walletPnlLocalHour()); }}>自定义</button></div></div>
+    <div className="section-head official-wallet-pnl-head"><Heading className="section-title">Kalshi 官方账户盈亏</Heading><div className="wallet-pnl-periods" role="group" aria-label="Kalshi 官方盈亏周期">{PERIODS.map(item => <button type="button" key={item.key} aria-pressed={period === item.key} className={period === item.key ? "active" : ""} onClick={() => { setPeriod(item.key); setCustomOpen(false); setRangeError(undefined); }}>{item.label}</button>)}<button type="button" aria-pressed={period === "CUSTOM"} aria-expanded={customOpen} className={period === "CUSTOM" ? "active" : ""} onClick={() => { setCustomOpen(true); setMax(walletPnlLocalHour()); }}>自定义</button></div></div>
     <p className="section-caption">曲线采用 Kalshi 官方账户整体盈亏，与上方区间开仓指标的统计范围不同。</p>
     {customOpen && <form className="wallet-pnl-custom-range" aria-label="Kalshi 官方盈亏自定义时间" onSubmit={apply} noValidate>
       <LocalHourInput label="开始" ariaPrefix="Kalshi 官方盈亏" value={start} max={max} onChange={value => { setStart(value); setStartInstant(""); setRangeError(undefined); }} />
