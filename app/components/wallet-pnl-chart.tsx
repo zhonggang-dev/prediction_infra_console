@@ -2,8 +2,9 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { officialPnlAccounts, walletPnl, type OfficialPnlAccount } from "../lib/wallet-pnl-api";
-import { buildWalletPnlChartGeometry, buildWalletPnlView, buildCustomWalletPnlView, chooseCustomWalletPnlQuery, chooseWalletPnlQuery, formatWalletPnlUsd, nearestWalletPnlPointIndex, type WalletPnlSelection, type WalletPnlCustomRange, type WalletPnlView, type WalletPnlChartGeometry } from "../lib/wallet-pnl";
+import { buildWalletPnlChartGeometry, buildWalletPnlView, buildCustomWalletPnlView, chooseCustomWalletPnlQuery, chooseWalletPnlQuery, nearestWalletPnlPointIndex, type WalletPnlSelection, type WalletPnlCustomRange, type WalletPnlView, type WalletPnlChartGeometry } from "../lib/wallet-pnl";
 import type { WalletPnlSeries } from "../lib/wallet-pnl";
+import { OfficialPnlSummary, OfficialPnlState as PnlState } from "./official-pnl-summary";
 import type { OfficialPnlTimeSelection } from "./official-pnl-controls";
 export { LocalHourInput } from "./official-pnl-controls";
 
@@ -41,9 +42,9 @@ export function OfficialWalletPnlPanel({ active, account, allowedAccounts, embed
     return () => controller.abort();
   }, [active, retry, refreshToken]);
   const selected = accounts?.filter(item => (!account || item.executionAccountId === account) && (allowedAccounts === undefined || allowedAccounts.includes(item.executionAccountId)));
-  return <section className="section official-wallet-pnl-workspace" aria-label="官方钱包盈亏">
-    <div className="section-head official-wallet-pnl-head"><Heading className="section-title">Polymarket 官方钱包盈亏</Heading></div>
-    {error ? <PnlState title="官方盈亏暂时不可用" detail={error} retry={() => setRetry((value) => value + 1)} /> : !accounts ? <PnlState title="正在读取钱包" detail="" /> : !selected?.length ? <PnlState title={account ? "该账户暂无 Polymarket 官方盈亏曲线" : "暂无支持官方盈亏的钱包"} detail="" /> : <div className={account ? "official-wallet-pnl-single" : "official-wallet-pnl-grid"}>{selected.map((item) => <WalletPnlCard key={item.executionAccountId} active={active} executionAccountId={item.executionAccountId} period={period} customRange={customRange} refreshToken={refreshToken + retry} accountLabel={item.executionAccountId} />)}</div>}
+  return <section className="section official-wallet-pnl-workspace" aria-label="Polymarket 官方账户盈亏">
+    <div className="section-head official-wallet-pnl-head"><Heading className="section-title">Polymarket 官方账户盈亏</Heading></div>
+    {error ? <PnlState title="官方盈亏暂时不可用" detail={error} retry={() => setRetry((value) => value + 1)} /> : !accounts ? <PnlState title="正在读取账户" detail="" /> : !selected?.length ? <PnlState title="所选账户暂无官方盈亏曲线" detail="" /> : <div className={account ? "official-wallet-pnl-single" : "official-wallet-pnl-grid"}>{selected.map((item) => <WalletPnlCard key={item.executionAccountId} active={active} executionAccountId={item.executionAccountId} period={period} customRange={customRange} refreshToken={refreshToken + retry} accountLabel={item.executionAccountId} />)}</div>}
   </section>;
 }
 
@@ -105,9 +106,7 @@ function WalletPnlCard({ active, executionAccountId, period, customRange, refres
 
   const selectedPoint = view && hoverIndex !== undefined ? view.points[hoverIndex] : undefined;
   const amount = selectedPoint?.value ?? view?.amount ?? null;
-  const amountLabel = amount === null ? "—" : formatWalletPnlUsd(amount);
-  const amountTone = amount === null ? "" : amount > 0 ? "positive" : amount < 0 ? "negative" : "";
-  const pointTime = selectedPoint ? formatPointTime(selectedPoint.timestamp) : (view?.endSampleAt ?? view?.endAt) ? formatPointTime((view?.endSampleAt ?? view?.endAt)!) : "—";
+  const pointTime = selectedPoint?.timestamp ?? view?.endSampleAt ?? view?.endAt;
   const chart = useMemo(() => view ? buildWalletPnlChartGeometry(view) : undefined, [view]);
 
   return <section className="section wallet-pnl-card" aria-labelledby={titleId} data-wallet-pnl-account={executionAccountId}>
@@ -115,21 +114,16 @@ function WalletPnlCard({ active, executionAccountId, period, customRange, refres
       <div className="section-head wallet-pnl-head">
         <div><div className="pnl-title-line"><h3 className="section-title" id={titleId}>{accountLabel}</h3></div></div>
       </div>
-      {!executionAccountId ? <PnlState title="等待钱包身份" detail="选择钱包后读取官方地址级数据。" />
-          : status === "loading" || readyIdentity !== identity ? <PnlState title="正在读取官方盈亏" detail="正在从只读数据接口获取当前钱包的官方累计盈亏序列。" />
+      {!executionAccountId ? <PnlState title="等待账户身份" />
+          : status === "loading" || readyIdentity !== identity ? <PnlState title="正在读取官方盈亏" />
             : status === "error" ? <PnlState title="官方盈亏暂时不可用" detail={error ?? "接口返回错误，请稍后重试。"} retry={() => setRetryToken((value) => value + 1)} />
-              : !view?.points.length || view.amount === null ? <PnlState title="暂无足够盈亏数据" detail={period === "CUSTOM" ? "所选起止边界缺少一小时内的官方有效数据；不会以日线替代或将缺失显示为零。" : "接口没有返回至少两个有效采样点；不会把缺失数据显示成零。"} />
+              : !view?.points.length || view.amount === null || !series ? <PnlState title="暂无足够盈亏数据" detail={period === "CUSTOM" ? "所选起止时间缺少对应的官方采样数据，请调整时间范围。" : "官方尚未提供足够的历史数据。"} />
               : <>
-                  <div className="wallet-pnl-summary"><div><span>{period === "CUSTOM" ? "所选期间盈亏" : "盈亏"}</span><strong className={amountTone} data-wallet-pnl-amount="">{amountLabel}</strong><small>{pointTime}（本地时间）</small></div><details className="wallet-pnl-meta"><summary>钱包信息</summary><code>{series?.walletAddress ?? "—"}</code><small>{series ? `更新于 ${formatFetchedAt(series.fetchedAt)}（本地时间）` : "—"}</small></details></div>
-                  {period === "CUSTOM" && <p className="wallet-pnl-sampling">按官方小时数据计算所选期间盈亏。</p>}
+                  <OfficialPnlSummary platform="polymarket" amount={amount ?? view.amount} timestamp={pointTime} intervalMinutes={series.fidelity === "1d" ? 1440 : Number(series.fidelity.slice(0, -1)) * 60} partialHistory={view.partialHistory} baselineAt={view.baselineAt} endSampleAt={view.endSampleAt ?? view.endAt} />
                   <PnlSvg custom={period === "CUSTOM"} label={period === "CUSTOM" ? "官方钱包所选期间盈亏曲线" : "官方钱包累计盈亏曲线"} fillId={fillId} chart={chart} points={view.points} hoverIndex={hoverIndex} onHover={(index) => setHoverState({ key: identity, index })} />
                 </>}
     </div>
   </section>;
-}
-
-function PnlState({ title, detail, retry }: { title: string; detail: string; retry?: () => void }) {
-  return <div className="wallet-pnl-state"><strong>{title}</strong><p>{detail}</p>{retry && <button className="button" onClick={retry}>重试</button>}</div>;
 }
 
 export function PnlSvg({ custom, label, fillId, chart, points, hoverIndex, onHover }: { custom: boolean; label: string; fillId: string; chart?: WalletPnlChartGeometry; points: { timestamp: number; value: number }[]; hoverIndex?: number; onHover: (index: number | undefined) => void }) {
@@ -154,14 +148,6 @@ export function PnlSvg({ custom, label, fillId, chart, points, hoverIndex, onHov
       if (event.key === "ArrowRight") onHover(Math.min(points.length - 1, active + 1));
     }} tabIndex={0} aria-label="使用左右方向键查看盈亏采样点" />
   </svg><div className="wallet-pnl-axis"><span>{custom ? formatHourAxis(chart.domainStartAt) : formatShortDate(points[0].timestamp)}</span><span>{custom ? formatHourAxis(chart.domainEndAt) : formatShortDate(points[points.length - 1].timestamp)}</span></div></div>;
-}
-
-function formatPointTime(timestamp: number): string {
-  return new Intl.DateTimeFormat("zh-CN", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(timestamp * 1000));
-}
-
-function formatFetchedAt(value: string): string {
-  return new Intl.DateTimeFormat("zh-CN", { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" }).format(new Date(value));
 }
 
 function formatShortDate(timestamp: number): string {
