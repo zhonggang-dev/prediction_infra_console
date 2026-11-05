@@ -4,8 +4,10 @@ import { useEffect, useMemo, useState } from "react";
 import { consoleV2, type ConsoleV2Order, type ConsoleV2Page, type ConsoleV2PositionLot, type ConsoleV2ReconciliationIssue, type ConsoleV2ReconciliationRun, type ConsoleV2AccountSettlement, type ConsoleV2Account } from "../lib/console-v2";
 import { portfolioHoldingIdentity, type ConsoleV2PortfolioHolding } from "../lib/trading-holdings";
 import { formatV2Number, formatV2Time, V2Facts, V2Frame, V2ListPage, V2Tabs, V2WorkspacePanel, V2SubViews, WORKSPACE_FILTER_CHANGE_EVENT, useV2Filter, useWorkspaceTabs, v2Status, v2Unknown } from "./console-v2-resource";
-import { OfficialWalletPnlPanel } from "./wallet-pnl-chart";
-import { KalshiPnlPanel } from "./kalshi-pnl-chart";
+import { clearWalletPnlCache, OfficialWalletPnlPanel } from "./wallet-pnl-chart";
+import { clearKalshiPnlCache, KalshiPnlPanel } from "./kalshi-pnl-chart";
+import { OfficialPnlTimeControls, type OfficialPnlTimeSelection } from "./official-pnl-controls";
+import { RefreshCw } from "lucide-react";
 import { AccountCoreMetricsPanel } from "./account-performance";
 import { TradeRecordsPage } from "./trade-records-page";
 import { orderedTradingAccounts, scopedTradingAccounts, tradingAccountScope } from "../lib/trading-account-scope";
@@ -27,6 +29,8 @@ export function TradingV2Page({ view = "orders" }: { view?: TradingView }) {
   const [accountsLoaded, setAccountsLoaded] = useState(false);
   const [accountsError, setAccountsError] = useState<string>();
   const [accountsRetry, setAccountsRetry] = useState(0);
+  const [pnlSelection, setPnlSelection] = useState<OfficialPnlTimeSelection>({ period: "1W" });
+  const [pnlRefresh, setPnlRefresh] = useState(0);
   useEffect(() => { let cancelled = false; void consoleV2.trading.accounts().then((result) => { if (!cancelled) { setAccounts(orderedTradingAccounts(result.data.accounts)); setAccountsLoaded(true); setAccountsError(undefined); } }).catch((error: unknown) => { if (!cancelled) { setAccounts([]); setAccountsLoaded(false); setAccountsError(error instanceof Error ? error.message : "账户目录不可用"); } }); return () => { cancelled = true; }; }, [accountsRetry]);
   const workspace = useWorkspaceTabs(tabs, `/trading/${view}`, { sharedQueryKeys: ["execution_account_id", "account_scope"] });
   const selectedAccount = accounts.find((item) => item.executionAccountId === account);
@@ -50,9 +54,10 @@ export function TradingV2Page({ view = "orders" }: { view?: TradingView }) {
       <div className="trading-ledger-layout">
         <div className="trading-ledger-block"><AccountCoreMetricsPanel active={workspace.active === "/trading/ledger"} account={account} accountScope={effectiveScope} accountOrder={scopedTradingAccounts(accounts, effectiveScope).map(item => item.executionAccountId)} /></div>
         <section className="trading-ledger-block trading-ledger-official" aria-label="官方账户盈亏">
-          <div className="section-head"><h2 className="section-title">官方账户盈亏</h2></div>
-          {(!account || selectedSource === "POLYMARKET") && <OfficialWalletPnlPanel embedded active={workspace.active === "/trading/ledger" && accountsLoaded} account={account} allowedAccounts={account ? [account] : scopedTradingAccounts(accounts, effectiveScope).map(item => item.executionAccountId)} />}
-          {((!account && scopedTradingAccounts(accounts, effectiveScope).some(item => item.marketSource === "KALSHI")) || selectedSource === "KALSHI") && <KalshiPnlPanel embedded active={workspace.active === "/trading/ledger" && accountsLoaded} account={account} allowedAccounts={account ? [account] : scopedTradingAccounts(accounts, effectiveScope).map(item => item.executionAccountId)} />}
+          <div className="section-head"><h2 className="section-title">官方账户盈亏</h2><button type="button" className="button trading-block-refresh" aria-label="刷新官方账户盈亏" onClick={() => { clearWalletPnlCache(); clearKalshiPnlCache(); setPnlRefresh(value => value + 1); }}><RefreshCw size={14} aria-hidden="true" />刷新</button></div>
+          <OfficialPnlTimeControls selection={pnlSelection} onChange={setPnlSelection} />
+          {(!account || selectedSource === "POLYMARKET") && <OfficialWalletPnlPanel embedded selection={pnlSelection} refreshToken={pnlRefresh} active={workspace.active === "/trading/ledger" && accountsLoaded} account={account} allowedAccounts={account ? [account] : scopedTradingAccounts(accounts, effectiveScope).map(item => item.executionAccountId)} />}
+          {((!account && scopedTradingAccounts(accounts, effectiveScope).some(item => item.marketSource === "KALSHI")) || selectedSource === "KALSHI") && <KalshiPnlPanel embedded selection={pnlSelection} refreshToken={pnlRefresh} active={workspace.active === "/trading/ledger" && accountsLoaded} account={account} allowedAccounts={account ? [account] : scopedTradingAccounts(accounts, effectiveScope).map(item => item.executionAccountId)} />}
         </section>
         <div className="trading-ledger-block"><TradeRecordsPage embedded sharedAccountOnly compact /></div>
       </div>
