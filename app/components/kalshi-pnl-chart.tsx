@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useId, useMemo, useState } from "react";
-import { buildKalshiPnlView, chooseKalshiPnlRange, kalshiPnl, kalshiPnlAccounts, type KalshiPnlAccount, type KalshiPnlSeries } from "../lib/kalshi-pnl";
+import { buildKalshiPnlView, chooseKalshiPnlRange, combineKalshiPnlSeries, shouldSupplementKalshiPnl, kalshiPnl, kalshiPnlAccounts, type KalshiPnlAccount, type KalshiPnlSeries } from "../lib/kalshi-pnl";
 import { buildWalletPnlChartGeometry, type WalletPnlCustomRange, type WalletPnlSelection } from "../lib/wallet-pnl";
 import { PnlSvg } from "./wallet-pnl-chart";
 import { OfficialPnlSummary, OfficialPnlState as PnlState } from "./official-pnl-summary";
@@ -40,13 +40,19 @@ function KalshiPnlCard({ active, account, period, range, refreshToken }: { activ
     const controller = new AbortController();
     const load = async () => {
       try {
-        const query = chooseKalshiPnlRange(period, range), key = `${account}:${query}`;
-        const old = cache.get(key), now = Date.now();
-        const series = old && Date.parse(old.fetchedAt) + 60_000 > now && (period !== "CUSTOM" || !range || range.endMs <= Date.parse(old.fetchedAt)) ? old : await kalshiPnl(account, query, controller.signal);
-        if (controller.signal.aborted) return;
-        for (const [k, v] of cache) if (Date.parse(v.fetchedAt) + 60_000 <= now) cache.delete(k);
-        if (cache.size >= 64) cache.delete(cache.keys().next().value!);
-        cache.set(key, series); setResult({ identity, series });
+        const loadSeries = async (query: KalshiPnlSeries["range"]) => {
+          controller.signal.throwIfAborted();
+          const key = `${account}:${query}`, old = cache.get(key), now = Date.now();
+          if (old && Date.parse(old.fetchedAt) + 60_000 > now && (period !== "CUSTOM" || !range || range.endMs <= Date.parse(old.fetchedAt))) return old;
+          const data = await kalshiPnl(account, query, controller.signal);
+          controller.signal.throwIfAborted();
+          for (const [k, v] of cache) if (Date.parse(v.fetchedAt) + 60_000 <= now) cache.delete(k);
+          if (cache.size >= 64) cache.delete(cache.keys().next().value!);
+          cache.set(key, data); return data;
+        };
+        const history = await loadSeries(chooseKalshiPnlRange(period, range));
+        const series = shouldSupplementKalshiPnl(period, range, history) ? combineKalshiPnlSeries(history, await loadSeries("1m")) : history;
+        if (!controller.signal.aborted) setResult({ identity, series });
       } catch (error) { if (!controller.signal.aborted) setResult({ identity, error: error instanceof Error ? error.message : "Kalshi 官方盈亏暂不可用。" }); }
     };
     void load(); return () => controller.abort();
@@ -61,7 +67,7 @@ function KalshiPnlCard({ active, account, period, range, refreshToken }: { activ
   return <section className="section wallet-pnl-card" aria-label={`${account} Kalshi 官方盈亏`} data-kalshi-pnl-account={account}><div className="wallet-pnl-panel">
     <div className="section-head wallet-pnl-head"><h3 className="section-title">{account}</h3></div>
     {result?.identity !== identity ? <PnlState title="正在读取官方盈亏" /> : result.error ? <PnlState title="官方盈亏暂时不可用" detail={result.error} retry={() => setRetry(n => n + 1)} /> : view?.error ? <PnlState title="暂无足够盈亏数据" detail={view.error} /> : view && series && amount !== undefined && amount !== null ? <>
-      <OfficialPnlSummary platform="kalshi" amount={amount} timestamp={time} intervalMinutes={series.periodIntervalMinutes} approximate={view.approximate} partialHistory={view.partialHistory} baselineAt={view.baselineAt} endSampleAt={view.endSampleAt} />
+      <OfficialPnlSummary platform="kalshi" amount={amount} timestamp={time} intervalMinutes={view.samplingIntervalMinutes ?? series.periodIntervalMinutes} recentIntervalMinutes={view.recentIntervalMinutes} approximate={view.approximate} partialHistory={view.partialHistory} baselineAt={view.baselineAt} endSampleAt={view.endSampleAt} />
       <PnlSvg custom={period === "CUSTOM"} label="Kalshi 官方账户盈亏曲线" fillId={`kalshi-pnl-${id}`} chart={chart} points={view.points} hoverIndex={hoverIndex} onHover={index => setHover({ identity, index })} />
     </> : <PnlState title="暂无足够盈亏数据" detail="官方尚未提供足够的历史数据。" />}
   </div></section>;

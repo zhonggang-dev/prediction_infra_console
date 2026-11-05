@@ -8,17 +8,19 @@ function formatLocalTime(timestamp: number): string {
   return `${part("year")}-${part("month")}-${part("day")} ${part("hour")}:${part("minute")}`;
 }
 
-export function OfficialPnlSummary({ platform, amount, timestamp, intervalMinutes, approximate = false, partialHistory = false, baselineAt, endSampleAt }: {
+export function OfficialPnlSummary({ platform, amount, timestamp, intervalMinutes, recentIntervalMinutes, approximate = false, partialHistory = false, baselineAt, endSampleAt }: {
   platform: "polymarket" | "kalshi";
   amount: number;
   timestamp?: number | null;
   intervalMinutes: number;
+  recentIntervalMinutes?: number;
   approximate?: boolean;
   partialHistory?: boolean;
   baselineAt?: number | null;
   endSampleAt?: number | null;
 }) {
-  const interval = intervalMinutes >= 1440 ? `${intervalMinutes / 1440}天` : intervalMinutes >= 60 ? `${intervalMinutes / 60}小时` : `${intervalMinutes}分钟`;
+  const formatInterval = (minutes: number) => minutes >= 1440 ? `${minutes / 1440}天` : minutes >= 60 ? `${minutes / 60}小时` : `${minutes}分钟`;
+  const interval = recentIntervalMinutes ? `早期${formatInterval(intervalMinutes)} / 近期${formatInterval(recentIntervalMinutes)}` : formatInterval(intervalMinutes);
   const sampleRange = baselineAt && endSampleAt ? `计算采样：${formatLocalTime(baselineAt)} 至 ${formatLocalTime(endSampleAt)}（本地时间）。` : undefined;
   return <>
     <div className="wallet-pnl-summary"><div><span>盈亏</span><strong className={amount > 0 ? "positive" : amount < 0 ? "negative" : ""} data-wallet-pnl-amount={platform === "polymarket" ? "" : undefined} data-kalshi-pnl-amount={platform === "kalshi" ? "" : undefined}>{formatWalletPnlUsd(amount)}</strong><small>数据时间：{timestamp ? formatLocalTime(timestamp) : "—"}（本地时间）</small></div></div>
