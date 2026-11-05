@@ -85,7 +85,7 @@ test("Kalshi官方最近成交价保留来源且不冒充mid，拒绝串入PM", 
 
 
 const cohortItem = { ...item, opened_asset_count: 3, holding_asset_count: 1, closed_asset_count: 2, roi: "-0.20000005", buy_fees: "0.123456", sell_fees: "0.02", max_drawdown: null, drawdown_state: "history_unavailable" };
-const cohortData = (patch: Record<string, unknown> = {}) => ({ observed_at: observed, opening_from: null, opening_to: null, items: [cohortItem], ...patch });
+const cohortData = (patch: Record<string, unknown> = {}) => ({ observed_at: observed, opening_from: null, opening_to: null, items: [cohortItem], unavailable_accounts: [], ...patch });
 test("开仓区间核心指标保留毛收益、独立费用与完整资产等式，不伪造总回撤", () => {
   const result = decodeAccountCohortMetrics(cohortData()).items[0];
   assert.equal(result.openedAssetCount, result.holdingAssetCount + result.closedAssetCount);
@@ -149,4 +149,20 @@ test("外部URL的非本地整点不发送查询，半小时时区本地整点�
     assert.equal(requests, 1);
     assert.match(cohortOpeningRangeError({ ...range, opening_from: "2026-11-01T05:00:00Z" }) ?? "", /不是本地整点/);
   } finally { globalThis.fetch = previousFetch; if (previousTz === undefined) delete process.env.TZ; else process.env.TZ = previousTz; }
+});
+
+
+test("缺平仓证据账户隔离返回，成功账户与失败账户严格互斥且单账户并集准确", () => {
+  const unavailable = { execution_account_id: "wallet-1", market_source: "POLYMARKET", reason: "missing_disposition_evidence" };
+  const mixed = cohortData({ unavailable_accounts: [unavailable] });
+  const result = decodeAccountCohortMetrics(mixed);
+  assert.equal(result.items.length, 1);
+  assert.equal(result.items[0].executionAccountId, "kalshi:main");
+  assert.deepEqual(result.unavailableAccounts, [{ executionAccountId: "wallet-1", marketSource: "POLYMARKET", reason: "missing_disposition_evidence" }]);
+  const single = decodeAccountCohortMetrics(cohortData({ items: [], unavailable_accounts: [unavailable] }), { execution_account_id: "wallet-1" });
+  assert.equal(single.items.length, 0); assert.equal(single.unavailableAccounts.length, 1);
+  for (const unavailable_accounts of [undefined, null, {}, [unavailable, unavailable], [{ ...unavailable, execution_account_id: "kalshi:main" }], [{ ...unavailable, market_source: "OTHER" }], [{ ...unavailable, reason: "raw SQL error" }], [{ ...unavailable, execution_account_id: "" }]]) assert.throws(() => decodeAccountCohortMetrics(cohortData({ unavailable_accounts })));
+  assert.throws(() => decodeAccountCohortMetrics(mixed, { execution_account_id: "wallet-1" }));
+  assert.throws(() => decodeAccountCohortMetrics(cohortData({ items: [], unavailable_accounts: [unavailable] }), { execution_account_id: "main" }));
+  assert.throws(() => decodeAccountCohortMetrics(cohortData({ items: [] }), { execution_account_id: "wallet-1" }));
 });
