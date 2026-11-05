@@ -2,7 +2,7 @@
 
 import { RefreshCw } from "lucide-react";
 import { Fragment, useEffect, useId, useRef, useState } from "react";
-import { accountCohortMetrics, cohortOpeningRangeError, type AccountCohortMetrics as AccountCoreMetrics, type AccountCohortMetricsResponse as AccountCoreMetricsResponse, type AccountCohortQuery, type UnavailableCohortAccount, type CorePriceSource, type CorePriceReason } from "../lib/trading-core-metrics";
+import { accountCohortMetrics, cohortOpeningRangeError, type AccountCohortMetrics as AccountCoreMetrics, type AccountCohortMetricsResponse as AccountCoreMetricsResponse, type AccountCohortQuery, type UnavailableCohortAccount, type CorePriceSource, type CorePriceReason, type CohortDrawdownReason } from "../lib/trading-core-metrics";
 import { formatV2Time, useV2Filter } from "./console-v2-resource";
 import { LocalHourInput } from "./wallet-pnl-chart";
 import { validateWalletPnlRange, walletPnlLocalHour, walletPnlHourCandidates, formatWalletPnlOffset } from "../lib/wallet-pnl";
@@ -10,6 +10,10 @@ import "./account-performance.css";
 
 const sourceLabels: Record<CorePriceSource, string> = { PM_CURRENT_PRICE: "Polymarket 官方现价", PM_CLOB_MID: "Polymarket 盘口中间价（参考）", KALSHI_BOOK_MID: "Kalshi 盘口中间价（参考）", KALSHI_LAST_TRADE: "Kalshi 官方最近成交价", OFFICIAL_SETTLEMENT: "官方确认结算价" };
 const reasonLabels: Record<CorePriceReason, string> = { missing_price: "未返回价格", one_sided: "缺少有效双边盘口", invalid_price: "价格无效", identity_mismatch: "资产身份不一致", stale: "报价已过期", timeout: "取价超时", source_unavailable: "价格来源暂不可用", unconfirmed_settlement: "结算结果尚未最终确认" };
+const drawdownLabels: Record<CohortDrawdownReason, string> = { not_synced: "待同步", syncing: "同步中", missing_prices: "历史价格缺口", stale_endpoint: "当前报价不足", budget_exceeded: "范围暂未计算" };
+function drawdownStatus(item: AccountCoreMetrics): string {
+  return item.drawdownState === "available" ? "已计算" : item.drawdownCoverage?.reason ? drawdownLabels[item.drawdownCoverage.reason] : "历史回撤尚未计算";
+}
 const money = (value: string | null, signed = false) => value === null ? "—" : `${signed && Number(value) > 0 ? "+" : ""}${new Intl.NumberFormat("zh-CN", { style: "currency", currency: "USD", currencyDisplay: "narrowSymbol", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value))}`;
 const tone = (value: string | null) => value === null ? "" : Number(value) > 0 ? "positive" : Number(value) < 0 ? "negative" : "";
 const percent = (value: string | null) => value === null ? "—" : `${Number(value) > 0 ? "+" : ""}${(Number(value) * 100).toFixed(2)}%`;
@@ -25,7 +29,7 @@ function stats(item: AccountCoreMetrics) {
     { label: "总盈亏", value: money(item.totalPnl, true), tone: tone(item.totalPnl) },
     { label: "ROI（累计本金）", value: percent(item.roi), tone: tone(item.roi) },
     { label: "Return（峰值本金）", value: percent(item.returnRate), tone: tone(item.returnRate) },
-    { label: "最大回撤", value: money(drawdown), tone: tone(drawdown), detail: item.drawdownState === "history_unavailable" ? "历史价格不完整" : undefined },
+    { label: "最大回撤", value: money(drawdown), tone: tone(drawdown), detail: item.drawdownState === "history_unavailable" ? drawdownStatus(item) : undefined },
     { label: "买入手续费", value: money(item.buyFees) },
     { label: "卖出手续费", value: money(item.sellFees) },
   ];
@@ -55,7 +59,7 @@ export function AccountCoreMetricsPanel({ active, account, accountOrder = [], ac
   }) : undefined;
   return <section className="section trading-core-metrics" data-v2-extra-query={JSON.stringify({ opening_from: openingFrom, opening_to: openingTo })} aria-label="账户核心指标" aria-busy={active && !current?.data && !current?.error}>
     <div className="section-head"><h2 className="section-title">账户核心指标</h2><div className="trading-block-actions">{current?.data && <span className="section-caption">账本观测 {formatV2Time(current.data.observedAt)}</span>}<button type="button" className="button trading-block-refresh" aria-label="刷新账户核心指标" disabled={active && !current?.data && !current?.error} onClick={() => setRetry(value => value + 1)}><RefreshCw size={14} aria-hidden="true" />刷新</button></div></div>
-    <p className="section-caption trading-core-basis">系统纳管口径 · 追踪所选时间内开的仓位，截至现在的表现；剩余持仓按最新价格计算。各项收益未扣手续费。</p>
+    <p className="section-caption trading-core-basis">系统纳管口径 · 追踪所选时间内开的仓位，截至现在的表现；剩余持仓按最新价格计算。最大回撤按小时采样，含浮动盈亏，未扣手续费。</p>
     <OpeningRangeForm key={`${openingFrom}/${openingTo}`} from={openingFrom} to={openingTo} />
     {current?.error ? <div className="notice error" role="alert"><p>{current.error}</p><button type="button" className="button" onClick={() => setRetry(v => v + 1)}>重试</button></div>
       : !rows ? <p className="trading-core-state">正在读取账户核心指标…</p>
@@ -71,7 +75,7 @@ export function AccountCoreMetricsPanel({ active, account, accountOrder = [], ac
       <li><strong>当前浮动盈亏</strong><p>当前持仓估值 − 入选批次的剩余买入本金。</p></li>
       <li><strong>总盈亏</strong><p>已实现盈亏 ＋ 当前浮动盈亏。</p></li>
       <li><strong>ROI 与 Return</strong><p>ROI ＝ 总盈亏 ÷ 累计投入本金；Return ＝ 总盈亏 ÷ 最高同时持仓本金。两者都未扣手续费，分母为零时显示“—”。</p></li>
-      <li><strong>最大回撤</strong><p>需要这批仓位的完整历史价格，才能计算包含浮盈亏的总盈亏回撤。历史价格不完整时显示“—”，不拿已实现盈亏回撤替代。</p></li>
+      <li><strong>最大回撤</strong><p>这批仓位从开仓至今，总盈亏从历史高点到后续低点的最大下降金额。按小时采样，含浮动盈亏，未扣手续费；小时内的短暂峰谷可能未被记录。等待同步或存在缺口时显示“—”及具体原因。</p></li>
       <li><strong>买入手续费与卖出手续费</strong><p>只列实际记录并归属入选批次的费用，其余指标全部不含手续费。Kalshi 反向买入产生的净对冲费用仍计入买入手续费；到期结算不生成卖出手续费。接管前未记录的费用不补算。</p></li>
     </ol></details>
   </section>;
@@ -96,9 +100,23 @@ function SingleAccount({ item }: { item: AccountCoreMetrics }) {
   </article>;
 }
 function AssetDetails({ item }: { item: AccountCoreMetrics }) {
-  return <section className="trading-core-assets" aria-label={`${item.executionAccountId} 资产取价明细`}><p>账本 {formatV2Time(item.ledgerObservedAt)} · 已定价 {item.pricedAssetCount}/{item.assetCount}。份额与成本来自本地账本；缺少任一资产价格时，账户估值、浮盈亏、总盈亏及收益率保留未知。</p>{item.valuationAssets.length === 0 ? <p>当前没有纳管持仓。</p> : <div className="trading-core-scroll"><table><thead><tr><th>市场 / 结果</th><th>本地份额 / 成本</th><th>价格 / 估值</th><th>来源 / 状态</th><th>观测时间</th></tr></thead><tbody>{item.valuationAssets.map(asset => <tr key={JSON.stringify([asset.marketSource, asset.marketId, asset.conditionId, asset.tokenId, asset.outcomeIndex, asset.outcomeName])} data-core-asset={asset.tokenId}>
+  return <section className="trading-core-assets" aria-label={`${item.executionAccountId} 资产取价明细`}><DrawdownCoverageDetails item={item} /><p>账本 {formatV2Time(item.ledgerObservedAt)} · 已定价 {item.pricedAssetCount}/{item.assetCount}。份额与成本来自本地账本；缺少任一资产价格时，账户估值、浮盈亏、总盈亏及收益率保留未知。</p>{item.valuationAssets.length === 0 ? <p>当前没有纳管持仓。</p> : <div className="trading-core-scroll"><table><thead><tr><th>市场 / 结果</th><th>本地份额 / 成本</th><th>价格 / 估值</th><th>来源 / 状态</th><th>观测时间</th></tr></thead><tbody>{item.valuationAssets.map(asset => <tr key={JSON.stringify([asset.marketSource, asset.marketId, asset.conditionId, asset.tokenId, asset.outcomeIndex, asset.outcomeName])} data-core-asset={asset.tokenId}>
       <td><strong>{asset.marketQuestion || asset.marketId || asset.conditionId}</strong><small>{asset.outcomeName ?? (asset.outcomeIndex === null ? "结果未提供" : String(asset.outcomeIndex))}</small></td><td><span>{asset.remainingShares}</span><small>{money(asset.remainingCost)}</small></td><td><span>{asset.price === null ? "—" : asset.price}</span><small>{money(asset.marketValue)}</small></td><td>{asset.priceSource ? sourceLabels[asset.priceSource] : asset.reason ? reasonLabels[asset.reason] : "—"}</td><td>{formatV2Time(asset.observedAt ?? undefined)}{asset.sourceAt && <small>来源时间 {formatV2Time(asset.sourceAt ?? undefined)}</small>}</td>
     </tr>)}</tbody></table></div>}</section>;
+}
+
+function DrawdownCoverageDetails({ item }: { item: AccountCoreMetrics }) {
+  const coverage = item.drawdownCoverage;
+  if (!coverage) return null;
+  return <section aria-label={`${item.executionAccountId} 历史回撤覆盖`}><h3>历史回撤覆盖</h3><dl className="trading-core-drawdown-coverage">
+    <div><dt>计算状态</dt><dd>{drawdownStatus(item)}</dd></div>
+    <div><dt>采样口径</dt><dd>按小时采样，含浮动盈亏，未扣手续费</dd></div>
+    {coverage.from !== null && <div><dt>覆盖开始</dt><dd>{formatV2Time(coverage.from)}</dd></div>}
+    {coverage.to !== null && <div><dt>覆盖结束</dt><dd>{formatV2Time(coverage.to)}</dd></div>}
+    {coverage.missingAssetCount !== null && <div><dt>缺口资产数</dt><dd>{coverage.missingAssetCount} 项</dd></div>}
+    {coverage.missingPointCount !== null && <div><dt>缺口采样点</dt><dd>{coverage.missingPointCount} 个</dd></div>}
+    {coverage.computedAt !== null && <div><dt>最近计算</dt><dd>{formatV2Time(coverage.computedAt)}</dd></div>}
+  </dl></section>;
 }
 
 function LocalScroll({ label, children }: { label: string; children: React.ReactNode }) {

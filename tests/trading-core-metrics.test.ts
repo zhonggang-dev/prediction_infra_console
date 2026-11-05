@@ -97,6 +97,32 @@ test("开仓区间核心指标保留毛收益、独立费用与完整资产等�
   assert.throws(() => decodeAccountCohortMetrics(cohortData({ items: [{ ...noHistory, roi: "0" }] })));
 });
 
+const drawdownCoverage = { reason: "missing_prices", fidelity_seconds: 3600, from: "2026-10-28T00:00:00Z", to: observed, computed_at: observed, missing_asset_count: 1, missing_point_count: 3 };
+test("小时回撤覆盖区分真实缺价和同步状态，保留旧响应与未知计数", () => {
+  assert.equal(decodeAccountCohortMetrics(cohortData()).items[0].drawdownCoverage, undefined);
+  for (const reason of ["not_synced", "syncing", "missing_prices", "stale_endpoint", "budget_exceeded"]) {
+    const raw = { ...cohortItem, drawdown_coverage: { ...drawdownCoverage, reason } };
+    const result = decodeAccountCohortMetrics(cohortData({ items: [raw] })).items[0];
+    assert.deepEqual(result.drawdownCoverage, { reason, fidelitySeconds: 3600, from: drawdownCoverage.from, to: observed, computedAt: observed, missingAssetCount: 1, missingPointCount: 3 });
+    assert.equal(result.maxDrawdown, null);
+  }
+  const pending = { ...cohortItem, drawdown_coverage: { ...drawdownCoverage, reason: "not_synced", from: null, to: null, computed_at: null, missing_asset_count: null, missing_point_count: null } };
+  assert.equal(decodeAccountCohortMetrics(cohortData({ items: [pending] })).items[0].drawdownCoverage?.missingPointCount, null);
+  const computed = { ...cohortItem, drawdown_state: "available", max_drawdown: "0.000001", drawdown_coverage: { ...drawdownCoverage, reason: null, missing_asset_count: 0, missing_point_count: 0 } };
+  assert.equal(decodeAccountCohortMetrics(cohortData({ items: [computed] })).items[0].maxDrawdown, "0.000001");
+  assert.equal(decodeAccountCohortMetrics(cohortData({ items: [{ ...computed, max_drawdown: "0", drawdown_coverage: { ...computed.drawdown_coverage, from: null, to: null } }] })).items[0].maxDrawdown, "0");
+  const offset = { ...drawdownCoverage, from: "2026-10-28T08:00:00+08:00", to: "2026-11-04T20:00:00.123456+08:00" };
+  assert.equal(decodeAccountCohortMetrics(cohortData({ items: [{ ...cohortItem, drawdown_coverage: offset }] })).items[0].drawdownCoverage?.from, offset.from);
+});
+
+test("回撤覆盖拒绝非法精度、时间、计数和可用状态矛盾", () => {
+  const invalidCoverage = [null, [], "missing_prices", {},
+    ...[{ reason: undefined }, { reason: "raw SQL error" }, { reason: null }, { fidelity_seconds: 60 }, { fidelity_seconds: "3600" }, { fidelity_seconds: undefined }, { from: "2026-11-05T00:00:00Z" }, { from: "2026-11-01" }, { to: "2026-11-04T12:00:00" }, { to: "2026-11-04T24:00:00Z" }, { from: "2026-02-30T00:00:00Z" }, { computed_at: "bad" }, { computed_at: undefined }, { missing_asset_count: -1 }, { missing_asset_count: 1.1 }, { missing_asset_count: "1" }, { missing_asset_count: undefined }, { missing_point_count: Number.MAX_SAFE_INTEGER + 1 }, { missing_point_count: Infinity }].map(patch => ({ ...drawdownCoverage, ...patch }))];
+  for (const coverage of invalidCoverage) assert.throws(() => decodeAccountCohortMetrics(cohortData({ items: [{ ...cohortItem, drawdown_coverage: coverage }] })));
+  const available = { ...cohortItem, max_drawdown: "3.25", drawdown_state: "available" };
+  for (const coverage of [drawdownCoverage, { ...drawdownCoverage, reason: null }, { ...drawdownCoverage, reason: null, missing_asset_count: 0 }]) assert.throws(() => decodeAccountCohortMetrics(cohortData({ items: [{ ...available, drawdown_coverage: coverage }] })));
+});
+
 test("开仓区间响应须与请求时间一致，账户切换不能接受串范围响应", () => {
   const range = { opening_from: "2026-11-01T00:00:00Z", opening_to: "2026-11-03T00:00:00Z" };
   assert.equal(decodeAccountCohortMetrics(cohortData(range), range).openingFrom, range.opening_from);

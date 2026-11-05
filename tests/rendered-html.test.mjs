@@ -247,6 +247,8 @@ test("收益页默认官方曲线与精简账本，四个主Tab不恢复旧概�
   assert.match(html, /Polymarket 官方账户盈亏/);
   assert.match(html, /aria-label="账户核心指标"/);
   assert.match(html, /系统纳管口径/);
+  assert.match(html, /按小时采样，含浮动盈亏，未扣手续费/);
+  assert.doesNotMatch(html, /历史价格不完整/);
   assert.ok(html.indexOf('aria-label="账户核心指标"') < html.indexOf('aria-label="Polymarket 官方账户盈亏"'));
   assert.match(html, />自定义<\/button>/);
   assert.match(html, /成交与结算明细/);

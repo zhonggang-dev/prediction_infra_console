@@ -79,10 +79,37 @@ export async function accountCoreMetrics(account = "", signal?: AbortSignal): Pr
 
 
 /** An opening cohort keeps its own lot quantities and follows their lifecycle to now. */
+export type CohortDrawdownReason = "not_synced" | "syncing" | "missing_prices" | "stale_endpoint" | "budget_exceeded";
+export interface CohortDrawdownCoverage {
+  reason: CohortDrawdownReason | null; fidelitySeconds: 3600;
+  from: string | null; to: string | null; computedAt: string | null;
+  missingAssetCount: number | null; missingPointCount: number | null;
+}
 export interface AccountCohortMetrics extends AccountCoreMetrics {
   openedAssetCount: number; holdingAssetCount: number; closedAssetCount: number;
   roi: string | null; buyFees: string; sellFees: string;
   maxDrawdown: string | null; drawdownState: "available" | "history_unavailable";
+  drawdownCoverage?: CohortDrawdownCoverage;
+}
+const DRAWDOWN_REASONS: CohortDrawdownReason[] = ["not_synced", "syncing", "missing_prices", "stale_endpoint", "budget_exceeded"];
+function coverageTime(value: unknown): string | null {
+  if (value === null) return null;
+  if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d:[0-5]\d(?:\.\d+)?(?:Z|[+-](?:[01]\d|2[0-3]):[0-5]\d)$/.test(value)) throw invalid();
+  const result = timestamp(value), date = value.slice(0, 10);
+  if (new Date(`${date}T00:00:00Z`).toISOString().slice(0, 10) !== date) throw invalid();
+  return result;
+}
+function decodeDrawdownCoverage(value: unknown, state: AccountCohortMetrics["drawdownState"]): CohortDrawdownCoverage | undefined {
+  if (value === undefined) return undefined;
+  const raw = record(value);
+  const reason = raw.reason === null ? null : DRAWDOWN_REASONS.find(reason => reason === raw.reason);
+  if (reason === undefined || raw.fidelity_seconds !== 3600 || (state === "available") !== (reason === null)) throw invalid();
+  const from = coverageTime(raw.from), to = coverageTime(raw.to), computedAt = coverageTime(raw.computed_at);
+  if (from !== null && to !== null && Date.parse(from) > Date.parse(to)) throw invalid();
+  const missingAssetCount = raw.missing_asset_count === null ? null : count(raw.missing_asset_count);
+  const missingPointCount = raw.missing_point_count === null ? null : count(raw.missing_point_count);
+  if (state === "available" && ((missingAssetCount ?? 0) > 0 || (missingPointCount ?? 0) > 0)) throw invalid();
+  return { reason, fidelitySeconds: 3600, from, to, computedAt, missingAssetCount, missingPointCount };
 }
 export interface UnavailableCohortAccount {
   executionAccountId: string; marketSource: "POLYMARKET" | "KALSHI"; reason: "missing_disposition_evidence";
@@ -112,7 +139,8 @@ export function decodeAccountCohortMetrics(data: Record<string, unknown>, reques
     const maxDrawdown = nullableDecimal(raw.max_drawdown, true);
     if (raw.drawdown_state !== "available" && raw.drawdown_state !== "history_unavailable") throw invalid();
     if ((raw.drawdown_state === "available") !== (maxDrawdown !== null)) throw invalid();
-    return { ...item, openedAssetCount, holdingAssetCount, closedAssetCount, roi, buyFees, sellFees, maxDrawdown, drawdownState: raw.drawdown_state };
+    const drawdownCoverage = decodeDrawdownCoverage(raw.drawdown_coverage, raw.drawdown_state);
+    return { ...item, openedAssetCount, holdingAssetCount, closedAssetCount, roi, buyFees, sellFees, maxDrawdown, drawdownState: raw.drawdown_state, ...(drawdownCoverage ? { drawdownCoverage } : {}) };
   });
   return { observedAt: core.observedAt, openingFrom, openingTo, items, unavailableAccounts };
 }
