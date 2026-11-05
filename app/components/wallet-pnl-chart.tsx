@@ -2,15 +2,13 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { officialPnlAccounts, walletPnl, type OfficialPnlAccount } from "../lib/wallet-pnl-api";
-import { buildWalletPnlChartGeometry, buildWalletPnlView, buildCustomWalletPnlView, chooseCustomWalletPnlQuery, chooseWalletPnlQuery, formatWalletPnlUsd, nearestWalletPnlPointIndex, validateWalletPnlRange, walletPnlLocalHour, walletPnlHourCandidates, formatWalletPnlOffset, type WalletPnlPeriod, type WalletPnlSelection, type WalletPnlCustomRange, type WalletPnlView, type WalletPnlChartGeometry } from "../lib/wallet-pnl";
+import { buildWalletPnlChartGeometry, buildWalletPnlView, buildCustomWalletPnlView, chooseCustomWalletPnlQuery, chooseWalletPnlQuery, formatWalletPnlUsd, nearestWalletPnlPointIndex, type WalletPnlSelection, type WalletPnlCustomRange, type WalletPnlView, type WalletPnlChartGeometry } from "../lib/wallet-pnl";
 import type { WalletPnlSeries } from "../lib/wallet-pnl";
+import type { OfficialPnlTimeSelection } from "./official-pnl-controls";
+export { LocalHourInput } from "./official-pnl-controls";
 
 import "./wallet-pnl-chart.css";
 
-const PERIODS: { key: WalletPnlPeriod; label: string }[] = [
-  { key: "1D", label: "1天" }, { key: "1W", label: "1周" }, { key: "1M", label: "1个月" },
-  { key: "1Y", label: "1年" }, { key: "YTD", label: "年初至今" }, { key: "ALL", label: "全部" },
-];
 const cache = new Map<string, { expiresAt: number; data: WalletPnlSeries }>();
 const CACHE_TTL_MS = 5 * 60_000;
 const MAX_CACHE_ENTRIES = 64;
@@ -28,61 +26,27 @@ function putWalletPnlCache(key: string, data: WalletPnlSeries) {
   cache.set(key, { expiresAt, data });
 }
 
-export function OfficialWalletPnlPanel({ active, account, allowedAccounts, embedded = false }: { active: boolean; account: string; allowedAccounts?: readonly string[]; embedded?: boolean }) {
+export function clearWalletPnlCache() { cache.clear(); }
+
+export function OfficialWalletPnlPanel({ active, account, allowedAccounts, embedded = false, selection, refreshToken = 0 }: { active: boolean; account: string; allowedAccounts?: readonly string[]; embedded?: boolean; selection: OfficialPnlTimeSelection; refreshToken?: number }) {
   const Heading = embedded ? "h3" : "h2";
   const [accounts, setAccounts] = useState<OfficialPnlAccount[]>();
   const [error, setError] = useState<string>();
-  const [period, setPeriod] = useState<WalletPnlSelection>("1W");
-  const [customOpen, setCustomOpen] = useState(false);
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
-  const [customRange, setCustomRange] = useState<WalletPnlCustomRange>();
-  const [rangeError, setRangeError] = useState<string>();
-  const [today, setToday] = useState("");
-  const [startInstant, setStartInstant] = useState("");
-  const [endInstant, setEndInstant] = useState("");
-  const startCandidates = walletPnlHourCandidates(startDate), endCandidates = walletPnlHourCandidates(endDate);
-
-  const applyRange = (event: React.FormEvent) => {
-    event.preventDefault();
-    const result = validateWalletPnlRange(startDate, endDate, Date.now(), { startMs: startInstant ? Number(startInstant) : undefined, endMs: endInstant ? Number(endInstant) : undefined });
-    if (result.error) { setRangeError(result.error); return; }
-    setCustomRange(result.range); setPeriod("CUSTOM"); setRangeError(undefined);
-  };
   const [retry, setRetry] = useState(0);
+  const { period, customRange } = selection;
   useEffect(() => {
     if (!active) return;
     const controller = new AbortController();
     void officialPnlAccounts(controller.signal).then((items) => { if (!controller.signal.aborted) { setAccounts(items); setError(undefined); } }).catch(() => { if (!controller.signal.aborted) setError("无法读取支持官方盈亏的钱包，请稍后重试。"); });
     return () => controller.abort();
-  }, [active, retry]);
+  }, [active, retry, refreshToken]);
   const selected = accounts?.filter(item => (!account || item.executionAccountId === account) && (allowedAccounts === undefined || allowedAccounts.includes(item.executionAccountId)));
   return <section className="section official-wallet-pnl-workspace" aria-label="官方钱包盈亏">
-    <div className="section-head official-wallet-pnl-head"><Heading className="section-title">Polymarket 官方钱包盈亏</Heading><div className="wallet-pnl-periods" role="group" aria-label="官方盈亏周期">{PERIODS.map((item) => <button key={item.key} type="button" aria-pressed={period === item.key} className={period === item.key ? "active" : ""} onClick={() => { setPeriod(item.key); setCustomOpen(false); setRangeError(undefined); }}>{item.label}</button>)}<button type="button" aria-pressed={period === "CUSTOM"} aria-expanded={customOpen} className={period === "CUSTOM" ? "active" : ""} onClick={() => { setCustomOpen(true); setToday(walletPnlLocalHour()); }}>自定义</button></div></div>
-    <p className="section-caption">曲线为 Polymarket 官方钱包口径，明细为系统成交与结算账本。</p>
-    {customOpen && <form className="wallet-pnl-custom-range" onSubmit={applyRange} aria-label="官方盈亏自定义时间" noValidate>
-      <LocalHourInput label="开始" value={startDate} max={today} onChange={value => { setStartDate(value); setStartInstant(""); setRangeError(undefined); }} />
-      {startCandidates.length > 1 && <label>开始时区偏移<select className="select" aria-label="开始小时偏移" value={startInstant} onChange={event => setStartInstant(event.target.value)}><option value="">请选择重复小时</option>{startCandidates.map(time => <option value={time} key={time}>{formatWalletPnlOffset(time)}</option>)}</select></label>}
-      <LocalHourInput label="结束" value={endDate} max={today} onChange={value => { setEndDate(value); setEndInstant(""); setRangeError(undefined); }} />
-      {endCandidates.length > 1 && <label>结束时区偏移<select className="select" aria-label="结束小时偏移" value={endInstant} onChange={event => setEndInstant(event.target.value)}><option value="">请选择重复小时</option>{endCandidates.map(time => <option value={time} key={time}>{formatWalletPnlOffset(time)}</option>)}</select></label>}
-      <button className="button primary" type="submit">应用时间</button>
-      {rangeError && <p role="alert">{rangeError}</p>}
-    </form>}
-    {period === "CUSTOM" && customRange && <p className="wallet-pnl-range-note" data-wallet-pnl-range={`${customRange.startDate}/${customRange.endDate}`}>已应用 {customRange.startDate.replace("T", " ")} 至 {customRange.endDate.replace("T", " ")}（{customRange.timeZone}，{customRange.startOffset}{customRange.endOffset !== customRange.startOffset ? ` → ${customRange.endOffset}` : ""}）；图表范围与所选时间一致。</p>}
-    {error ? <PnlState title="官方盈亏暂时不可用" detail={error} retry={() => setRetry((value) => value + 1)} /> : !accounts ? <PnlState title="正在读取钱包" detail="" /> : !selected?.length ? <PnlState title={account ? "该账户暂无 Polymarket 官方盈亏曲线" : "暂无支持官方盈亏的钱包"} detail="" /> : <div className={account ? "official-wallet-pnl-single" : "official-wallet-pnl-grid"}>{selected.map((item) => <WalletPnlCard key={item.executionAccountId} active={active} executionAccountId={item.executionAccountId} period={period} customRange={customRange} refreshToken={retry} accountLabel={item.executionAccountId} />)}</div>}
+    <div className="section-head official-wallet-pnl-head"><Heading className="section-title">Polymarket 官方钱包盈亏</Heading></div>
+    {error ? <PnlState title="官方盈亏暂时不可用" detail={error} retry={() => setRetry((value) => value + 1)} /> : !accounts ? <PnlState title="正在读取钱包" detail="" /> : !selected?.length ? <PnlState title={account ? "该账户暂无 Polymarket 官方盈亏曲线" : "暂无支持官方盈亏的钱包"} detail="" /> : <div className={account ? "official-wallet-pnl-single" : "official-wallet-pnl-grid"}>{selected.map((item) => <WalletPnlCard key={item.executionAccountId} active={active} executionAccountId={item.executionAccountId} period={period} customRange={customRange} refreshToken={refreshToken + retry} accountLabel={item.executionAccountId} />)}</div>}
   </section>;
 }
 
-export function LocalHourInput({ label, value, max, onChange, ariaPrefix = "官方盈亏" }: { label: string; value: string; max: string; onChange: (value: string) => void; ariaPrefix?: string }) {
-  const date = value.split("T")[0];
-  const hour = value ? value.slice(11, 13) : "00";
-  const maxDate = max.split("T")[0];
-  const maxHour = max.slice(11, 13);
-  return <fieldset className="wallet-pnl-hour-input"><legend>{label}时间</legend><div>
-    <input className="input" type="date" aria-label={`${ariaPrefix}${label}日期`} value={date} max={maxDate || undefined} onChange={event => onChange(event.target.value ? `${event.target.value}T${hour}:00` : "")} />
-    <select className="select" aria-label={`${ariaPrefix}${label}小时`} value={hour} disabled={!date} onChange={event => onChange(`${date}T${event.target.value}:00`)}>{Array.from({ length: 24 }, (_, index) => String(index).padStart(2, "0")).map(item => <option key={item} value={item} disabled={Boolean(maxDate && date === maxDate && item > maxHour)}>{item}时</option>)}</select>
-  </div></fieldset>;
-}
 
 type WalletPnlCardProps = { active: boolean; executionAccountId: string; refreshToken: number; period: WalletPnlSelection; customRange?: WalletPnlCustomRange; accountLabel: string };
 
@@ -115,6 +79,7 @@ function WalletPnlCard({ active, executionAccountId, period, customRange, refres
           const existing = cache.get(key);
           if (existing && existing.expiresAt > Date.now()) return existing.data;
           const result = await walletPnl(executionAccountId, interval, fidelity, controller.signal);
+          if (controller.signal.aborted) throw new DOMException("Aborted", "AbortError");
           putWalletPnlCache(key, result);
           return result;
         };
@@ -156,7 +121,7 @@ function WalletPnlCard({ active, executionAccountId, period, customRange, refres
               : !view?.points.length || view.amount === null ? <PnlState title="暂无足够盈亏数据" detail={period === "CUSTOM" ? "所选起止边界缺少一小时内的官方有效数据；不会以日线替代或将缺失显示为零。" : "接口没有返回至少两个有效采样点；不会把缺失数据显示成零。"} />
               : <>
                   <div className="wallet-pnl-summary"><div><span>{period === "CUSTOM" ? "所选期间盈亏" : "盈亏"}</span><strong className={amountTone} data-wallet-pnl-amount="">{amountLabel}</strong><small>{pointTime}（本地时间）</small></div><details className="wallet-pnl-meta"><summary>钱包信息</summary><code>{series?.walletAddress ?? "—"}</code><small>{series ? `更新于 ${formatFetchedAt(series.fetchedAt)}（本地时间）` : "—"}</small></details></div>
-                  {period === "CUSTOM" && <p className="wallet-pnl-sampling">按官方小时数据计算所选期间盈亏；部分小时可能沿用此前数据，并非实时收益。</p>}
+                  {period === "CUSTOM" && <p className="wallet-pnl-sampling">按官方小时数据计算所选期间盈亏。</p>}
                   <PnlSvg custom={period === "CUSTOM"} label={period === "CUSTOM" ? "官方钱包所选期间盈亏曲线" : "官方钱包累计盈亏曲线"} fillId={fillId} chart={chart} points={view.points} hoverIndex={hoverIndex} onHover={(index) => setHoverState({ key: identity, index })} />
                 </>}
     </div>

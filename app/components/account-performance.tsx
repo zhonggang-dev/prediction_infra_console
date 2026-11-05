@@ -1,5 +1,6 @@
 "use client";
 
+import { RefreshCw } from "lucide-react";
 import { Fragment, useEffect, useId, useRef, useState } from "react";
 import { accountCohortMetrics, cohortOpeningRangeError, type AccountCohortMetrics as AccountCoreMetrics, type AccountCohortMetricsResponse as AccountCoreMetricsResponse, type AccountCohortQuery, type UnavailableCohortAccount, type CorePriceSource, type CorePriceReason } from "../lib/trading-core-metrics";
 import { formatV2Time, useV2Filter } from "./console-v2-resource";
@@ -53,7 +54,7 @@ export function AccountCoreMetricsPanel({ active, account, accountOrder = [], ac
     return (ai < 0 ? Number.MAX_SAFE_INTEGER : ai) - (bi < 0 ? Number.MAX_SAFE_INTEGER : bi) || a.executionAccountId.localeCompare(b.executionAccountId);
   }) : undefined;
   return <section className="section trading-core-metrics" data-v2-extra-query={JSON.stringify({ opening_from: openingFrom, opening_to: openingTo })} aria-label="账户核心指标" aria-busy={active && !current?.data && !current?.error}>
-    <div className="section-head"><h2 className="section-title">账户核心指标</h2>{current?.data && <span className="section-caption">账本观测 {formatV2Time(current.data.observedAt)}</span>}</div>
+    <div className="section-head"><h2 className="section-title">账户核心指标</h2><div className="trading-block-actions">{current?.data && <span className="section-caption">账本观测 {formatV2Time(current.data.observedAt)}</span>}<button type="button" className="button trading-block-refresh" aria-label="刷新账户核心指标" disabled={active && !current?.data && !current?.error} onClick={() => setRetry(value => value + 1)}><RefreshCw size={14} aria-hidden="true" />刷新</button></div></div>
     <p className="section-caption trading-core-basis">系统纳管口径 · 追踪所选时间内开的仓位，截至现在的表现；剩余持仓按最新价格计算。各项收益未扣手续费。</p>
     <OpeningRangeForm key={`${openingFrom}/${openingTo}`} from={openingFrom} to={openingTo} />
     {current?.error ? <div className="notice error" role="alert"><p>{current.error}</p><button type="button" className="button" onClick={() => setRetry(v => v + 1)}>重试</button></div>

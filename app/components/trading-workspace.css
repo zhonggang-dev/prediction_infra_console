@@ -132,3 +132,11 @@
 @media (max-width: 480px) {
   .trading-ledger-block { padding: 14px; }
 }
+
+.trading-block-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px 12px; }
+.trading-block-refresh { display: inline-flex; flex: 0 0 auto; align-items: center; justify-content: center; gap: 6px; min-height: 32px; padding: 5px 10px; font-size: 12px; }
+.official-pnl-time-controls { margin-bottom: 20px; }
+@media (max-width: 720px) {
+  .trading-core-metrics > .section-head { flex-wrap: wrap; gap: 10px; }
+  .trading-block-actions { justify-content: flex-start; }
+}
