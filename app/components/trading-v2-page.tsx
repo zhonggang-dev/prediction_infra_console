@@ -5,6 +5,7 @@ import { consoleV2, type ConsoleV2Order, type ConsoleV2Page, type ConsoleV2Posit
 import { portfolioHoldingIdentity, type ConsoleV2PortfolioHolding } from "../lib/trading-holdings";
 import { formatV2Number, formatV2Time, V2Facts, V2Frame, V2ListPage, V2Tabs, V2WorkspacePanel, V2SubViews, WORKSPACE_FILTER_CHANGE_EVENT, useV2Filter, useWorkspaceTabs, v2Status, v2Unknown } from "./console-v2-resource";
 import { OfficialWalletPnlPanel } from "./wallet-pnl-chart";
+import { KalshiPnlPanel } from "./kalshi-pnl-chart";
 import { AccountCoreMetricsPanel } from "./account-performance";
 import { TradeRecordsPage } from "./trade-records-page";
 import { orderedTradingAccounts, scopedTradingAccounts, tradingAccountScope } from "../lib/trading-account-scope";
@@ -45,7 +46,7 @@ export function TradingV2Page({ view = "orders" }: { view?: TradingView }) {
     <V2Tabs tabs={tabs} active={workspace.active} onSelect={(href) => workspace.select(href as typeof workspace.active)} />
     <V2WorkspacePanel active={workspace.active} href="/trading/orders" visited={workspace.visited.has("/trading/orders")}><Orders /></V2WorkspacePanel>
     <V2WorkspacePanel active={workspace.active} href="/trading/positions" visited={workspace.visited.has("/trading/positions")}><PositionViews marketSource={selectedSource} /></V2WorkspacePanel>
-    <V2WorkspacePanel active={workspace.active} href="/trading/ledger" visited={workspace.visited.has("/trading/ledger")}><AccountCoreMetricsPanel active={workspace.active === "/trading/ledger"} account={account} accountScope={effectiveScope} accountOrder={scopedTradingAccounts(accounts, effectiveScope).map(item => item.executionAccountId)} />{(!account || selectedSource === "POLYMARKET") && <OfficialWalletPnlPanel active={workspace.active === "/trading/ledger" && accountsLoaded} account={account} allowedAccounts={account ? [account] : scopedTradingAccounts(accounts, effectiveScope).map(item => item.executionAccountId)} />}<TradeRecordsPage embedded sharedAccountOnly compact /></V2WorkspacePanel>
+    <V2WorkspacePanel active={workspace.active} href="/trading/ledger" visited={workspace.visited.has("/trading/ledger")}><AccountCoreMetricsPanel active={workspace.active === "/trading/ledger"} account={account} accountScope={effectiveScope} accountOrder={scopedTradingAccounts(accounts, effectiveScope).map(item => item.executionAccountId)} />{(!account || selectedSource === "POLYMARKET") && <OfficialWalletPnlPanel active={workspace.active === "/trading/ledger" && accountsLoaded} account={account} allowedAccounts={account ? [account] : scopedTradingAccounts(accounts, effectiveScope).map(item => item.executionAccountId)} />}{((!account && scopedTradingAccounts(accounts, effectiveScope).some(item => item.marketSource === "KALSHI")) || selectedSource === "KALSHI") && <KalshiPnlPanel active={workspace.active === "/trading/ledger" && accountsLoaded} account={account} allowedAccounts={account ? [account] : scopedTradingAccounts(accounts, effectiveScope).map(item => item.executionAccountId)} />}<TradeRecordsPage embedded sharedAccountOnly compact /></V2WorkspacePanel>
     <V2WorkspacePanel active={workspace.active} href="/trading/reconciliation" visited={workspace.visited.has("/trading/reconciliation")}><ReconciliationViews /></V2WorkspacePanel>
   </V2Frame>;
 }

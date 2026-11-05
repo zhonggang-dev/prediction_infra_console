@@ -166,7 +166,7 @@ function PnlState({ title, detail, retry }: { title: string; detail: string; ret
   return <div className="wallet-pnl-state"><strong>{title}</strong><p>{detail}</p>{retry && <button className="button" onClick={retry}>重试</button>}</div>;
 }
 
-function PnlSvg({ custom, label, fillId, chart, points, hoverIndex, onHover }: { custom: boolean; label: string; fillId: string; chart?: WalletPnlChartGeometry; points: { timestamp: number; value: number }[]; hoverIndex?: number; onHover: (index: number | undefined) => void }) {
+export function PnlSvg({ custom, label, fillId, chart, points, hoverIndex, onHover }: { custom: boolean; label: string; fillId: string; chart?: WalletPnlChartGeometry; points: { timestamp: number; value: number }[]; hoverIndex?: number; onHover: (index: number | undefined) => void }) {
   if (!chart || !points.length) return null;
   const active = hoverIndex === undefined ? points.length - 1 : Math.max(0, Math.min(points.length - 1, hoverIndex));
   const point = chart.points[active];
