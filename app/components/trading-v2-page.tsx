@@ -7,6 +7,7 @@ import { formatV2Number, formatV2Time, V2Facts, V2Frame, V2ListPage, V2Tabs, V2W
 import { OfficialWalletPnlPanel } from "./wallet-pnl-chart";
 import { AccountCoreMetricsPanel } from "./account-performance";
 import { TradeRecordsPage } from "./trade-records-page";
+import { orderedTradingAccounts, scopedTradingAccounts, tradingAccountScope } from "../lib/trading-account-scope";
 import "./trading-workspace.css";
 
 type TradingView = "orders" | "positions" | "ledger" | "reconciliation";
@@ -19,11 +20,14 @@ const tabs = [
 
 export function TradingV2Page({ view = "orders" }: { view?: TradingView }) {
   const [account, setAccount] = useV2Filter("execution_account_id");
+  const [scope, setScope] = useV2Filter("account_scope");
+  const effectiveScope = tradingAccountScope(scope);
   const [accounts, setAccounts] = useState<ConsoleV2Account[]>([]);
+  const [accountsLoaded, setAccountsLoaded] = useState(false);
   const [accountsError, setAccountsError] = useState<string>();
   const [accountsRetry, setAccountsRetry] = useState(0);
-  useEffect(() => { let cancelled = false; void consoleV2.trading.accounts().then((result) => { if (!cancelled) { setAccounts(result.data.accounts); setAccountsError(undefined); } }).catch((error: unknown) => { if (!cancelled) { setAccounts([]); setAccountsError(error instanceof Error ? error.message : "账户目录不可用"); } }); return () => { cancelled = true; }; }, [accountsRetry]);
-  const workspace = useWorkspaceTabs(tabs, `/trading/${view}`, { sharedQueryKeys: ["execution_account_id"] });
+  useEffect(() => { let cancelled = false; void consoleV2.trading.accounts().then((result) => { if (!cancelled) { setAccounts(orderedTradingAccounts(result.data.accounts)); setAccountsLoaded(true); setAccountsError(undefined); } }).catch((error: unknown) => { if (!cancelled) { setAccounts([]); setAccountsLoaded(false); setAccountsError(error instanceof Error ? error.message : "账户目录不可用"); } }); return () => { cancelled = true; }; }, [accountsRetry]);
+  const workspace = useWorkspaceTabs(tabs, `/trading/${view}`, { sharedQueryKeys: ["execution_account_id", "account_scope"] });
   const selectedAccount = accounts.find((item) => item.executionAccountId === account);
   const selectedSource = selectedAccount?.marketSource;
   const config = workspace.active === "/trading/orders" ? { title: "订单", description: "查看委托、成交与订单状态。" }
@@ -31,12 +35,17 @@ export function TradingV2Page({ view = "orders" }: { view?: TradingView }) {
     : workspace.active === "/trading/ledger" ? { title: "收益与成交账本", description: selectedSource === "KALSHI" ? "查看已入账的成交、对冲回款与到期结算。" : "查看钱包盈亏与已入账的成交、结算明细。" }
     : { title: "对账", description: "查看未解决差异及处理记录。" };
   return <V2Frame eyebrow="Trading" title={config.title} description={config.description}>
-    <section className="trading-account-context" aria-label="交易账户范围"><label><span>账户</span><select className="select" aria-label="交易账户范围" value={account} onChange={(event) => { setAccount(event.target.value); window.dispatchEvent(new Event(WORKSPACE_FILTER_CHANGE_EVENT)); }}><option value="">全部账户</option>{accounts.map((item) => <option key={item.executionAccountId} value={item.executionAccountId}>{item.marketSource === "KALSHI" ? "Kalshi" : "Polymarket"} · {item.executionAccountId}</option>)}{account && !accounts.some((item) => item.executionAccountId === account) && <option value={account}>{account}（目录未确认）</option>}</select></label>{selectedAccount && <div className="trading-account-settings" aria-label="当前账户配置"><span>当前策略 <strong>{selectedAccount.strategyId ?? "未提供"}</strong></span><span>运行模式 <strong>{selectedAccount.mode === "ACTIVE" ? "启用" : selectedAccount.mode === "SELL_ONLY" ? "仅卖出" : selectedAccount.mode === "PAUSED" ? "暂停" : "未提供"}</strong></span>{selectedAccount.predictionModelId && <span>预测模型 <strong>{selectedAccount.predictionModelId}</strong></span>}</div>}</section>
+    <section className="trading-account-context" aria-label="交易账户范围"><label><span>账户</span><select className="select" aria-label="交易账户范围" value={account ? `account:${account}` : effectiveScope} onChange={event => {
+      const value = event.target.value;
+      setAccount(value.startsWith("account:") ? value.slice(8) : "");
+      setScope(value === "all" ? "all" : "");
+      window.dispatchEvent(new Event(WORKSPACE_FILTER_CHANGE_EVENT));
+    }}><option value="active">全部活跃账户</option><option value="all">全部账户</option>{accounts.map(item => <option key={item.executionAccountId} value={`account:${item.executionAccountId}`} className={item.mode === "PAUSED" ? "trading-account-paused" : undefined}>{item.marketSource === "KALSHI" ? "Kalshi" : "Polymarket"} · {item.executionAccountId}{item.mode === "PAUSED" ? "（暂停）" : item.mode === "SELL_ONLY" ? "（仅卖出）" : item.mode ? "" : "（模式未提供）"}</option>)}{account && !accounts.some(item => item.executionAccountId === account) && <option value={`account:${account}`}>{account}（目录未确认）</option>}</select></label>{selectedAccount && <div className="trading-account-settings" aria-label="当前账户配置"><span>当前策略 <strong>{selectedAccount.strategyId ?? "未提供"}</strong></span><span>运行模式 <strong>{selectedAccount.mode === "ACTIVE" ? "启用" : selectedAccount.mode === "SELL_ONLY" ? "仅卖出" : selectedAccount.mode === "PAUSED" ? "暂停" : "未提供"}</strong></span>{selectedAccount.predictionModelId && <span>预测模型 <strong>{selectedAccount.predictionModelId}</strong></span>}</div>}</section>
     {accountsError && <div className="notice error"><p>账户目录不可用：{accountsError}</p><button className="button" type="button" onClick={() => setAccountsRetry((value) => value + 1)}>重试</button></div>}
     <V2Tabs tabs={tabs} active={workspace.active} onSelect={(href) => workspace.select(href as typeof workspace.active)} />
     <V2WorkspacePanel active={workspace.active} href="/trading/orders" visited={workspace.visited.has("/trading/orders")}><Orders /></V2WorkspacePanel>
     <V2WorkspacePanel active={workspace.active} href="/trading/positions" visited={workspace.visited.has("/trading/positions")}><PositionViews marketSource={selectedSource} /></V2WorkspacePanel>
-    <V2WorkspacePanel active={workspace.active} href="/trading/ledger" visited={workspace.visited.has("/trading/ledger")}><AccountCoreMetricsPanel active={workspace.active === "/trading/ledger"} account={account} accountOrder={accounts.map(item => item.executionAccountId)} />{(!account || selectedSource === "POLYMARKET") && <OfficialWalletPnlPanel active={workspace.active === "/trading/ledger"} account={account} />}<TradeRecordsPage embedded sharedAccountOnly compact /></V2WorkspacePanel>
+    <V2WorkspacePanel active={workspace.active} href="/trading/ledger" visited={workspace.visited.has("/trading/ledger")}><AccountCoreMetricsPanel active={workspace.active === "/trading/ledger"} account={account} accountScope={effectiveScope} accountOrder={scopedTradingAccounts(accounts, effectiveScope).map(item => item.executionAccountId)} />{(!account || selectedSource === "POLYMARKET") && <OfficialWalletPnlPanel active={workspace.active === "/trading/ledger" && accountsLoaded} account={account} allowedAccounts={account ? [account] : scopedTradingAccounts(accounts, effectiveScope).map(item => item.executionAccountId)} />}<TradeRecordsPage embedded sharedAccountOnly compact /></V2WorkspacePanel>
     <V2WorkspacePanel active={workspace.active} href="/trading/reconciliation" visited={workspace.visited.has("/trading/reconciliation")}><ReconciliationViews /></V2WorkspacePanel>
   </V2Frame>;
 }
@@ -52,7 +61,8 @@ function Orders() {
   const [status, setStatus] = useV2Filter("status");
   const [side, setSide] = useV2Filter("side");
   const [account] = useV2Filter("execution_account_id");
-  const params = useMemo(() => ({ status: status || undefined, side: side || undefined, execution_account_id: account || undefined }), [status, side, account]);
+  const [scope] = useV2Filter("account_scope");
+  const params = useMemo(() => ({ status: status || undefined, side: side || undefined, execution_account_id: account || undefined, account_scope: account ? undefined : tradingAccountScope(scope) }), [status, side, account, scope]);
   return <V2ListPage<ConsoleV2Order> title="订单" discardedFilters={["model_id", "strategy_id", "from", "to"]} load={consoleV2.trading.orders} params={params} controls={<><select className="select" aria-label="订单状态" value={status} onChange={(event) => setStatus(event.target.value)}><option value="">全部状态</option>{Object.entries(orderLabels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select><select className="select" aria-label="买卖方向" value={side} onChange={(event) => setSide(event.target.value)}><option value="">全部方向</option><option value="BUY">买入</option><option value="SELL">卖出</option></select></>} rowKey={(item) => item.orderId} searchPlaceholder="搜索市场、订单或账户" columns={[
     { label: "下单时间", render: (item) => formatV2Time(item.createdAt) },
     { label: "账户", render: (item) => v2Unknown(item.executionAccountId) },
@@ -80,10 +90,10 @@ function OrderDetail({ item }: { item: ConsoleV2Order }) {
 }
 
 function PositionViews({ marketSource }: { marketSource?: string }) {
-  return <V2SubViews sharedQueryKeys={["execution_account_id"]} parameter="position_view" choices={[{ href: "holdings", label: "当前持仓", content: <Positions /> }, { href: "redemptions", label: "结算进度", content: <Redemptions marketSource={marketSource} /> }]} />;
+  return <V2SubViews sharedQueryKeys={["execution_account_id", "account_scope"]} parameter="position_view" choices={[{ href: "holdings", label: "当前持仓", content: <Positions /> }, { href: "redemptions", label: "结算进度", content: <Redemptions marketSource={marketSource} /> }]} />;
 }
 function ReconciliationViews() {
-  return <V2SubViews sharedQueryKeys={["execution_account_id"]} parameter="reconciliation_view" choices={[{ href: "issues", label: "对账问题", content: <ReconciliationIssues /> }, { href: "runs", label: "运行记录", content: <ReconciliationRuns /> }]} />;
+  return <V2SubViews sharedQueryKeys={["execution_account_id", "account_scope"]} parameter="reconciliation_view" choices={[{ href: "issues", label: "对账问题", content: <ReconciliationIssues /> }, { href: "runs", label: "运行记录", content: <ReconciliationRuns /> }]} />;
 }
 const apiParams = (params: Record<string, string | number | undefined>) => { const next = { ...params }; delete next.position_view; delete next.reconciliation_view; if (next.status === "ALL") delete next.status; return next; };
 const loadHoldings = (params: Record<string, string | number | undefined>) => consoleV2.trading.portfolioHoldings(apiParams(params));
@@ -93,7 +103,8 @@ const loadRuns = (params: Record<string, string | number | undefined>) => consol
 
 function Positions() {
   const [account] = useV2Filter("execution_account_id");
-  const params = useMemo(() => ({ position_view: "holdings", execution_account_id: account || undefined }), [account]);
+  const [scope] = useV2Filter("account_scope");
+  const params = useMemo(() => ({ position_view: "holdings", execution_account_id: account || undefined, account_scope: account ? undefined : tradingAccountScope(scope) }), [account, scope]);
   return <V2ListPage<ConsoleV2PortfolioHolding> title="当前持仓" discardedFilters={["model_id", "strategy_id", "from", "to"]} load={loadHoldings} params={params} rowKey={portfolioHoldingIdentity} searchPlaceholder="搜索市场或账户" columns={[
     { label: "账户", render: (item) => v2Unknown(item.executionAccountId) },
     { label: "市场 / 结果", className: "primary", render: (item) => <div className="v2-cell-copy"><strong>{v2Unknown(item.marketQuestion, item.marketId ?? "未知市场")}</strong><small>{v2Unknown(item.outcomeName)}</small></div> },
@@ -106,7 +117,8 @@ function Positions() {
 function ReconciliationIssues() {
   const [status, setStatus] = useV2Filter("status", "OPEN");
   const [account] = useV2Filter("execution_account_id");
-  const params = useMemo(() => ({ reconciliation_view: "issues", status: status || "OPEN", execution_account_id: account || undefined }), [status, account]);
+  const [scope] = useV2Filter("account_scope");
+  const params = useMemo(() => ({ reconciliation_view: "issues", status: status || "OPEN", execution_account_id: account || undefined, account_scope: account ? undefined : tradingAccountScope(scope) }), [status, account, scope]);
   return <V2ListPage<ConsoleV2ReconciliationIssue> title="对账问题" load={loadIssues} params={params} rowKey={(item) => item.issueId} searchPlaceholder="搜索订单、市场或差异原因" controls={<select className="select" aria-label="问题状态" value={status} onChange={(event) => setStatus(event.target.value)}><option value="OPEN">未解决</option><option value="RESOLVED">已解决</option><option value="ALL">全部状态</option></select>} columns={[
     { label: "最近发现", render: (item) => formatV2Time(item.observedAt) }, { label: "账户", render: (item) => v2Unknown(item.executionAccountId) },
     { label: "关联对象", className: "primary mono", render: (item) => v2Unknown(item.orderId ?? item.marketId ?? item.conditionId, "账户") },
@@ -128,7 +140,8 @@ function issueLabel(type: string | undefined, code?: string) {
 function resolutionLabel(value: string | undefined) { return value ? ({ AUTOMATIC: "自动处理", MANUAL_REVIEW: "人工复核", OBSERVED_ONLY: "仅记录" }[value] ?? value) : "未知"; }
 function ReconciliationRuns() {
   const [account] = useV2Filter("execution_account_id");
-  const params = useMemo(() => ({ reconciliation_view: "runs", execution_account_id: account || undefined }), [account]);
+  const [scope] = useV2Filter("account_scope");
+  const params = useMemo(() => ({ reconciliation_view: "runs", execution_account_id: account || undefined, account_scope: account ? undefined : tradingAccountScope(scope) }), [account, scope]);
   return <V2ListPage<ConsoleV2ReconciliationRun> title="对账运行记录" load={loadRuns} params={params} rowKey={(item) => item.runId} searchPlaceholder="搜索记录或状态" columns={[
     { label: "开始时间", render: (item) => formatV2Time(item.startedAt) }, { label: "完成时间", render: (item) => formatV2Time(item.completedAt) }, { label: "账户", render: (item) => v2Unknown(item.executionAccountId) }, { label: "状态", render: (item) => v2Status(item.status, item.status) },
   ]} />;
@@ -136,9 +149,10 @@ function ReconciliationRuns() {
 function Redemptions({ marketSource }: { marketSource?: string }) {
   const [status, setStatus] = useV2Filter("status");
   const [account] = useV2Filter("execution_account_id");
+  const [scope] = useV2Filter("account_scope");
   const validLabels = marketSource === "KALSHI" ? { APPLIED: "已入账", MANUAL_REVIEW: "人工复核" } : redemptionLabels;
   const effectiveStatus = status && validLabels[status] ? status : "";
-  const params = useMemo(() => ({ position_view: "redemptions", status: effectiveStatus || undefined, execution_account_id: account || undefined }), [effectiveStatus, account]);
+  const params = useMemo(() => ({ position_view: "redemptions", status: effectiveStatus || undefined, execution_account_id: account || undefined, account_scope: account ? undefined : tradingAccountScope(scope) }), [effectiveStatus, account, scope]);
   return <V2ListPage<ConsoleV2AccountSettlement> title="结算进度" description="Polymarket 显示链上赎回流程；Kalshi 显示到期结算入账或人工复核。" load={loadRedemptions} params={params} rowKey={(item) => `${item.marketSource}:${item.settlementId}`} searchPlaceholder="搜索账户、市场或条件" controls={<select className="select" aria-label="结算状态" value={effectiveStatus} onChange={(event) => setStatus(event.target.value)}><option value="">全部状态</option>{Object.entries(validLabels).map(([key, label]) => <option value={key} key={key}>{label}</option>)}</select>} columns={[
     { label: "平台 / 账户", render: (item) => <div className="v2-cell-copy"><strong>{item.marketSource}</strong><small>{item.executionAccountId}</small></div> }, { label: "市场 / 条件", className: "primary mono", render: (item) => item.marketId || item.conditionId || "—" }, { label: "状态", render: (item) => redemptionLabels[item.status] ?? item.status }, { label: "更新时间", render: (item) => formatV2Time(item.updatedAt) },
   ]} renderDetail={(item) => <V2Facts values={[{ label: "结算编号", value: item.settlementId, mono: true }, { label: "兑付金额", value: item.payout ?? "—" }, ...(item.marketSource === "POLYMARKET" ? [{ label: "交易哈希", value: item.transactionHash ?? "—", mono: true }, { label: "链上确认时间", value: formatV2Time(item.confirmedAt) }] : [{ label: "交易所结算时间", value: formatV2Time(item.settledAt) }]), { label: "入账时间", value: formatV2Time(item.appliedAt) }]} />} />;

@@ -1,9 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { accountCoreMetrics, decodeAccountCoreMetrics } from "../app/lib/trading-core-metrics.ts";
+import { accountCoreMetrics, decodeAccountCoreMetrics, accountCohortMetrics, decodeAccountCohortMetrics, cohortOpeningRangeError } from "../app/lib/trading-core-metrics.ts";
 import { decodeWalletPnl } from "../app/lib/wallet-pnl-api.ts";
 import { GET, POST } from "../app/api/console/v2/[...path]/route.ts";
 import { GET as walletGet } from "../app/api/console/[...path]/route.ts";
+import { orderedTradingAccounts, scopedTradingAccounts } from "../app/lib/trading-account-scope.ts";
+
 const observed = "2026-11-04T12:00:00Z";
 const asset = { execution_account_id: "kalshi:main", market_source: "KALSHI", market_id: "market", condition_id: "condition", token_id: "token", outcome_index: 1, outcome_name: "No", market_question: "Question?", remaining_shares: "2.000001", remaining_cost: "1.000001", price: "0.5", market_value: "1.0000005", state: "priced", price_source: "KALSHI_BOOK_MID", source_at: null, observed_at: observed, reason: null };
 const item = { execution_account_id: "kalshi:main", market_source: "KALSHI", asset_count: 1, priced_asset_count: 1, current_cost: "1.000001", peak_holding_cost: "5", cumulative_invested_cost: "10", realized_pnl: "-2", market_value: "1.0000005", unrealized_pnl: "-0.0000005", total_pnl: "-2.0000005", return_rate: "-0.4000001", realized_drawdown_14d: "2", drawdown_from: "2026-10-22T00:00:00Z", drawdown_to: observed, ledger_observed_at: observed, quote_observed_from: observed, quote_observed_to: observed, valuation_state: "complete", has_reference_prices: true, valuation_assets: [asset] };
@@ -79,4 +81,72 @@ test("Kalshi官方最近成交价保留来源且不冒充mid，拒绝串入PM", 
   assert.equal(result.items[0].hasReferencePrices, false);
   assert.throws(() => decodeAccountCoreMetrics(data([{ ...item, valuation_assets: [last] }])));
   assert.throws(() => decodeAccountCoreMetrics(data([{ ...item, market_source: "POLYMARKET", has_reference_prices: false, valuation_assets: [{ ...last, market_source: "POLYMARKET" }] }])));
+});
+
+
+const cohortItem = { ...item, opened_asset_count: 3, holding_asset_count: 1, closed_asset_count: 2, roi: "-0.20000005", buy_fees: "0.123456", sell_fees: "0.02", max_drawdown: null, drawdown_state: "history_unavailable" };
+const cohortData = (patch: Record<string, unknown> = {}) => ({ observed_at: observed, opening_from: null, opening_to: null, items: [cohortItem], ...patch });
+test("开仓区间核心指标保留毛收益、独立费用与完整资产等式，不伪造总回撤", () => {
+  const result = decodeAccountCohortMetrics(cohortData()).items[0];
+  assert.equal(result.openedAssetCount, result.holdingAssetCount + result.closedAssetCount);
+  assert.equal(result.buyFees, "0.123456"); assert.equal(result.sellFees, "0.02"); assert.equal(result.roi, "-0.20000005");
+  assert.equal(result.maxDrawdown, null); assert.equal(result.drawdownState, "history_unavailable");
+  for (const patch of [{ opened_asset_count: 2 }, { holding_asset_count: 2 }, { closed_asset_count: "2" }, { buy_fees: "-0.1" }, { sell_fees: null }, { roi: undefined }, { roi: null }, { drawdown_state: "available" }, { max_drawdown: "0" }, { drawdown_state: "realized_only" }]) assert.throws(() => decodeAccountCohortMetrics(cohortData({ items: [{ ...cohortItem, ...patch }] })));
+  const noHistory = { ...cohortItem, cumulative_invested_cost: "0", roi: null };
+  assert.equal(decodeAccountCohortMetrics(cohortData({ items: [noHistory] })).items[0].roi, null);
+  assert.throws(() => decodeAccountCohortMetrics(cohortData({ items: [{ ...noHistory, roi: "0" }] })));
+});
+
+test("开仓区间响应须与请求时间一致，账户切换不能接受串范围响应", () => {
+  const range = { opening_from: "2026-11-01T00:00:00Z", opening_to: "2026-11-03T00:00:00Z" };
+  assert.equal(decodeAccountCohortMetrics(cohortData(range), range).openingFrom, range.opening_from);
+  assert.throws(() => decodeAccountCohortMetrics(cohortData(range)));
+  assert.throws(() => decodeAccountCohortMetrics(cohortData(), range));
+  assert.throws(() => decodeAccountCohortMetrics(cohortData({ opening_from: range.opening_from })));
+  assert.throws(() => decodeAccountCohortMetrics(cohortData({ ...range, opening_to: range.opening_from }), range));
+  assert.throws(() => decodeAccountCohortMetrics(cohortData(), { execution_account_id: "main" }));
+});
+
+test("活跃账户只含ACTIVE或SELL_ONLY，暂停账户保留可选并稳定排末尾", () => {
+  const accounts = [{ executionAccountId: "paused-1", marketSource: "POLYMARKET" as const, mode: "PAUSED" as const }, { executionAccountId: "main", marketSource: "POLYMARKET" as const, mode: "ACTIVE" as const }, { executionAccountId: "unknown", marketSource: "POLYMARKET" as const }, { executionAccountId: "sell-only", marketSource: "KALSHI" as const, mode: "SELL_ONLY" as const }, { executionAccountId: "paused-2", marketSource: "POLYMARKET" as const, mode: "PAUSED" as const }];
+  assert.deepEqual(scopedTradingAccounts(accounts, "active").map(a => a.executionAccountId), ["main", "sell-only"]);
+  assert.deepEqual(orderedTradingAccounts(accounts).map(a => a.executionAccountId), ["main", "unknown", "sell-only", "paused-1", "paused-2"]);
+  assert.equal(scopedTradingAccounts(accounts, "all").length, 5);
+});
+
+test("cohort客户端与固定BFF传递开仓范围、活跃账户以及取消，拒绝混合或畸形范围", async () => {
+  const previousFetch = globalThis.fetch, previousUrl = process.env.TRADING_EXECUTION_BASE_URL, previousToken = process.env.TRADING_EXECUTION_LIVE_READ_ONLY_TOKEN;
+  const controller = new AbortController();
+  const range = { opening_from: "2026-11-01T00:00:00Z", opening_to: "2026-11-03T00:00:00Z" };
+  const query = { account_scope: "active" as const, ...range };
+  try {
+    globalThis.fetch = (async (input, init) => { const url = new URL(String(input), "http://console.test"); assert.equal(url.pathname, "/api/console/v2/trading/account-cohort-metrics"); assert.equal(url.searchParams.get("account_scope"), "active"); assert.equal(url.searchParams.get("opening_from"), range.opening_from); assert.equal(init?.signal, controller.signal); return Response.json({ data: cohortData(range) }); }) as typeof fetch;
+    await accountCohortMetrics(query, controller.signal);
+    process.env.TRADING_EXECUTION_BASE_URL = "http://trading.test"; process.env.TRADING_EXECUTION_LIVE_READ_ONLY_TOKEN = "fixture-read";
+    let calls = 0;
+    globalThis.fetch = (async (input, init) => { calls++; const url = new URL(String(input)); assert.equal(url.pathname, "/api/v1/console/v2/account-cohort-metrics"); assert.equal(url.searchParams.get("account_scope"), "active"); assert.equal((init?.headers as Record<string, string>).authorization, "Bearer fixture-read"); return Response.json({ data: cohortData(range) }); }) as typeof fetch;
+    const params = { params: Promise.resolve({ path: ["trading", "account-cohort-metrics"] }) };
+    assert.equal((await GET(new Request(`http://console.test/api/console/v2/trading/account-cohort-metrics?${new URLSearchParams(query)}`), params)).status, 200);
+    for (const q of ["?account_scope=enabled", "?account_scope=", "?account_scope=active&account_scope=all", "?account_scope=active&execution_account_id=main", "?opening_from=2026-11-01T00%3A00%3A00Z", "?opening_from=2026-11-01&opening_to=2026-11-02", "?opening_from=2026-11-03T00%3A00%3A00Z&opening_to=2026-11-01T00%3A00%3A00Z", "?limit=20", "?execution_account_id=%00"]) assert.equal((await GET(new Request("http://console.test/api/console/v2/trading/account-cohort-metrics" + q), params)).status, 400, q);
+    assert.equal(calls, 1);
+  } finally { globalThis.fetch = previousFetch; if (previousUrl === undefined) delete process.env.TRADING_EXECUTION_BASE_URL; else process.env.TRADING_EXECUTION_BASE_URL = previousUrl; if (previousToken === undefined) delete process.env.TRADING_EXECUTION_LIVE_READ_ONLY_TOKEN; else process.env.TRADING_EXECUTION_LIVE_READ_ONLY_TOKEN = previousToken; }
+});
+
+
+test("外部URL的非本地整点不发送查询，半小时时区本地整点合法", async () => {
+  const previousTz = process.env.TZ, previousFetch = globalThis.fetch;
+  let requests = 0;
+  try {
+    process.env.TZ = "Asia/Shanghai";
+    globalThis.fetch = (async () => { requests++; return Response.json({ data: cohortData() }); }) as typeof fetch;
+    for (const opening_from of ["2026-11-01T03:30:00Z", "2026-11-01T03:00:01Z", "2026-11-01T03:00:00.001Z"]) await assert.rejects(accountCohortMetrics({ opening_from, opening_to: "2026-11-03T03:00:00Z" }), /不是本地整点/);
+    assert.equal(requests, 0);
+    process.env.TZ = "Asia/Kolkata";
+    const range = { opening_from: "2026-11-01T05:30:00Z", opening_to: "2026-11-03T05:30:00Z" };
+    assert.equal(cohortOpeningRangeError(range), undefined);
+    globalThis.fetch = (async () => { requests++; return Response.json({ data: cohortData(range) }); }) as typeof fetch;
+    await accountCohortMetrics(range);
+    assert.equal(requests, 1);
+    assert.match(cohortOpeningRangeError({ ...range, opening_from: "2026-11-01T05:00:00Z" }) ?? "", /不是本地整点/);
+  } finally { globalThis.fetch = previousFetch; if (previousTz === undefined) delete process.env.TZ; else process.env.TZ = previousTz; }
 });

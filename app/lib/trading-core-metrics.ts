@@ -76,3 +76,48 @@ export async function accountCoreMetrics(account = "", signal?: AbortSignal): Pr
   if (!response.ok) throw new Error("账户核心指标暂时不可用，请稍后重试。");
   return decodeAccountCoreMetrics(record(record(payload).data), account);
 }
+
+
+/** An opening cohort keeps its own lot quantities and follows their lifecycle to now. */
+export interface AccountCohortMetrics extends AccountCoreMetrics {
+  openedAssetCount: number; holdingAssetCount: number; closedAssetCount: number;
+  roi: string | null; buyFees: string; sellFees: string;
+  maxDrawdown: string | null; drawdownState: "available" | "history_unavailable";
+}
+export interface AccountCohortMetricsResponse { observedAt: string; openingFrom: string | null; openingTo: string | null; items: AccountCohortMetrics[] }
+export interface AccountCohortQuery { execution_account_id?: string; account_scope?: "active" | "all"; opening_from?: string; opening_to?: string }
+export function decodeAccountCohortMetrics(data: Record<string, unknown>, requested: AccountCohortQuery = {}): AccountCohortMetricsResponse {
+  const core = decodeAccountCoreMetrics(data, requested.execution_account_id);
+  const openingFrom = nullableTime(data.opening_from), openingTo = nullableTime(data.opening_to);
+  if ((openingFrom === null) !== (openingTo === null) || (openingFrom && openingTo && Date.parse(openingFrom) >= Date.parse(openingTo))) throw invalid();
+  if ((requested.opening_from ? Date.parse(requested.opening_from) : null) !== (openingFrom ? Date.parse(openingFrom) : null) || (requested.opening_to ? Date.parse(requested.opening_to) : null) !== (openingTo ? Date.parse(openingTo) : null)) throw invalid();
+  const items = core.items.map((item, index): AccountCohortMetrics => {
+    const raw = record((data.items as unknown[])[index]);
+    const openedAssetCount = count(raw.opened_asset_count), holdingAssetCount = count(raw.holding_asset_count), closedAssetCount = count(raw.closed_asset_count);
+    if (openedAssetCount !== holdingAssetCount + closedAssetCount || holdingAssetCount !== item.assetCount) throw invalid();
+    const roi = nullableDecimal(raw.roi), buyFees = decimal(raw.buy_fees, true), sellFees = decimal(raw.sell_fees, true);
+    if ((item.totalPnl === null || isZero(item.cumulativeInvestedCost)) ? roi !== null : roi === null) throw invalid();
+    const maxDrawdown = nullableDecimal(raw.max_drawdown, true);
+    if (raw.drawdown_state !== "available" && raw.drawdown_state !== "history_unavailable") throw invalid();
+    if ((raw.drawdown_state === "available") !== (maxDrawdown !== null)) throw invalid();
+    return { ...item, openedAssetCount, holdingAssetCount, closedAssetCount, roi, buyFees, sellFees, maxDrawdown, drawdownState: raw.drawdown_state };
+  });
+  return { observedAt: core.observedAt, openingFrom, openingTo, items };
+}
+/** Browser-local whole hours may map to :30 UTC in half-hour time zones. */
+export function cohortOpeningRangeError(params: Pick<AccountCohortQuery, "opening_from" | "opening_to">): string | undefined {
+  if (!params.opening_from && !params.opening_to) return undefined;
+  const values = [params.opening_from, params.opening_to].map(value => value ? new Date(value) : undefined);
+  if (values.some(value => !value || !Number.isFinite(value.getTime()))) return "开仓时间无效，请重新选择日期和小时后应用。";
+  if (values.some(value => value!.getMinutes() !== 0 || value!.getSeconds() !== 0 || value!.getMilliseconds() !== 0)) return "开仓时间不是本地整点，请重新选择日期和小时后应用。";
+  return undefined;
+}
+export async function accountCohortMetrics(params: AccountCohortQuery = {}, signal?: AbortSignal): Promise<AccountCohortMetricsResponse> {
+  const rangeError = cohortOpeningRangeError(params);
+  if (rangeError) throw new Error(rangeError);
+  const query = new URLSearchParams(Object.entries(params).filter((entry): entry is [string, string] => entry[1] !== undefined));
+  const response = await fetch(`/api/console/v2/trading/account-cohort-metrics${query.size ? `?${query}` : ""}`, { signal, cache: "no-store" });
+  const payload: unknown = await response.json().catch(() => undefined);
+  if (!response.ok) throw new Error("账户核心指标暂时不可用，请稍后重试。");
+  return decodeAccountCohortMetrics(record(record(payload).data), params);
+}

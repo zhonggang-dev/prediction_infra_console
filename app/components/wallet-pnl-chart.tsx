@@ -28,7 +28,7 @@ function putWalletPnlCache(key: string, data: WalletPnlSeries) {
   cache.set(key, { expiresAt, data });
 }
 
-export function OfficialWalletPnlPanel({ active, account }: { active: boolean; account: string }) {
+export function OfficialWalletPnlPanel({ active, account, allowedAccounts }: { active: boolean; account: string; allowedAccounts?: readonly string[] }) {
   const [accounts, setAccounts] = useState<OfficialPnlAccount[]>();
   const [error, setError] = useState<string>();
   const [period, setPeriod] = useState<WalletPnlSelection>("1W");
@@ -55,7 +55,7 @@ export function OfficialWalletPnlPanel({ active, account }: { active: boolean; a
     void officialPnlAccounts(controller.signal).then((items) => { if (!controller.signal.aborted) { setAccounts(items); setError(undefined); } }).catch(() => { if (!controller.signal.aborted) setError("无法读取支持官方盈亏的钱包，请稍后重试。"); });
     return () => controller.abort();
   }, [active, retry]);
-  const selected = account ? accounts?.filter((item) => item.executionAccountId === account) : accounts;
+  const selected = accounts?.filter(item => (!account || item.executionAccountId === account) && (allowedAccounts === undefined || allowedAccounts.includes(item.executionAccountId)));
   return <section className="section official-wallet-pnl-workspace" aria-label="官方钱包盈亏">
     <div className="section-head official-wallet-pnl-head"><h2 className="section-title">Polymarket 官方钱包盈亏</h2><div className="wallet-pnl-periods" role="group" aria-label="官方盈亏周期">{PERIODS.map((item) => <button key={item.key} type="button" aria-pressed={period === item.key} className={period === item.key ? "active" : ""} onClick={() => { setPeriod(item.key); setCustomOpen(false); setRangeError(undefined); }}>{item.label}</button>)}<button type="button" aria-pressed={period === "CUSTOM"} aria-expanded={customOpen} className={period === "CUSTOM" ? "active" : ""} onClick={() => { setCustomOpen(true); setToday(walletPnlLocalHour()); }}>自定义</button></div></div>
     <p className="section-caption">曲线为 Polymarket 官方钱包口径，明细为系统成交与结算账本。</p>
@@ -72,14 +72,14 @@ export function OfficialWalletPnlPanel({ active, account }: { active: boolean; a
   </section>;
 }
 
-function LocalHourInput({ label, value, max, onChange }: { label: string; value: string; max: string; onChange: (value: string) => void }) {
+export function LocalHourInput({ label, value, max, onChange, ariaPrefix = "官方盈亏" }: { label: string; value: string; max: string; onChange: (value: string) => void; ariaPrefix?: string }) {
   const date = value.split("T")[0];
   const hour = value ? value.slice(11, 13) : "00";
   const maxDate = max.split("T")[0];
   const maxHour = max.slice(11, 13);
   return <fieldset className="wallet-pnl-hour-input"><legend>{label}时间</legend><div>
-    <input className="input" type="date" aria-label={`官方盈亏${label}日期`} value={date} max={maxDate || undefined} onChange={event => onChange(event.target.value ? `${event.target.value}T${hour}:00` : "")} />
-    <select className="select" aria-label={`官方盈亏${label}小时`} value={hour} disabled={!date} onChange={event => onChange(`${date}T${event.target.value}:00`)}>{Array.from({ length: 24 }, (_, index) => String(index).padStart(2, "0")).map(item => <option key={item} value={item} disabled={Boolean(maxDate && date === maxDate && item > maxHour)}>{item}时</option>)}</select>
+    <input className="input" type="date" aria-label={`${ariaPrefix}${label}日期`} value={date} max={maxDate || undefined} onChange={event => onChange(event.target.value ? `${event.target.value}T${hour}:00` : "")} />
+    <select className="select" aria-label={`${ariaPrefix}${label}小时`} value={hour} disabled={!date} onChange={event => onChange(`${date}T${event.target.value}:00`)}>{Array.from({ length: 24 }, (_, index) => String(index).padStart(2, "0")).map(item => <option key={item} value={item} disabled={Boolean(maxDate && date === maxDate && item > maxHour)}>{item}时</option>)}</select>
   </div></fieldset>;
 }
 

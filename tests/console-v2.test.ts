@@ -208,7 +208,7 @@ test("业务工作区复用真实资料轮换与交易视图，不回退到 read
   assert.match(trading, /\/trading\/ledger/);
   assert.match(trading, /aliases: \["\/trading"\]/);
   assert.match(ledger, /23:59:59\.999999Z/);
-  assert.match(trading, /sharedQueryKeys: \["execution_account_id"\]/);
+  assert.match(trading, /sharedQueryKeys: \["execution_account_id", "account_scope"\]/);
   assert.doesNotMatch(trading, /<TradingOverview/);
   assert.match(ledger, /params\.get\("from"\)/);
   assert.match(ledger, /params\.get\("to"\)/);
