@@ -110,3 +110,25 @@
 }
 
 .trading-account-context option.trading-account-paused{color:var(--muted,#7b8983)}
+
+/* Three ledger sections share one visual hierarchy; venue periods stay independent. */
+.trading-ledger-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px; min-width: 0; margin-top: 20px; }
+.trading-ledger-block { min-width: 0; padding: 22px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
+.trading-ledger-block > .section { margin-top: 0; }
+.trading-ledger-block > .section-head, .trading-ledger-block > .section > .section-head { margin-bottom: 12px; }
+.trading-ledger-block > .section-head > h2, .trading-ledger-block > .section > .section-head > h2, .trading-ledger-block .trading-embedded-toolbar h2 { font-size: 17px; font-weight: 600; }
+.trading-ledger-official > .official-wallet-pnl-workspace { margin-top: 0; }
+.trading-ledger-official > .official-wallet-pnl-workspace + .official-wallet-pnl-workspace { margin-top: 28px; padding-top: 24px; border-top: 1px solid var(--line); }
+.trading-ledger-official > .official-wallet-pnl-workspace > .section-head > .section-title { font-size: 14px; font-weight: 600; color: var(--ink-soft); }
+.trading-ledger-official > .official-wallet-pnl-workspace > .section-caption { margin: 0 0 14px; line-height: 1.6; }
+.trading-ledger-block .trading-embedded-toolbar { margin: 0 0 16px; padding: 0; border: 0; border-radius: 0; background: transparent; }
+.trading-ledger-block .trading-embedded-toolbar > div:first-child small { color: var(--muted); font-size: 11px; line-height: 1.6; }
+.trading-ledger-block .trading-ledger-records > .trade-panel { margin-top: 0; border: 0; border-radius: 0; box-shadow: none; background: transparent; }
+.trading-ledger-block .trade-filters { padding: 0 0 16px; }
+@media (max-width: 720px) {
+  .trading-ledger-layout { gap: 24px; }
+  .trading-ledger-block { padding: 16px; }
+}
+@media (max-width: 480px) {
+  .trading-ledger-block { padding: 14px; }
+}

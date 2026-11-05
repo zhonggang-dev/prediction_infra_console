@@ -131,7 +131,7 @@ export function TradeRecordsPage({ embedded = false, sharedAccountOnly = false, 
 
   const content = <div ref={rootRef} className={compact ? "trade-records-content trading-ledger-records" : "trade-records-content"} data-v2-list-state data-v2-list-query={filters.query} data-v2-list-limit={limit} data-v2-list-offset={offset} data-v2-list-params={JSON.stringify(appliedListParams)}>
     {embedded ? <div className="trading-embedded-toolbar">
-      <div><strong>{compact ? "成交与结算明细" : "资金账本与结算"}</strong>{!compact && <small>已确认并入账的成交与结算；日期按账本活动发生时间。</small>}</div>
+      <div>{compact ? <h2 className="section-title">成交与结算明细</h2> : <strong>资金账本与结算</strong>}<small>已确认并入账的成交与结算；日期按账本活动发生时间。</small></div>
 
     </div> : <header className="page-head">
       <div><p className="eyebrow">Trading Execution / Ledger</p><h1>交易与结算记录</h1><p className="description">来自已确认并入账的成交与结算：BUY / SELL 为 Polymarket CLOB 真实成交，EXTERNAL_SELL 为外部卖出记账，REDEEM 为链上赎回结算。订单已接受不等于成交；REDEEM 不是卖出成交。日期按账本活动发生时间。</p></div>

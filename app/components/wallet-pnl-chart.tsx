@@ -28,7 +28,8 @@ function putWalletPnlCache(key: string, data: WalletPnlSeries) {
   cache.set(key, { expiresAt, data });
 }
 
-export function OfficialWalletPnlPanel({ active, account, allowedAccounts }: { active: boolean; account: string; allowedAccounts?: readonly string[] }) {
+export function OfficialWalletPnlPanel({ active, account, allowedAccounts, embedded = false }: { active: boolean; account: string; allowedAccounts?: readonly string[]; embedded?: boolean }) {
+  const Heading = embedded ? "h3" : "h2";
   const [accounts, setAccounts] = useState<OfficialPnlAccount[]>();
   const [error, setError] = useState<string>();
   const [period, setPeriod] = useState<WalletPnlSelection>("1W");
@@ -57,7 +58,7 @@ export function OfficialWalletPnlPanel({ active, account, allowedAccounts }: { a
   }, [active, retry]);
   const selected = accounts?.filter(item => (!account || item.executionAccountId === account) && (allowedAccounts === undefined || allowedAccounts.includes(item.executionAccountId)));
   return <section className="section official-wallet-pnl-workspace" aria-label="官方钱包盈亏">
-    <div className="section-head official-wallet-pnl-head"><h2 className="section-title">Polymarket 官方钱包盈亏</h2><div className="wallet-pnl-periods" role="group" aria-label="官方盈亏周期">{PERIODS.map((item) => <button key={item.key} type="button" aria-pressed={period === item.key} className={period === item.key ? "active" : ""} onClick={() => { setPeriod(item.key); setCustomOpen(false); setRangeError(undefined); }}>{item.label}</button>)}<button type="button" aria-pressed={period === "CUSTOM"} aria-expanded={customOpen} className={period === "CUSTOM" ? "active" : ""} onClick={() => { setCustomOpen(true); setToday(walletPnlLocalHour()); }}>自定义</button></div></div>
+    <div className="section-head official-wallet-pnl-head"><Heading className="section-title">Polymarket 官方钱包盈亏</Heading><div className="wallet-pnl-periods" role="group" aria-label="官方盈亏周期">{PERIODS.map((item) => <button key={item.key} type="button" aria-pressed={period === item.key} className={period === item.key ? "active" : ""} onClick={() => { setPeriod(item.key); setCustomOpen(false); setRangeError(undefined); }}>{item.label}</button>)}<button type="button" aria-pressed={period === "CUSTOM"} aria-expanded={customOpen} className={period === "CUSTOM" ? "active" : ""} onClick={() => { setCustomOpen(true); setToday(walletPnlLocalHour()); }}>自定义</button></div></div>
     <p className="section-caption">曲线为 Polymarket 官方钱包口径，明细为系统成交与结算账本。</p>
     {customOpen && <form className="wallet-pnl-custom-range" onSubmit={applyRange} aria-label="官方盈亏自定义时间" noValidate>
       <LocalHourInput label="开始" value={startDate} max={today} onChange={value => { setStartDate(value); setStartInstant(""); setRangeError(undefined); }} />
