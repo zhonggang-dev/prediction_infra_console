@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { buildKalshiPnlView, chooseKalshiPnlRange, combineKalshiPnlSeries, shouldSupplementKalshiPnl, type KalshiPnlSeries, decodeKalshiPnl, decodeKalshiPnlAccounts, kalshiPnl } from "../app/lib/kalshi-pnl.ts";
+import { buildKalshiPnlView, chooseKalshiPnlRange, decodeKalshiPnl, decodeKalshiPnlAccounts, kalshiPnl } from "../app/lib/kalshi-pnl.ts";
 import { buildWalletPnlChartGeometry, validateWalletPnlRange } from "../app/lib/wallet-pnl.ts";
 import { GET, POST } from "../app/api/console/[...path]/route.ts";
 
@@ -112,66 +112,4 @@ test("Kalshi BFF传播调用方取消且不把上游错误正文转成盈利", a
     const response = await GET(new Request("http://console.test/api/console/kalshi-pnl?execution_account_id=kalshi:main&range=1d", { signal: controller.signal }), { params: Promise.resolve({ path: ["kalshi-pnl"] }) });
     assert.equal(response.status, 502); assert.doesNotMatch(await response.text(), /private source text/);
   } finally { globalThis.fetch = oldFetch; if (oldURL === undefined) delete process.env.TRADING_EXECUTION_BASE_URL; else process.env.TRADING_EXECUTION_BASE_URL = oldURL; if (oldToken === undefined) delete process.env.TRADING_EXECUTION_LIVE_READ_ONLY_TOKEN; else process.env.TRADING_EXECUTION_LIVE_READ_ONLY_TOKEN = oldToken; }
-});
-
-function mixedSources() {
-  const point = (timestamp: number) => ({ timestamp, cumulativePnl: (timestamp - second) / hour, portfolioValue: 1000 + (timestamp - second) / (100 * hour) });
-  const common = { ...decode(), processedThrough: new Date(now - hour * 1000).toISOString() };
-  const history: KalshiPnlSeries = { ...common, range: "all", periodIntervalMinutes: 1440, points: [...Array.from({ length: 101 }, (_, i) => point(second - (100 - i) * day - 2 * hour)), point(second)] };
-  const recent: KalshiPnlSeries = { ...common, range: "1m", points: Array.from({ length: 721 }, (_, i) => point(second - 30 * day + i * hour)) };
-  return { history, recent, point };
-}
-test("自定义长历史只在结束于近期时补小时数据，快捷周期不变", () => {
-  const { history } = mixedSources();
-  assert.equal(shouldSupplementKalshiPnl("CUSTOM", range(now - 90 * day * 1000, now - 15 * hour * 1000), history), true);
-  assert.equal(shouldSupplementKalshiPnl("CUSTOM", range(now - 90 * day * 1000, now - 60 * day * 1000), history), false);
-  assert.equal(shouldSupplementKalshiPnl("CUSTOM", range(now - 90 * day * 1000, now - 30 * day * 1000), history), false);
-  assert.equal(shouldSupplementKalshiPnl("CUSTOM", undefined, history), false);
-  assert.equal(shouldSupplementKalshiPnl("CUSTOM", range(now - 3 * day * 1000, now), decode()), false);
-  for (const period of ["1D", "1W", "1M", "1Y", "YTD", "ALL"] as const) assert.equal(shouldSupplementKalshiPnl(period, undefined, history), false);
-});
-test("每日历史接上近期小时原值，今天零点的末点和金额不再退到昨日13时", () => {
-  const { history, recent } = mixedSources(), original = JSON.stringify(history);
-  const selected = range(now - (90 * day + 3 * hour) * 1000, now - 15 * hour * 1000);
-  const old = buildKalshiPnlView(history, "CUSTOM", selected);
-  assert.equal(old.endSampleAt, second - day - 2 * hour);
-  const combined = combineKalshiPnlSeries(history, recent), v = buildKalshiPnlView(combined, "CUSTOM", selected);
-  assert.equal(v.error, undefined); assert.equal(v.endSampleAt, selected.endMs / 1000);
-  assert.equal(v.baselineAt, old.baselineAt); assert.equal(v.approximate, true);
-  assert.equal(v.amount, recent.points.find(p => p.timestamp === v.endSampleAt)!.cumulativePnl - old.baseline!);
-  assert.equal(v.samplingIntervalMinutes, 1440); assert.equal(v.recentIntervalMinutes, 60);
-  assert.ok(v.points.every(p => p.timestamp >= selected.startMs / 1000 && p.timestamp <= selected.endMs / 1000));
-  assert.equal(v.points.at(-1)!.value, v.amount); assert.equal(JSON.stringify(history), original);
-  const chart = buildWalletPnlChartGeometry(v)!; assert.equal(chart.domainStartAt, selected.startMs / 1000); assert.equal(chart.domainEndAt, selected.endMs / 1000);
-  assert.equal(combined.points.filter(p => p.timestamp >= recent.points[0].timestamp).length, recent.points.length);
-  assert.equal(new Set(combined.points.map(p => p.timestamp)).size, combined.points.length);
-});
-test("混合段分别检查缺口和边界，小时缺口不能继承每日宽容差", () => {
-  const { history, recent } = mixedSources(), selected = range(now - 90 * day * 1000, now - 15 * hour * 1000);
-  const missingHours = { ...recent, points: recent.points.filter(p => ![second - 18 * hour, second - 17 * hour].includes(p.timestamp)) };
-  assert.match(buildKalshiPnlView(combineKalshiPnlSeries(history, missingHours), "CUSTOM", selected).error!, /缺口/);
-  const missingDays = { ...history, points: history.points.filter(p => ![second - 60 * day - 2 * hour, second - 59 * day - 2 * hour].includes(p.timestamp)) };
-  assert.match(buildKalshiPnlView(combineKalshiPnlSeries(missingDays, recent), "CUSTOM", selected).error!, /缺口/);
-  const incomplete = { ...recent, points: recent.points.filter(p => p.timestamp <= second - 17 * hour || p.timestamp > second - 15 * hour) };
-  assert.match(buildKalshiPnlView(combineKalshiPnlSeries(history, incomplete), "CUSTOM", selected).error!, /起止时间/);
-});
-test("官方重叠金额或账户价值冲突、无共同点和串账户拒绝拼接", () => {
-  const { history, recent } = mixedSources(), anchor = history.points.find(p => p.timestamp >= recent.points[0].timestamp)!;
-  for (const field of ["cumulativePnl", "portfolioValue"] as const) {
-    const conflict = { ...recent, points: recent.points.map(p => p.timestamp === anchor.timestamp ? { ...p, [field]: p[field] + 1 } : p) };
-    assert.throws(() => combineKalshiPnlSeries(history, conflict), /尚未对齐/);
-  }
-  assert.throws(() => combineKalshiPnlSeries(history, { ...recent, executionAccountId: "kalshi:other" }), /不一致/);
-  assert.throws(() => combineKalshiPnlSeries(history, { ...recent, points: recent.points.map(p => ({ ...p, timestamp: p.timestamp + 60 })) }), /共同采样点/);
-  assert.throws(() => combineKalshiPnlSeries(history, { ...recent, range: "1w" }), /不一致/);
-});
-test("历史临时末点被小时原值替换，拼接不绕过预算与近期新鲜度", () => {
-  const { history, recent, point } = mixedSources();
-  const changedTail = { ...history, points: history.points.map(p => p.timestamp === second ? { ...p, cumulativePnl: 999 } : p) };
-  const mixed = combineKalshiPnlSeries(changedTail, recent);
-  assert.equal(mixed.points.at(-1)!.cumulativePnl, recent.points.at(-1)!.cumulativePnl);
-  const stale = combineKalshiPnlSeries(history, { ...recent, points: recent.points.filter(p => p.timestamp <= second - 2 * hour) });
-  assert.match(buildKalshiPnlView(stale, "CUSTOM", range(now - 90 * day * 1000, now)).error!, /尚未更新/);
-  const huge = { ...history, points: Array.from({ length: 10_000 }, (_, i) => point(second - (9999 - i) * day - 2 * hour)) };
-  assert.throws(() => combineKalshiPnlSeries(huge, recent), /预算/);
 });

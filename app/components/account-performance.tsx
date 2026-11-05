@@ -6,6 +6,7 @@ import { accountCohortMetrics, cohortOpeningRangeError, type AccountCohortMetric
 import { formatV2Time, useV2Filter } from "./console-v2-resource";
 import { LocalHourInput } from "./wallet-pnl-chart";
 import { validateWalletPnlRange, walletPnlLocalHour, walletPnlHourCandidates, formatWalletPnlOffset } from "../lib/wallet-pnl";
+import { formatCoreMoney as money, formatCorePercent as percent, coreMetricTone as tone } from "../lib/core-metric-display";
 import "./account-performance.css";
 
 const sourceLabels: Record<CorePriceSource, string> = { PM_CURRENT_PRICE: "Polymarket 官方现价", PM_CLOB_MID: "Polymarket 盘口中间价（参考）", KALSHI_BOOK_MID: "Kalshi 盘口中间价（参考）", KALSHI_LAST_TRADE: "Kalshi 官方最近成交价", OFFICIAL_SETTLEMENT: "官方确认结算价" };
@@ -14,9 +15,6 @@ const drawdownLabels: Record<CohortDrawdownReason, string> = { not_synced: "待�
 function drawdownStatus(item: AccountCoreMetrics): string {
   return item.drawdownState === "available" ? "已计算" : item.drawdownCoverage?.reason ? drawdownLabels[item.drawdownCoverage.reason] : "历史回撤尚未计算";
 }
-const money = (value: string | null, signed = false) => value === null ? "—" : `${signed && Number(value) > 0 ? "+" : ""}${new Intl.NumberFormat("zh-CN", { style: "currency", currency: "USD", currencyDisplay: "narrowSymbol", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value))}`;
-const tone = (value: string | null) => value === null ? "" : Number(value) > 0 ? "positive" : Number(value) < 0 ? "negative" : "";
-const percent = (value: string | null) => value === null ? "—" : `${Number(value) > 0 ? "+" : ""}${(Number(value) * 100).toFixed(2)}%`;
 function stats(item: AccountCoreMetrics) {
   const drawdown = item.maxDrawdown === null ? null : Number(item.maxDrawdown) > 0 ? `-${item.maxDrawdown}` : "0";
   return [
@@ -27,8 +25,8 @@ function stats(item: AccountCoreMetrics) {
     { label: "已实现盈亏", value: money(item.realizedPnl, true), tone: tone(item.realizedPnl) },
     { label: "当前浮动盈亏", value: money(item.unrealizedPnl, true), tone: tone(item.unrealizedPnl) },
     { label: "总盈亏", value: money(item.totalPnl, true), tone: tone(item.totalPnl) },
-    { label: "ROI（累计本金）", value: percent(item.roi), tone: tone(item.roi) },
-    { label: "Return（峰值本金）", value: percent(item.returnRate), tone: tone(item.returnRate) },
+    { label: "ROI（累计本金）", value: percent(item.roi), tone: tone(item.roi, "percent") },
+    { label: "Return（峰值本金）", value: percent(item.returnRate), tone: tone(item.returnRate, "percent") },
     { label: "最大回撤", value: money(drawdown), tone: tone(drawdown), detail: item.drawdownState === "history_unavailable" ? drawdownStatus(item) : undefined },
     { label: "买入手续费", value: money(item.buyFees) },
     { label: "卖出手续费", value: money(item.sellFees) },
