@@ -209,6 +209,9 @@ function readPanelAppliedQuery(panel: HTMLElement | null) {
   } catch {
     // Invalid DOM metadata should not block normal tab navigation.
   }
+  for (const extra of panel.querySelectorAll<HTMLElement>("[data-v2-extra-query]")) {
+    try { for (const [key, value] of Object.entries(JSON.parse(extra.getAttribute("data-v2-extra-query") ?? "{}"))) if (typeof value === "string" && value) query.set(key, value); } catch { /* Invalid optional metadata does not block navigation. */ }
+  }
   return query.toString();
 }
 

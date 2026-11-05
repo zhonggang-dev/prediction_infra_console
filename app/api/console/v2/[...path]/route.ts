@@ -31,6 +31,7 @@ const TRADING_RESOURCES = new Set([
   "accounts",
   "account-performance",
   "account-core-metrics",
+  "account-cohort-metrics",
   "ledger-activities",
   "settlements",
   "runtime",
@@ -77,6 +78,17 @@ async function forward(request: Request, path: string[]): Promise<Response> {
     const query = new URL(request.url).searchParams;
     const account = query.get("execution_account_id");
     if ([...query.keys()].some((key) => key !== "execution_account_id") || query.getAll("execution_account_id").length > 1 || (account !== null && (!account || account.length > 128 || account.trim() !== account || [...account].some((char) => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127)))) return json({ code: "INVALID_CONSOLE_V2_FILTER", message: "账户筛选无效。" }, 400);
+  }
+  if (path[0] === "trading" && path[1] === "account-cohort-metrics") {
+    const query = new URL(request.url).searchParams;
+    const allowed = new Set(["execution_account_id", "account_scope", "opening_from", "opening_to"]);
+    const account = query.get("execution_account_id"), scope = query.get("account_scope");
+    const from = query.get("opening_from"), to = query.get("opening_to");
+    const instant = (value: string) => /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:\.\d+)?(?:Z|[+-]\d{2}:\d{2})$/.test(value) && Number.isFinite(Date.parse(value));
+    if ([...query.keys()].some(key => !allowed.has(key) || query.getAll(key).length !== 1 || !query.get(key)) ||
+      (account !== null && (account.length > 128 || account.trim() !== account || [...account].some(char => char.charCodeAt(0) < 32 || char.charCodeAt(0) === 127))) ||
+      (scope !== null && scope !== "active" && scope !== "all") || (account !== null && scope !== null) ||
+      (from === null) !== (to === null) || (from !== null && to !== null && (!instant(from) || !instant(to) || Date.parse(from) >= Date.parse(to)))) return json({ code: "INVALID_CONSOLE_V2_FILTER", message: "开仓区间或账户筛选无效。" }, 400);
   }
   if (!target.baseUrl || !target.token) return json({ code: "BACKEND_NOT_CONFIGURED", message: `${target.serviceName} 的只读连接尚未配置。` }, 503);
 

@@ -12,9 +12,9 @@ import { DailyPnLDashboard } from "./daily-pnl-dashboard";
 import { WORKSPACE_FILTER_CHANGE_EVENT, useV2PanelActive } from "./console-v2-resource";
 
 type RangeKey = "24h" | "7d" | "30d" | "all" | "custom";
-type Filters = { range: RangeKey; from: string; to: string; activityType: "" | LedgerActivityType; modelId: string; strategyId: string; executionAccountId: string; query: string };
+type Filters = { range: RangeKey; from: string; to: string; activityType: "" | LedgerActivityType; modelId: string; strategyId: string; executionAccountId: string; accountScope: "active" | "all"; query: string };
 
-const defaultFilters: Filters = { range: "24h", from: "", to: "", activityType: "", modelId: "", strategyId: "", executionAccountId: "", query: "" };
+const defaultFilters: Filters = { range: "24h", from: "", to: "", activityType: "", modelId: "", strategyId: "", executionAccountId: "", accountScope: "all", query: "" };
 const rangeLabels: Record<RangeKey, string> = { "24h": "最近 24 小时", "7d": "最近 7 天", "30d": "最近 30 天", all: "全部时间", custom: "自定义日期" };
 const activityLabels: Record<LedgerActivityType, string> = { BUY: "买入成交", SELL: "卖出成交", EXTERNAL_SELL: "外部卖出", REDEEM: "赎回结算", KALSHI_NETTING: "对冲回款", KALSHI_SETTLEMENT: "到期结算" };
 
@@ -69,7 +69,7 @@ export function TradeRecordsPage({ embedded = false, sharedAccountOnly = false, 
       const params = toRequest(filters, limit, offset);
       try {
         const legacyParams: LedgerActivityParams = { ...params, activityType: params.activityType === "KALSHI_NETTING" || params.activityType === "KALSHI_SETTLEMENT" ? undefined : params.activityType };
-        const result = demoEnabled ? consoleApi.demoLedgerActivities(legacyParams) : compact ? await consoleV2.trading.ledgerActivities({ limit, offset, from: params.from, to: filters.to ? `${filters.to}T23:59:59.999999Z` : undefined, execution_account_id: params.executionAccountId, activity_type: params.activityType || undefined, q: params.query }) : await consoleApi.ledgerActivities(legacyParams);
+        const result = demoEnabled ? consoleApi.demoLedgerActivities(legacyParams) : compact ? await consoleV2.trading.ledgerActivities({ limit, offset, from: params.from, to: filters.to ? `${filters.to}T23:59:59.999999Z` : undefined, execution_account_id: params.executionAccountId, account_scope: params.executionAccountId ? undefined : filters.accountScope, activity_type: params.activityType || undefined, q: params.query }) : await consoleApi.ledgerActivities(legacyParams);
         if (!cancelled) {
           setData(result.data);
           setMode(result.mode);
@@ -119,7 +119,7 @@ export function TradeRecordsPage({ embedded = false, sharedAccountOnly = false, 
   };
   const reset = () => {
     const next = sharedAccountOnly
-      ? { ...defaultFilters, executionAccountId: filters.executionAccountId }
+      ? { ...defaultFilters, executionAccountId: filters.executionAccountId, accountScope: filters.accountScope }
       : embedded
         ? { ...defaultFilters, range: filters.from || filters.to ? "custom" as const : defaultFilters.range, from: filters.from, to: filters.to, modelId: filters.modelId, strategyId: filters.strategyId, executionAccountId: filters.executionAccountId }
       : defaultFilters;
@@ -293,7 +293,7 @@ function ledgerFiltersFromUrl(params: URLSearchParams, compact = false): Filters
   const activityType = params.get("activity_type");
   const from = params.get("from") ?? "";
   const to = params.get("to") ?? "";
-  return { range: from || to ? "custom" : range === "7d" || range === "30d" || range === "all" ? range : "24h", from, to, activityType: activityType === "BUY" || activityType === "SELL" || activityType === "EXTERNAL_SELL" || activityType === "REDEEM" || (compact && (activityType === "KALSHI_NETTING" || activityType === "KALSHI_SETTLEMENT")) ? activityType : "", modelId: compact ? "" : params.get("model_id") ?? "", strategyId: compact ? "" : params.get("strategy_id") ?? "", executionAccountId: params.get("execution_account_id") ?? "", query: params.get("q") ?? "" };
+  return { range: from || to ? "custom" : range === "7d" || range === "30d" || range === "all" ? range : "24h", from, to, activityType: activityType === "BUY" || activityType === "SELL" || activityType === "EXTERNAL_SELL" || activityType === "REDEEM" || (compact && (activityType === "KALSHI_NETTING" || activityType === "KALSHI_SETTLEMENT")) ? activityType : "", modelId: compact ? "" : params.get("model_id") ?? "", strategyId: compact ? "" : params.get("strategy_id") ?? "", executionAccountId: params.get("execution_account_id") ?? "", accountScope: compact && params.get("account_scope") !== "all" ? "active" : "all", query: params.get("q") ?? "" };
 }
 
 function ledgerAppliedListParams(filters: Filters) {
@@ -305,6 +305,7 @@ function ledgerAppliedListParams(filters: Filters) {
     model_id: filters.modelId || undefined,
     strategy_id: filters.strategyId || undefined,
     execution_account_id: filters.executionAccountId || undefined,
+    account_scope: filters.executionAccountId ? undefined : filters.accountScope,
   };
 }
 

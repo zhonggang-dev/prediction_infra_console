@@ -108,3 +108,5 @@
 @media (max-width: 720px) {
   .trading-account-context > .trading-account-settings { flex-basis: 100%; padding-left: 0; }
 }
+
+.trading-account-context option.trading-account-paused{color:var(--muted,#7b8983)}

@@ -1,77 +1,85 @@
 "use client";
 
 import { Fragment, useEffect, useId, useRef, useState } from "react";
-import { accountCoreMetrics, type AccountCoreMetrics, type AccountCoreMetricsResponse, type CorePriceSource, type CorePriceReason } from "../lib/trading-core-metrics";
-import { formatV2Time } from "./console-v2-resource";
+import { accountCohortMetrics, cohortOpeningRangeError, type AccountCohortMetrics as AccountCoreMetrics, type AccountCohortMetricsResponse as AccountCoreMetricsResponse, type AccountCohortQuery, type CorePriceSource, type CorePriceReason } from "../lib/trading-core-metrics";
+import { formatV2Time, useV2Filter } from "./console-v2-resource";
+import { LocalHourInput } from "./wallet-pnl-chart";
+import { validateWalletPnlRange, walletPnlLocalHour, walletPnlHourCandidates, formatWalletPnlOffset } from "../lib/wallet-pnl";
 import "./account-performance.css";
 
 const sourceLabels: Record<CorePriceSource, string> = { PM_CURRENT_PRICE: "Polymarket 官方现价", PM_CLOB_MID: "Polymarket 盘口中间价（参考）", KALSHI_BOOK_MID: "Kalshi 盘口中间价（参考）", KALSHI_LAST_TRADE: "Kalshi 官方最近成交价", OFFICIAL_SETTLEMENT: "官方确认结算价" };
 const reasonLabels: Record<CorePriceReason, string> = { missing_price: "未返回价格", one_sided: "缺少有效双边盘口", invalid_price: "价格无效", identity_mismatch: "资产身份不一致", stale: "报价已过期", timeout: "取价超时", source_unavailable: "价格来源暂不可用", unconfirmed_settlement: "结算结果尚未最终确认" };
 const money = (value: string | null, signed = false) => value === null ? "—" : `${signed && Number(value) > 0 ? "+" : ""}${new Intl.NumberFormat("zh-CN", { style: "currency", currency: "USD", currencyDisplay: "narrowSymbol", minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(value))}`;
 const tone = (value: string | null) => value === null ? "" : Number(value) > 0 ? "positive" : Number(value) < 0 ? "negative" : "";
+const percent = (value: string | null) => value === null ? "—" : `${Number(value) > 0 ? "+" : ""}${(Number(value) * 100).toFixed(2)}%`;
 function stats(item: AccountCoreMetrics) {
-  // The API returns drawdown as a nonnegative magnitude; display the loss.
-  const drawdown = Number(item.realizedDrawdown14d) > 0 ? `-${item.realizedDrawdown14d}` : "0";
+  const drawdown = item.maxDrawdown === null ? null : Number(item.maxDrawdown) > 0 ? `-${item.maxDrawdown}` : "0";
   return [
-    { label: "纳管资产数", value: String(item.assetCount) },
+    { label: "区间开仓资产数", value: String(item.openedAssetCount), detail: `持仓 ${item.holdingAssetCount} ＋ 已平仓 ${item.closedAssetCount}` },
     { label: "当前持仓估值", value: money(item.marketValue) },
-    { label: "历史最高持仓成本", value: money(item.peakHoldingCost) },
-    { label: "累计投入成本", value: money(item.cumulativeInvestedCost) },
-    { label: "累计已实现盈亏", value: money(item.realizedPnl, true), tone: tone(item.realizedPnl) },
+    { label: "最高同时持仓本金", value: money(item.peakHoldingCost) },
+    { label: "累计投入本金", value: money(item.cumulativeInvestedCost) },
+    { label: "已实现盈亏", value: money(item.realizedPnl, true), tone: tone(item.realizedPnl) },
     { label: "当前浮动盈亏", value: money(item.unrealizedPnl, true), tone: tone(item.unrealizedPnl) },
     { label: "总盈亏", value: money(item.totalPnl, true), tone: tone(item.totalPnl) },
-    { label: "成本收益率", value: item.returnRate === null ? "—" : `${Number(item.returnRate) > 0 ? "+" : ""}${(Number(item.returnRate) * 100).toFixed(2)}%`, tone: tone(item.returnRate) },
-    { label: "近14日已实现盈亏回撤", value: money(drawdown), tone: tone(drawdown) },
+    { label: "ROI（累计本金）", value: percent(item.roi), tone: tone(item.roi) },
+    { label: "Return（峰值本金）", value: percent(item.returnRate), tone: tone(item.returnRate) },
+    { label: "最大回撤", value: money(drawdown), tone: tone(drawdown), detail: item.drawdownState === "history_unavailable" ? "历史价格不完整" : undefined },
+    { label: "买入手续费", value: money(item.buyFees) },
+    { label: "卖出手续费", value: money(item.sellFees) },
   ];
 }
-const LABELS = ["纳管资产数", "当前持仓估值", "历史最高持仓成本", "累计投入成本", "累计已实现盈亏", "当前浮动盈亏", "总盈亏", "成本收益率", "近14日已实现盈亏回撤"];
+const LABELS = ["区间开仓资产数", "当前持仓估值", "最高同时持仓本金", "累计投入本金", "已实现盈亏", "当前浮动盈亏", "总盈亏", "ROI（累计本金）", "Return（峰值本金）", "最大回撤", "买入手续费", "卖出手续费"];
 
-export function AccountCoreMetricsPanel({ active, account, accountOrder = [] }: { active: boolean; account: string; accountOrder?: string[] }) {
+export function AccountCoreMetricsPanel({ active, account, accountOrder = [], accountScope = "active" }: { active: boolean; account: string; accountOrder?: string[]; accountScope?: "active" | "all" }) {
   const [state, setState] = useState<{ key: string; data?: AccountCoreMetricsResponse; error?: string }>({ key: "" });
   const [retry, setRetry] = useState(0);
-  const identity = `${account}:${retry}`;
+  const [openingFrom] = useV2Filter("opening_from"), [openingTo] = useV2Filter("opening_to");
+  const identity = `${account}:${accountScope}:${openingFrom}/${openingTo}:${retry}`;
   useEffect(() => {
     if (!active) return;
     const controller = new AbortController();
-    void accountCoreMetrics(account, controller.signal).then(data => { if (!controller.signal.aborted) setState({ key: identity, data }); }).catch((error: unknown) => {
+    void accountCohortMetrics({ ...(account ? { execution_account_id: account } : { account_scope: accountScope }), ...(openingFrom ? { opening_from: openingFrom } : {}), ...(openingTo ? { opening_to: openingTo } : {}) }, controller.signal).then(data => { if (!controller.signal.aborted) setState({ key: identity, data }); }).catch((error: unknown) => {
       if (!controller.signal.aborted) setState({ key: identity, error: error instanceof Error ? error.message : "账户核心指标暂时不可用。" });
     });
     return () => controller.abort();
-  }, [active, account, retry, identity]);
+  }, [active, account, accountScope, openingFrom, openingTo, retry, identity]);
   const current = state.key === identity ? state : undefined;
   const items = current?.data?.items.toSorted((a, b) => {
     const ai = accountOrder.indexOf(a.executionAccountId), bi = accountOrder.indexOf(b.executionAccountId);
     return (ai < 0 ? Number.MAX_SAFE_INTEGER : ai) - (bi < 0 ? Number.MAX_SAFE_INTEGER : bi) || a.executionAccountId.localeCompare(b.executionAccountId);
   });
-  return <section className="section trading-core-metrics" aria-label="账户核心指标" aria-busy={active && !current?.data && !current?.error}>
+  return <section className="section trading-core-metrics" data-v2-extra-query={JSON.stringify({ opening_from: openingFrom, opening_to: openingTo })} aria-label="账户核心指标" aria-busy={active && !current?.data && !current?.error}>
     <div className="section-head"><h2 className="section-title">账户核心指标</h2>{current?.data && <span className="section-caption">账本观测 {formatV2Time(current.data.observedAt)}</span>}</div>
-    <p className="section-caption trading-core-basis">系统纳管口径 · 金额 USD · 累计指标及近14日回撤独立于下方官方曲线日期。</p>
+    <p className="section-caption trading-core-basis">系统纳管口径 · 追踪所选时间内开的仓位，截至现在的表现；剩余持仓按最新价格计算。各项收益未扣手续费。</p>
+    <OpeningRangeForm key={`${openingFrom}/${openingTo}`} from={openingFrom} to={openingTo} />
     {current?.error ? <div className="notice error" role="alert"><p>{current.error}</p><button type="button" className="button" onClick={() => setRetry(v => v + 1)}>重试</button></div>
       : !items ? <p className="trading-core-state">正在读取账户核心指标…</p>
         : !items.length ? <p className="trading-core-state">暂无受管账户。</p>
           : account ? <SingleAccount key={items[0].executionAccountId} item={items[0]} />
             : <LocalScroll label="全部账户核心指标表格"><table className="trading-core-table"><thead><tr><th scope="col">账户 / 平台</th>{LABELS.map(label => <th scope="col" key={label}>{label}</th>)}</tr></thead><tbody>{items.map(item => <AccountTableRow key={item.executionAccountId} item={item} />)}</tbody></table></LocalScroll>}
     <details className="trading-core-explanation"><summary>指标口径</summary><ol>
-      <li><strong>纳管资产数</strong><p>按本地当前持仓统计，同一种结果资产的多次买入合并为一项，包含待赎回资产。</p></li>
-      <li><strong>当前持仓估值</strong><p>各项本地持仓数量 × 对应价格，再求和。</p><p>已确认结算的资产优先使用官方结算价。Polymarket 未结算资产优先用官方现价，缺失才用有效盘口中间价；Kalshi 优先用官方最近成交价，缺失或无效时用有效双边盘口中间价。最近成交价不代表当前可卖出的价格。</p></li>
-      <li><strong>历史最高持仓成本</strong><p>从本地账本重放，取历史上同时持有资产成本的最高值，包含已入账的买入手续费。</p></li>
-      <li><strong>累计投入成本</strong><p>累计买入、接管和导入资产时增加的成本。资金重复买入会重复累计，不是充值额。</p></li>
-      <li><strong>累计已实现盈亏</strong><p>本地已入账的卖出、赎回、Kalshi 净对冲和到期结算收益，手续费只计入一次。</p></li>
-      <li><strong>当前浮动盈亏</strong><p>当前持仓估值 − 当前剩余持仓成本。不预扣未来卖出费用。</p></li>
-      <li><strong>总盈亏</strong><p>累计已实现盈亏 ＋ 当前浮动盈亏，表示系统纳管范围的累计表现。</p></li>
-      <li><strong>成本收益率</strong><p>总盈亏 ÷ 历史最高持仓成本 × 100%。不是官方 ROI，分母为零时显示“—”。</p></li>
-      <li><strong>近14日已实现盈亏回撤</strong><p>按包含今天的14个 UTC 自然日，累计本地已实现盈亏，取从高点最大回落的美元金额，以负数显示；没有回撤时为零。包含 Kalshi 净对冲和到期结算，不含浮盈亏及日内波动。</p></li>
+      <li><strong>区间开仓资产数</strong><p>按开仓时间选择批次，同一种结果资产合并计数。区间开仓资产数 ＝ 当前持仓 ＋ 已平仓；部分平仓仍算持仓，包含待赎回资产。区间外买入的份额不计入。</p></li>
+      <li><strong>当前持仓估值</strong><p>入选批次的当前剩余数量 × 最新价格，再求和。已确认结算价优先；Polymarket 其次用官方现价、有效盘口中间价；Kalshi 其次用官方最近成交价、有效盘口中间价。</p></li>
+      <li><strong>最高同时持仓本金</strong><p>入选批次从开仓至今，同时尚未收回的买入本金最高值；不含手续费、空闲余额或未成交挂单。</p></li>
+      <li><strong>累计投入本金</strong><p>入选批次的买入、接管和导入本金累计。重复买入会重复累计，不是充值额。</p></li>
+      <li><strong>已实现盈亏</strong><p>入选批次已平部分的毛回款 − 对应买入本金。区间结束后发生的卖出、赎回、Kalshi 净对冲和到期结算，也追踪至现在。</p></li>
+      <li><strong>当前浮动盈亏</strong><p>当前持仓估值 − 入选批次的剩余买入本金。</p></li>
+      <li><strong>总盈亏</strong><p>已实现盈亏 ＋ 当前浮动盈亏。</p></li>
+      <li><strong>ROI 与 Return</strong><p>ROI ＝ 总盈亏 ÷ 累计投入本金；Return ＝ 总盈亏 ÷ 最高同时持仓本金。两者都未扣手续费，分母为零时显示“—”。</p></li>
+      <li><strong>最大回撤</strong><p>需要这批仓位的完整历史价格，才能计算包含浮盈亏的总盈亏回撤。历史价格不完整时显示“—”，不拿已实现盈亏回撤替代。</p></li>
+      <li><strong>买入手续费与卖出手续费</strong><p>只列实际记录并归属入选批次的费用，其余指标全部不含手续费。Kalshi 反向买入产生的净对冲费用仍计入买入手续费；到期结算不生成卖出手续费。接管前未记录的费用不补算。</p></li>
     </ol></details>
   </section>;
 }
 function AccountTableRow({ item }: { item: AccountCoreMetrics }) {
   const [open, setOpen] = useState(false); const id = useId();
-  return <Fragment><tr data-core-metrics-account={item.executionAccountId}><th scope="row"><button type="button" className="trading-core-coverage" aria-label={`${item.executionAccountId} 取价明细`} aria-expanded={open} aria-controls={id} onClick={() => setOpen(v => !v)}>{item.executionAccountId}</button><small>{item.marketSource === "KALSHI" ? "Kalshi" : "Polymarket"}</small></th>{stats(item).map(stat => <td key={stat.label} data-core-metric={stat.label} className={stat.tone}>{stat.value}</td>)}</tr>{open && <tr className="trading-core-detail-row"><td colSpan={10}><div id={id}><AssetDetails item={item} /></div></td></tr>}</Fragment>;
+  return <Fragment><tr data-core-metrics-account={item.executionAccountId}><th scope="row"><button type="button" className="trading-core-coverage" aria-label={`${item.executionAccountId} 取价明细`} aria-expanded={open} aria-controls={id} onClick={() => setOpen(v => !v)}>{item.executionAccountId}</button><small>{item.marketSource === "KALSHI" ? "Kalshi" : "Polymarket"}</small></th>{stats(item).map(stat => <td key={stat.label} data-core-metric={stat.label} className={stat.tone}>{stat.value}{stat.detail && <small>{stat.detail}</small>}</td>)}</tr>{open && <tr className="trading-core-detail-row"><td colSpan={LABELS.length + 1}><div id={id}><AssetDetails item={item} /></div></td></tr>}</Fragment>;
 }
 function SingleAccount({ item }: { item: AccountCoreMetrics }) {
   const [open, setOpen] = useState(false); const id = useId();
   return <article data-core-metrics-account={item.executionAccountId} className="trading-core-single" aria-label={`${item.executionAccountId} 账户核心指标`}>
-    <LocalScroll label="单账户核心指标横条"><dl className="trading-core-strip">{stats(item).map(stat => <div key={stat.label} data-core-metric={stat.label}><dt>{stat.label}</dt><dd className={stat.tone}>{stat.value}</dd></div>)}</dl></LocalScroll>
+    <LocalScroll label="单账户核心指标横条"><dl className="trading-core-strip">{stats(item).map(stat => <div key={stat.label} data-core-metric={stat.label}><dt>{stat.label}</dt><dd className={stat.tone}>{stat.value}</dd>{stat.detail && <small>{stat.detail}</small>}</div>)}</dl></LocalScroll>
     <div className="trading-core-single-status"><button type="button" className="trading-core-coverage" aria-label={`${item.executionAccountId} 取价明细`} aria-expanded={open} aria-controls={id} onClick={() => setOpen(v => !v)}>取价明细</button>{item.quoteObservedFrom && <span>报价观测 {formatV2Time(item.quoteObservedFrom ?? undefined)}{item.quoteObservedTo !== item.quoteObservedFrom && <> 至 {formatV2Time(item.quoteObservedTo ?? undefined)}</>}</span>}</div>
     {open && <div id={id}><AssetDetails item={item} /></div>}
   </article>;
@@ -91,4 +99,47 @@ function LocalScroll({ label, children }: { label: string; children: React.React
     return () => observer.disconnect();
   }, []);
   return <div className="trading-core-scroll-wrap">{overflow && <div className="trading-core-scroll-actions"><button type="button" aria-label={`${label}向左查看`} aria-controls={id} onClick={() => ref.current?.scrollBy({ left: -320, behavior: "smooth" })}>←</button><button type="button" aria-label={`${label}向右查看`} aria-controls={id} onClick={() => ref.current?.scrollBy({ left: 320, behavior: "smooth" })}>→</button></div>}<div id={id} ref={ref} className="trading-core-scroll" role="region" aria-label={label}>{children}</div></div>;
+}
+
+
+function OpeningRangeForm({ from, to }: { from: string; to: string }) {
+  const initialLocal = (value: string) => {
+    if (!value || !Number.isFinite(Date.parse(value))) return "";
+    const date = new Date(value);
+    const minutes = String(date.getMinutes()).padStart(2, "0"), seconds = String(date.getSeconds()).padStart(2, "0");
+    return `${walletPnlLocalHour(date.getTime()).slice(0, 14)}${minutes}${date.getSeconds() || date.getMilliseconds() ? `:${seconds}${date.getMilliseconds() ? `.${String(date.getMilliseconds()).padStart(3, "0")}` : ""}` : ""}`;
+  };
+  const [custom, setCustom] = useState(Boolean(from || to));
+  const [start, setStart] = useState(""), [end, setEnd] = useState("");
+  const [localReady, setLocalReady] = useState(false);
+  const [invalidAppliedRange, setInvalidAppliedRange] = useState(false);
+  const [startInstant, setStartInstant] = useState(from ? String(Date.parse(from)) : ""), [endInstant, setEndInstant] = useState(to ? String(Date.parse(to)) : "");
+  const [error, setError] = useState<string>();
+  const [max, setMax] = useState("");
+  useEffect(() => {
+    const frame = window.requestAnimationFrame(() => { setStart(from && Number.isFinite(Date.parse(from)) ? walletPnlLocalHour(Date.parse(from)) : ""); setEnd(to && Number.isFinite(Date.parse(to)) ? walletPnlLocalHour(Date.parse(to)) : ""); setMax(walletPnlLocalHour()); setInvalidAppliedRange(Boolean(cohortOpeningRangeError({ opening_from: from || undefined, opening_to: to || undefined }))); setLocalReady(true); });
+    return () => window.cancelAnimationFrame(frame);
+  }, [from, to]);
+  const apply = (event: React.FormEvent) => {
+    event.preventDefault();
+    let range: Pick<AccountCohortQuery, "opening_from" | "opening_to"> = {};
+    if (custom) {
+      const result = validateWalletPnlRange(start, end, Date.now(), { startMs: startInstant ? Number(startInstant) : undefined, endMs: endInstant ? Number(endInstant) : undefined });
+      if (!result.range) { setError(result.error); return; }
+      range = { opening_from: new Date(result.range.startMs).toISOString(), opening_to: new Date(result.range.endMs).toISOString() };
+    }
+    const url = new URL(window.location.href);
+    for (const key of ["opening_from", "opening_to"] as const) { if (range[key]) url.searchParams.set(key, range[key]); else url.searchParams.delete(key); }
+    window.history.replaceState(window.history.state, "", `${url.pathname}${url.search}${url.hash}`);
+    window.dispatchEvent(new Event("v2-workspace-url-change"));
+    setError(undefined);
+  };
+  return <><form className="trading-core-range" onSubmit={apply} aria-label="核心指标开仓时间范围" noValidate>
+    <label><span>开仓时间</span><select className="select" aria-label="核心指标开仓范围" value={custom ? "custom" : "all"} onChange={event => { setCustom(event.target.value === "custom"); setError(undefined); setMax(walletPnlLocalHour()); }}><option value="all">全部开仓</option><option value="custom">自定义区间</option></select></label>
+    {custom && <><LocalHourInput label="开始" ariaPrefix="开仓区间" value={start} max={max} onChange={value => { setStart(value); setStartInstant(""); setError(undefined); }} />
+      {walletPnlHourCandidates(start).length > 1 && <label>开始时区偏移<select className="select" aria-label="开仓开始小时偏移" value={startInstant} onChange={event => setStartInstant(event.target.value)}><option value="">请选择重复小时</option>{walletPnlHourCandidates(start).map(time => <option key={time} value={time}>{formatWalletPnlOffset(time)}</option>)}</select></label>}
+      <LocalHourInput label="结束" ariaPrefix="开仓区间" value={end} max={max} onChange={value => { setEnd(value); setEndInstant(""); setError(undefined); }} />
+      {walletPnlHourCandidates(end).length > 1 && <label>结束时区偏移<select className="select" aria-label="开仓结束小时偏移" value={endInstant} onChange={event => setEndInstant(event.target.value)}><option value="">请选择重复小时</option>{walletPnlHourCandidates(end).map(time => <option key={time} value={time}>{formatWalletPnlOffset(time)}</option>)}</select></label>}</>}
+    <button type="submit" className="button primary">应用开仓范围</button>{error && <p role="alert">{error}</p>}
+  </form><p className="section-caption trading-core-range-applied">{from && to ? !localReady ? "正在读取已应用的开仓区间…" : `${invalidAppliedRange ? "链接范围尚未应用，请改选本地整点：" : "已应用："}${initialLocal(from).replace("T", " ")} 至 ${initialLocal(to).replace("T", " ")} 前开仓（本地时间）` : "已应用：全部历史开仓"} · 与下方官方钱包曲线、成交明细的日期分别筛选。</p></>;
 }
