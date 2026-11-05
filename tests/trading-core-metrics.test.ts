@@ -1,3 +1,4 @@
+import { formatCoreMoney, formatCorePercent, coreMetricTone } from "../app/lib/core-metric-display.ts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { accountCoreMetrics, decodeAccountCoreMetrics, accountCohortMetrics, decodeAccountCohortMetrics, cohortOpeningRangeError } from "../app/lib/trading-core-metrics.ts";
@@ -191,4 +192,19 @@ test("缺平仓证据账户隔离返回，成功账户与失败账户严格互�
   assert.throws(() => decodeAccountCohortMetrics(mixed, { execution_account_id: "wallet-1" }));
   assert.throws(() => decodeAccountCohortMetrics(cohortData({ items: [], unavailable_accounts: [unavailable] }), { execution_account_id: "main" }));
   assert.throws(() => decodeAccountCohortMetrics(cohortData({ items: [] }), { execution_account_id: "wallet-1" }));
+});
+
+test("核心指标符号和颜色与显示精度一致，负零和微小正负值均为中性零", () => {
+  for (const value of ["0", "-0", "-0.000000000000001", "0.000000000000001", "-0.0049999", "0.0049999"]) {
+    assert.equal(formatCoreMoney(value, true), "$0.00"); assert.equal(coreMetricTone(value), "");
+  }
+  assert.equal(formatCoreMoney("-0.005", true), "-$0.01"); assert.equal(coreMetricTone("-0.005"), "negative");
+  assert.equal(formatCoreMoney("0.005", true), "+$0.01"); assert.equal(coreMetricTone("0.005"), "positive");
+  assert.equal(formatCoreMoney("12345.678"), "$12,345.68");
+  for (const value of ["0", "-0", "-0.000049999", "0.000049999"]) {
+    assert.equal(formatCorePercent(value), "0.00%"); assert.equal(coreMetricTone(value, "percent"), "");
+  }
+  assert.equal(formatCorePercent("-0.00005"), "-0.01%"); assert.equal(coreMetricTone("-0.00005", "percent"), "negative");
+  assert.equal(formatCorePercent("0.00005"), "+0.01%"); assert.equal(coreMetricTone("0.00005", "percent"), "positive");
+  assert.equal(formatCoreMoney(null), "—"); assert.equal(formatCorePercent(null), "—"); assert.equal(coreMetricTone(null), "");
 });
