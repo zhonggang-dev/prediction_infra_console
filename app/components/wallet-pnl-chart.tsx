@@ -85,7 +85,7 @@ function WalletPnlCard({ active, executionAccountId, period, customRange, refres
           return result;
         };
         const all = await loadSeries(allCacheKey, allQuery.interval, allQuery.fidelity);
-        const query = period === "CUSTOM" && customRange ? chooseCustomWalletPnlQuery(customRange, Date.parse(all.fetchedAt), all.points[0]?.timestamp) : chooseWalletPnlQuery(period === "CUSTOM" ? "ALL" : period, all.points[0]?.timestamp, Date.parse(all.fetchedAt));
+        const query = period === "CUSTOM" && customRange ? chooseCustomWalletPnlQuery(customRange, Date.parse(all.fetchedAt)) : chooseWalletPnlQuery(period === "CUSTOM" ? "ALL" : period, all.points[0]?.timestamp, Date.parse(all.fetchedAt));
         const cacheKey = `${executionAccountId}:${query.interval}:${query.fidelity}`;
         const current = cacheKey === allCacheKey
           ? all

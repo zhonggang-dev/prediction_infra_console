@@ -179,20 +179,17 @@ test("小时输入拒绝未来/倒序/非整点，DST缺失与重复小时明确
   assert.equal(walletPnlLocalHour(Date.parse("2026-11-04T02:47:00Z")), "2026-11-03T21:00");
 }));
 
-test("自定义起点按官方真实小时数据起点分档：之后用小时网格，更早用日网格", () => withTimezone("Asia/Shanghai", () => {
+test("自定义起点按距今时间分档：30天内用小时网格，更早用日网格", () => withTimezone("Asia/Shanghai", () => {
   const now = Date.parse("2026-11-04T10:00:00Z");
   const make = (start: string) => { const parsed = validateWalletPnlRange(start, "2026-11-04T17:00", now); assert.ok(parsed.range); return parsed.range; };
   assert.deepEqual(chooseCustomWalletPnlQuery(make("2026-11-04T10:00"), now), { interval: "1d", fidelity: "1h" });
   assert.deepEqual(chooseCustomWalletPnlQuery(make("2026-11-01T10:00"), now), { interval: "1w", fidelity: "1h" });
   assert.deepEqual(chooseCustomWalletPnlQuery(make("2026-10-10T10:00"), now), { interval: "1m", fidelity: "1h" });
-  assert.deepEqual(chooseCustomWalletPnlQuery(make("2026-09-17T10:00"), now, now / 1000 - 200 * 24 * hour), { interval: "all", fidelity: "1h" });
-  // 分界：北京时间 09-16 08:00 即 UTC 00:00，含边界走小时网格；之前走日网格。
-  assert.deepEqual(chooseCustomWalletPnlQuery(make("2026-09-16T08:00"), now), { interval: "all", fidelity: "1h" });
-  assert.deepEqual(chooseCustomWalletPnlQuery(make("2026-09-16T07:00"), now), { interval: "all", fidelity: "1d" });
-  assert.deepEqual(chooseCustomWalletPnlQuery(make("2026-08-10T10:00"), now, now / 1000 - 500 * 24 * hour), { interval: "all", fidelity: "1d" });
-  // 小时网格的读取预算保护仍然有效（未来足够久之后）。
-  const later = Date.parse("2028-01-01T00:00:00Z");
-  assert.throws(() => chooseCustomWalletPnlQuery(make("2026-09-17T10:00"), later, Date.parse("2026-03-01T00:00:00Z") / 1000), /预算/);
+  // 30 天边界（含为起点预留的一小时）：now−30天+1小时 仍是小时网格，再早一小时转日网格。
+  assert.deepEqual(chooseCustomWalletPnlQuery(make("2026-10-05T19:00"), now), { interval: "1m", fidelity: "1h" });
+  assert.deepEqual(chooseCustomWalletPnlQuery(make("2026-10-05T18:00"), now), { interval: "all", fidelity: "1d" });
+  // 更早的区间不再请求 all/1h，也就不会撞小时点数预算。
+  assert.deepEqual(chooseCustomWalletPnlQuery(make("2025-01-01T10:00"), now), { interval: "all", fidelity: "1d" });
 }));
 
 test("日网格自定义区间：容差放宽到一天，边界不在采样点上标记近似，不足一天报仅有每日数据", () => withTimezone("Asia/Shanghai", () => {

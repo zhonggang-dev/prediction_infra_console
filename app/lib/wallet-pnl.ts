@@ -275,21 +275,20 @@ export function validateWalletPnlRange(startDate: string, endDate: string, now =
   return { range: { startDate, endDate, startMs, endMs, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, startOffset: formatWalletPnlOffset(startMs), endOffset: formatWalletPnlOffset(endMs) } };
 }
 
-/**
- * Official history is observed daily until about mid September 2026; before that an
- * "hourly" grid only carries the previous daily snapshot forward. Earlier ranges
- * therefore use the honest daily grid, the same way Kalshi picks a coarser range.
- */
-export const HOURLY_HISTORY_START_MS = Date.UTC(2026, 8, 16);
 const DAY_SECONDS = 86_400;
 
-/** Select the official grid by how far back the range starts. */
-export function chooseCustomWalletPnlQuery(range: WalletPnlCustomRange, asOf = Date.now(), historyStartTimestamp?: number): WalletPnlQuery {
-  if (range.startMs < HOURLY_HISTORY_START_MS) return { interval: "all", fidelity: "1d" };
+/**
+ * Pick the official window by how far back the range starts, like Kalshi. The last
+ * 30 days use the hourly grid; older starts use the daily grid, because official
+ * history further back is observed daily and an hourly grid would only repeat it.
+ */
+export function chooseCustomWalletPnlQuery(range: WalletPnlCustomRange, asOf = Date.now()): WalletPnlQuery {
+  // Reserve one hour for the value at/before the selected start.
   const hours = Math.max(0, (asOf - range.startMs) / 3_600_000) + 1;
-  const interval = hours <= 24 ? "1d" : hours <= 7 * 24 ? "1w" : hours <= 30 * 24 ? "1m" : "all";
-  if (interval === "all" && historyStartTimestamp !== undefined && (asOf / 1000 - historyStartTimestamp) / 3600 + 1 > 10_000) throw new Error("该历史范围超出官方小时序列的读取预算；可查看近30天小时数据或使用长期快捷周期。");
-  return { interval, fidelity: "1h" };
+  if (hours <= 24) return { interval: "1d", fidelity: "1h" };
+  if (hours <= 7 * 24) return { interval: "1w", fidelity: "1h" };
+  if (hours <= 30 * 24) return { interval: "1m", fidelity: "1h" };
+  return { interval: "all", fidelity: "1d" };
 }
 
 /** Difference of official grid values. Chart domain always remains the requested domain. */
