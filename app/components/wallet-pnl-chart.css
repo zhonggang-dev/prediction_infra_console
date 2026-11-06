@@ -7,3 +7,5 @@
 @media(max-width:520px){.wallet-pnl-hour-input{flex:1 1 210px}.wallet-pnl-hour-input .input{flex:1;width:0;min-width:0}.wallet-pnl-hour-input .select{flex:0 0 78px}}
 
 .wallet-pnl-card{display:flex}.wallet-pnl-card>.wallet-pnl-panel{flex:1;min-width:0}
+
+.wallet-pnl-axis{gap:12px;align-items:flex-start}.wallet-pnl-axis>span{min-width:0}.wallet-pnl-axis>span:last-child{flex-shrink:0}.wallet-pnl-start-note{display:block;margin-top:4px;font-size:11px;line-height:1.5}

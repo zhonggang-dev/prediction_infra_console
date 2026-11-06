@@ -32,7 +32,7 @@ export interface WalletPnlView {
   baseline: number | null;
   startAt: number | null;
   endAt: number | null;
-  /** Custom range edges are not on a sampling point of a coarser-than-hourly grid. */
+  /** A period may use approximate official sampling boundaries. */
   approximate?: boolean;
   error?: string;
 }
@@ -275,36 +275,23 @@ export function validateWalletPnlRange(startDate: string, endDate: string, now =
   return { range: { startDate, endDate, startMs, endMs, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, startOffset: formatWalletPnlOffset(startMs), endOffset: formatWalletPnlOffset(endMs) } };
 }
 
-const DAY_SECONDS = 86_400;
-
-export function walletPnlFidelitySeconds(fidelity: WalletPnlQuery["fidelity"]): number {
-  return FIDELITY_CANDIDATES.find(candidate => candidate.fidelity === fidelity)!.hours * 3600;
-}
-
-/**
- * Like Kalshi, a custom range sends exactly the quick period's request whose window
- * holds its start, so it gets that period's official grid (1h/3h/18h/1d). A window's
- * first grid point can sit up to one step after its nominal start, so reserve a step.
- */
+/** Custom ranges keep the quick period's grid, selected once from the requested start. */
 export function chooseCustomWalletPnlQuery(range: WalletPnlCustomRange, asOf = Date.now(), historyStartTimestamp?: number): WalletPnlQuery {
   for (const period of ["1D", "1W", "1M"] as const) {
-    const query = chooseWalletPnlQuery(period, historyStartTimestamp, asOf);
-    if (range.startMs >= asOf - PERIOD_MS[period]! + walletPnlFidelitySeconds(query.fidelity) * 1000) return query;
+    if (range.startMs >= asOf - PERIOD_MS[period]!) return chooseWalletPnlQuery(period, historyStartTimestamp, asOf);
   }
   return chooseWalletPnlQuery("ALL", historyStartTimestamp, asOf);
 }
 
-/** Difference of official grid values. Chart domain always remains the requested domain. */
-export function buildCustomWalletPnlView(points: WalletPnlPoint[], range: WalletPnlCustomRange, asOf = Date.now(), stepSeconds = 3600): WalletPnlView {
-  const view: WalletPnlView = { ...emptyView("CUSTOM"), startAt: range.startMs / 1000, endAt: range.endMs / 1000 };
+/** Rebase only real samples inside the selection; axes use those same sample times. */
+export function buildCustomWalletPnlView(points: WalletPnlPoint[], range: WalletPnlCustomRange, asOf = Date.now()): WalletPnlView {
+  const view = emptyView("CUSTOM");
   if (!Number.isFinite(asOf) || !Number.isFinite(range.startMs) || !Number.isFinite(range.endMs) || range.startMs >= range.endMs || range.endMs > asOf) return view;
-  const available = normalizePoints(points).filter(point => point.timestamp * 1000 <= range.endMs && point.timestamp * 1000 <= asOf);
-  const baseline = available.filter(point => point.timestamp * 1000 <= range.startMs).at(-1), last = available.at(-1);
-  const toleranceMs = stepSeconds * 1000, coarse = stepSeconds > 3600;
-  const exact = baseline?.timestamp === range.startMs / 1000 && last?.timestamp === range.endMs / 1000;
-  if (coarse && range.endMs - range.startMs <= toleranceMs && !exact) return { ...view, error: stepSeconds >= DAY_SECONDS ? "该时间段仅有每日数据，请扩大范围或按整日查看。" : `该时间段官方采样间隔为${stepSeconds / 3600}小时，请扩大范围。` };
-  if (!baseline || !last || range.startMs - baseline.timestamp * 1000 > toleranceMs || range.endMs - last.timestamp * 1000 > toleranceMs || last.timestamp <= baseline.timestamp) return view;
-  return { ...view, absolute: false, baseline: baseline.tradePnl, baselineAt: baseline.timestamp, endSampleAt: last.timestamp, approximate: coarse && !exact,
-    points: available.filter(point => point.timestamp * 1000 >= range.startMs).map(point => ({ ...point, value: point.tradePnl - baseline.tradePnl })),
-    amount: last.tradePnl - baseline.tradePnl };
+  const selected = normalizePoints(points).filter(point => point.timestamp * 1000 >= range.startMs && point.timestamp * 1000 <= range.endMs);
+  if (selected.length < 2) return { ...view, error: "所选区间内不足两个官方采样点，请扩大时间范围。" };
+  const first = selected[0], last = selected.at(-1)!;
+  return { ...view, absolute: false, baseline: first.tradePnl, baselineAt: first.timestamp, endSampleAt: last.timestamp,
+    startAt: first.timestamp, endAt: last.timestamp,
+    points: selected.map(point => ({ ...point, value: point.tradePnl - first.tradePnl })),
+    amount: last.tradePnl - first.tradePnl };
 }
