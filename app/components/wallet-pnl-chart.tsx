@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { officialPnlAccounts, walletPnl, type OfficialPnlAccount } from "../lib/wallet-pnl-api";
-import { buildWalletPnlChartGeometry, buildWalletPnlView, buildCustomWalletPnlView, chooseCustomWalletPnlQuery, chooseWalletPnlQuery, nearestWalletPnlPointIndex, type WalletPnlSelection, type WalletPnlCustomRange, type WalletPnlView, type WalletPnlChartGeometry } from "../lib/wallet-pnl";
+import { buildWalletPnlChartGeometry, buildWalletPnlView, buildCustomWalletPnlView, chooseCustomWalletPnlQuery, chooseWalletPnlQuery, walletPnlFidelitySeconds, nearestWalletPnlPointIndex, type WalletPnlSelection, type WalletPnlCustomRange, type WalletPnlView, type WalletPnlChartGeometry } from "../lib/wallet-pnl";
 import type { WalletPnlSeries } from "../lib/wallet-pnl";
 import { OfficialPnlSummary, OfficialPnlState as PnlState } from "./official-pnl-summary";
 import type { OfficialPnlTimeSelection } from "./official-pnl-controls";
@@ -92,7 +92,7 @@ function WalletPnlCard({ active, executionAccountId, period, customRange, refres
           : await loadSeries(cacheKey, query.interval, query.fidelity);
         if (controller.signal.aborted || requestKey.current !== currentKey) return;
         setSeries(current);
-        setView(period === "CUSTOM" && customRange ? buildCustomWalletPnlView(current.points, customRange, Date.parse(current.fetchedAt)) : buildWalletPnlView(current.points, period === "CUSTOM" ? "ALL" : period, Date.parse(current.fetchedAt), all.points[0]?.timestamp));
+        setView(period === "CUSTOM" && customRange ? buildCustomWalletPnlView(current.points, customRange, Date.parse(current.fetchedAt), walletPnlFidelitySeconds(current.fidelity)) : buildWalletPnlView(current.points, period === "CUSTOM" ? "ALL" : period, Date.parse(current.fetchedAt), all.points[0]?.timestamp));
         setReadyIdentity(identity); setStatus("ready");
       } catch (reason) {
         if (controller.signal.aborted || requestKey.current !== currentKey) return;
@@ -117,9 +117,9 @@ function WalletPnlCard({ active, executionAccountId, period, customRange, refres
       {!executionAccountId ? <PnlState title="等待账户身份" />
           : status === "loading" || readyIdentity !== identity ? <PnlState title="正在读取官方盈亏" />
             : status === "error" ? <PnlState title="官方盈亏暂时不可用" detail={error ?? "接口返回错误，请稍后重试。"} retry={() => setRetryToken((value) => value + 1)} />
-              : !view?.points.length || view.amount === null || !series ? <PnlState title="暂无足够盈亏数据" detail={period === "CUSTOM" ? "所选起止时间缺少对应的官方采样数据，请调整时间范围。" : "官方尚未提供足够的历史数据。"} />
+              : !view?.points.length || view.amount === null || !series ? <PnlState title="暂无足够盈亏数据" detail={period === "CUSTOM" ? view?.error ?? "所选起止时间缺少对应的官方采样数据，请调整时间范围。" : "官方尚未提供足够的历史数据。"} />
               : <>
-                  <OfficialPnlSummary platform="polymarket" amount={amount ?? view.amount} timestamp={pointTime} intervalMinutes={series.fidelity === "1d" ? 1440 : Number(series.fidelity.slice(0, -1)) * 60} partialHistory={view.partialHistory} baselineAt={view.baselineAt} endSampleAt={view.endSampleAt ?? view.endAt} />
+                  <OfficialPnlSummary platform="polymarket" amount={amount ?? view.amount} timestamp={pointTime} intervalMinutes={series.fidelity === "1d" ? 1440 : Number(series.fidelity.slice(0, -1)) * 60} approximate={view.approximate} partialHistory={view.partialHistory} baselineAt={view.baselineAt} endSampleAt={view.endSampleAt ?? view.endAt} />
                   <PnlSvg custom={period === "CUSTOM"} label={period === "CUSTOM" ? "官方钱包所选期间盈亏曲线" : "官方钱包累计盈亏曲线"} fillId={fillId} chart={chart} points={view.points} hoverIndex={hoverIndex} onHover={(index) => setHoverState({ key: identity, index })} />
                 </>}
     </div>
