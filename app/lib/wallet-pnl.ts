@@ -32,6 +32,9 @@ export interface WalletPnlView {
   baseline: number | null;
   startAt: number | null;
   endAt: number | null;
+  /** Custom range edges are not on a sampling point (daily grid only). */
+  approximate?: boolean;
+  error?: string;
 }
 
 export interface WalletPnlChartGeometry {
@@ -272,22 +275,34 @@ export function validateWalletPnlRange(startDate: string, endDate: string, now =
   return { range: { startDate, endDate, startMs, endMs, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, startOffset: formatWalletPnlOffset(startMs), endOffset: formatWalletPnlOffset(endMs) } };
 }
 
-/** Select an official hourly window with room for its leading baseline point. */
+/**
+ * Official history is observed daily until about mid September 2026; before that an
+ * "hourly" grid only carries the previous daily snapshot forward. Earlier ranges
+ * therefore use the honest daily grid, the same way Kalshi picks a coarser range.
+ */
+export const HOURLY_HISTORY_START_MS = Date.UTC(2026, 8, 16);
+const DAY_SECONDS = 86_400;
+
+/** Select the official grid by how far back the range starts. */
 export function chooseCustomWalletPnlQuery(range: WalletPnlCustomRange, asOf = Date.now(), historyStartTimestamp?: number): WalletPnlQuery {
+  if (range.startMs < HOURLY_HISTORY_START_MS) return { interval: "all", fidelity: "1d" };
   const hours = Math.max(0, (asOf - range.startMs) / 3_600_000) + 1;
   const interval = hours <= 24 ? "1d" : hours <= 7 * 24 ? "1w" : hours <= 30 * 24 ? "1m" : "all";
   if (interval === "all" && historyStartTimestamp !== undefined && (asOf / 1000 - historyStartTimestamp) / 3600 + 1 > 10_000) throw new Error("该历史范围超出官方小时序列的读取预算；可查看近30天小时数据或使用长期快捷周期。");
   return { interval, fidelity: "1h" };
 }
 
-/** Difference of official hourly grid values. Chart domain always remains the requested domain. */
-export function buildCustomWalletPnlView(points: WalletPnlPoint[], range: WalletPnlCustomRange, asOf = Date.now()): WalletPnlView {
-  const view = { ...emptyView("CUSTOM"), startAt: range.startMs / 1000, endAt: range.endMs / 1000 };
+/** Difference of official grid values. Chart domain always remains the requested domain. */
+export function buildCustomWalletPnlView(points: WalletPnlPoint[], range: WalletPnlCustomRange, asOf = Date.now(), stepSeconds = 3600): WalletPnlView {
+  const view: WalletPnlView = { ...emptyView("CUSTOM"), startAt: range.startMs / 1000, endAt: range.endMs / 1000 };
   if (!Number.isFinite(asOf) || !Number.isFinite(range.startMs) || !Number.isFinite(range.endMs) || range.startMs >= range.endMs || range.endMs > asOf) return view;
   const available = normalizePoints(points).filter(point => point.timestamp * 1000 <= range.endMs && point.timestamp * 1000 <= asOf);
   const baseline = available.filter(point => point.timestamp * 1000 <= range.startMs).at(-1), last = available.at(-1);
-  if (!baseline || !last || range.startMs - baseline.timestamp * 1000 > 3_600_000 || range.endMs - last.timestamp * 1000 > 3_600_000 || last.timestamp <= baseline.timestamp) return view;
-  return { ...view, absolute: false, baseline: baseline.tradePnl, baselineAt: baseline.timestamp, endSampleAt: last.timestamp,
+  const toleranceMs = stepSeconds * 1000, daily = stepSeconds >= DAY_SECONDS;
+  const exact = baseline?.timestamp === range.startMs / 1000 && last?.timestamp === range.endMs / 1000;
+  if (daily && range.endMs - range.startMs <= DAY_SECONDS * 1000 && !exact) return { ...view, error: "该时间段仅有每日数据，请扩大范围或按整日查看。" };
+  if (!baseline || !last || range.startMs - baseline.timestamp * 1000 > toleranceMs || range.endMs - last.timestamp * 1000 > toleranceMs || last.timestamp <= baseline.timestamp) return view;
+  return { ...view, absolute: false, baseline: baseline.tradePnl, baselineAt: baseline.timestamp, endSampleAt: last.timestamp, approximate: daily && !exact,
     points: available.filter(point => point.timestamp * 1000 >= range.startMs).map(point => ({ ...point, value: point.tradePnl - baseline.tradePnl })),
     amount: last.tradePnl - baseline.tradePnl };
 }
