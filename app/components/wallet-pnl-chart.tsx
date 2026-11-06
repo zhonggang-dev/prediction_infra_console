@@ -126,7 +126,7 @@ function WalletPnlCard({ active, executionAccountId, period, customRange, refres
   </section>;
 }
 
-export function PnlSvg({ custom, label, fillId, chart, points, hoverIndex, onHover }: { custom: boolean; label: string; fillId: string; chart?: WalletPnlChartGeometry; points: { timestamp: number; value: number }[]; hoverIndex?: number; onHover: (index: number | undefined) => void }) {
+export function PnlSvg({ custom, showStartNote = false, label, fillId, chart, points, hoverIndex, onHover }: { custom: boolean; showStartNote?: boolean; label: string; fillId: string; chart?: WalletPnlChartGeometry; points: { timestamp: number; value: number }[]; hoverIndex?: number; onHover: (index: number | undefined) => void }) {
   if (!chart || !points.length) return null;
   const active = hoverIndex === undefined ? points.length - 1 : Math.max(0, Math.min(points.length - 1, hoverIndex));
   const point = chart.points[active];
@@ -147,7 +147,7 @@ export function PnlSvg({ custom, label, fillId, chart, points, hoverIndex, onHov
       if (event.key === "ArrowLeft") onHover(Math.max(0, active - 1));
       if (event.key === "ArrowRight") onHover(Math.min(points.length - 1, active + 1));
     }} tabIndex={0} aria-label="使用左右方向键查看盈亏采样点" />
-  </svg><div className="wallet-pnl-axis"><span>{custom ? formatHourAxis(chart.domainStartAt) : formatShortDate(points[0].timestamp)}{custom && <small className="wallet-pnl-start-note">采用开始时间后第一个采样点</small>}</span><span>{custom ? formatHourAxis(chart.domainEndAt) : formatShortDate(points[points.length - 1].timestamp)}</span></div></div>;
+  </svg><div className="wallet-pnl-axis"><span>{custom ? formatHourAxis(chart.domainStartAt) : formatShortDate(points[0].timestamp)}{custom && showStartNote && <small className="wallet-pnl-start-note">采用开始时间后第一个采样点</small>}</span><span>{custom ? formatHourAxis(chart.domainEndAt) : formatShortDate(points[points.length - 1].timestamp)}</span></div></div>;
 }
 
 function formatShortDate(timestamp: number): string {

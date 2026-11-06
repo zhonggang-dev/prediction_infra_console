@@ -176,23 +176,15 @@ test("小时输入拒绝未来/倒序/非整点，DST缺失与重复小时明确
   assert.equal(walletPnlLocalHour(Date.parse("2026-11-04T02:47:00Z")), "2026-11-03T21:00");
 }));
 
-test("自定义区间与 Kalshi 一样复用快捷周期请求：1天1h、7天3h、30天18h、更早1d", () => withTimezone("Asia/Shanghai", () => {
+test("Polymarket自定义固定官方1h，仅按原始起点选择覆盖窗口并保持读取预算", () => withTimezone("Asia/Shanghai", () => {
   const now = Date.parse("2026-11-04T10:00:00Z"), history = Date.parse("2026-03-01T00:00:00Z") / 1000;
   const make = (start: string) => { const parsed = validateWalletPnlRange(start, "2026-11-04T17:00", now); assert.ok(parsed.range); return parsed.range; };
   const choose = (start: string) => chooseCustomWalletPnlQuery(make(start), now, history);
-  assert.deepEqual(choose("2026-11-04T10:00"), { interval: "1d", fidelity: "1h" });
-  assert.deepEqual(choose("2026-11-01T10:00"), { interval: "1w", fidelity: "3h" });
-  assert.deepEqual(choose("2026-10-10T10:00"), { interval: "1m", fidelity: "18h" });
-  assert.deepEqual(choose("2026-08-10T10:00"), { interval: "all", fidelity: "1d" });
-  // 与快捷周期请求完全相同。
-  for (const [start, period] of [["2026-11-04T10:00", "1D"], ["2026-11-01T10:00", "1W"], ["2026-10-10T10:00", "1M"], ["2026-08-10T10:00", "ALL"]] as const) assert.deepEqual(choose(start), chooseWalletPnlQuery(period, history, now));
-  // 无需为域外基线预留步长；只按原始起点选档，不因首点跨档重新选择。
-  assert.deepEqual(choose("2026-11-03T18:00"), { interval: "1d", fidelity: "1h" });
-  assert.deepEqual(choose("2026-11-03T17:00"), { interval: "1w", fidelity: "3h" });
-  assert.deepEqual(choose("2026-10-28T18:00"), { interval: "1w", fidelity: "3h" });
-  assert.deepEqual(choose("2026-10-28T17:00"), { interval: "1m", fidelity: "18h" });
-  assert.deepEqual(choose("2026-10-05T18:00"), { interval: "1m", fidelity: "18h" });
-  assert.deepEqual(choose("2026-10-05T17:00"), { interval: "all", fidelity: "1d" });
+  for (const [start, interval] of [["2026-11-04T10:00", "1d"], ["2026-11-01T10:00", "1w"], ["2026-10-10T10:00", "1m"], ["2026-08-10T10:00", "all"], ["2026-11-03T18:00", "1d"], ["2026-11-03T17:00", "1w"], ["2026-10-28T18:00", "1w"], ["2026-10-28T17:00", "1m"], ["2026-10-05T18:00", "1m"], ["2026-10-05T17:00", "all"]] as const) assert.deepEqual(choose(start), { interval, fidelity: "1h" });
+  assert.throws(() => chooseCustomWalletPnlQuery(make("2026-08-10T10:00"), now, now / 1000 - 500 * 24 * hour), /预算/);
+  // 官方快捷档位仍采用原本的采样精度。
+  assert.deepEqual(chooseWalletPnlQuery("1W", history, now), { interval: "1w", fidelity: "3h" });
+  assert.deepEqual(chooseWalletPnlQuery("1M", history, now), { interval: "1m", fidelity: "18h" });
 }));
 
 test("粗网格首末点都在区间内，首点归零，轴与悬停使用真实采样时间", () => withTimezone("UTC", () => {
