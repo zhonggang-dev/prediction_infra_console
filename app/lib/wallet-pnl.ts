@@ -275,12 +275,12 @@ export function validateWalletPnlRange(startDate: string, endDate: string, now =
   return { range: { startDate, endDate, startMs, endMs, timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, startOffset: formatWalletPnlOffset(startMs), endOffset: formatWalletPnlOffset(endMs) } };
 }
 
-/** Custom ranges keep the quick period's grid, selected once from the requested start. */
+/** Use the official hourly grid, choosing only the window that covers the requested start. */
 export function chooseCustomWalletPnlQuery(range: WalletPnlCustomRange, asOf = Date.now(), historyStartTimestamp?: number): WalletPnlQuery {
-  for (const period of ["1D", "1W", "1M"] as const) {
-    if (range.startMs >= asOf - PERIOD_MS[period]!) return chooseWalletPnlQuery(period, historyStartTimestamp, asOf);
-  }
-  return chooseWalletPnlQuery("ALL", historyStartTimestamp, asOf);
+  const hours = Math.max(0, (asOf - range.startMs) / 3_600_000);
+  const interval = hours <= 24 ? "1d" : hours <= 7 * 24 ? "1w" : hours <= 30 * 24 ? "1m" : "all";
+  if (interval === "all" && historyStartTimestamp !== undefined && (asOf / 1000 - historyStartTimestamp) / 3600 + 1 > 10_000) throw new Error("该历史范围超出官方小时序列的读取预算；可查看近30天小时数据或使用长期快捷周期。");
+  return { interval, fidelity: "1h" };
 }
 
 /** Rebase only real samples inside the selection; axes use those same sample times. */
