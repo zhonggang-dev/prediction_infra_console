@@ -53,24 +53,24 @@ test("小时自定义金额、悬停和轴域同范围，域外基准不画入�
   const chart = buildWalletPnlChartGeometry(v)!;
   assert.equal(chart.domainStartAt, start); assert.equal(chart.domainEndAt, end); assert.match(chart.linePath, / C /);
   const shifted = buildKalshiPnlView(s, "CUSTOM", range((start + 30 * 60) * 1000, end * 1000));
-  assert.equal(shifted.points[0].timestamp, start + hour); assert.equal(shifted.baselineAt, start);
+  assert.equal(shifted.points[0].timestamp, start + hour); assert.equal(shifted.baselineAt, start + hour); assert.equal(shifted.points[0].value, 0); assert.equal(shifted.amount, 11); assert.equal(shifted.startAt, start + hour);
 });
 test("很早的12小时范围只有日采样时不给金额或曲线，不捏造平线", () => {
   const start = second - 60 * day;
   const points = [-day, 0, day, 60 * day].map((offset, i) => ({ timestamp: start + offset, cumulativePnl: i, portfolioValue: 1000 + i }));
   const s = { ...decode(), periodIntervalMinutes: 1440, points };
   const v = buildKalshiPnlView(s, "CUSTOM", range((start + 8 * hour) * 1000, (start + 20 * hour) * 1000));
-  assert.match(v.error!, /仅有每日数据/); assert.equal(v.amount, null); assert.equal(buildWalletPnlChartGeometry(v), undefined);
+  assert.match(v.error!, /不足两个/); assert.equal(v.amount, null); assert.equal(buildWalletPnlChartGeometry(v), undefined);
   const whole = buildKalshiPnlView(s, "CUSTOM", range(start * 1000, (start + day) * 1000));
-  assert.equal(whole.amount, 1); assert.equal(whole.approximate, false);
+  assert.equal(whole.amount, 1); assert.equal(whole.points[0].value, 0);
 });
-test("日级长区间保留实际采样说明，缺边界和中间数据缺口不补零", () => {
+test("日级长区间使用域内首点，早于已有历史可展示，中间数据缺口不补零", () => {
   const start = second - 60 * day;
   const points = Array.from({ length: 8 }, (_, i) => ({ timestamp: start + i * day, cumulativePnl: i, portfolioValue: 1000 + i }));
   const s = { ...decode(), periodIntervalMinutes: 1440, points: [...points, { timestamp: second, cumulativePnl: 20, portfolioValue: 1020 }] };
   const v = buildKalshiPnlView(s, "CUSTOM", range((start + 8 * hour) * 1000, (start + 6 * day + 8 * hour) * 1000));
-  assert.equal(v.amount, 6); assert.equal(v.approximate, true); assert.match(v.notice!, /实际计算采用/);
-  assert.equal(buildKalshiPnlView(s, "CUSTOM", range((start - 10 * day) * 1000, (start + 6 * day) * 1000)).amount, null);
+  assert.equal(v.amount, 5); assert.equal(v.startAt, start + day); assert.equal(v.endAt, start + 6 * day); assert.equal(v.points[0].value, 0); assert.equal(v.approximate, undefined);
+  assert.equal(buildKalshiPnlView(s, "CUSTOM", range((start - 10 * day) * 1000, (start + 6 * day) * 1000)).amount, 6);
   assert.equal(buildKalshiPnlView({ ...s, points: s.points.filter((_, i) => i !== 2 && i !== 3) }, "CUSTOM", range(start * 1000, (start + 6 * day) * 1000)).amount, null);
 });
 test("年初至今按浏览器本地年初归零，账户年中起始明确部分历史", () => {

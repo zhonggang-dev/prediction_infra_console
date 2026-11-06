@@ -2,7 +2,7 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { officialPnlAccounts, walletPnl, type OfficialPnlAccount } from "../lib/wallet-pnl-api";
-import { buildWalletPnlChartGeometry, buildWalletPnlView, buildCustomWalletPnlView, chooseCustomWalletPnlQuery, chooseWalletPnlQuery, walletPnlFidelitySeconds, nearestWalletPnlPointIndex, type WalletPnlSelection, type WalletPnlCustomRange, type WalletPnlView, type WalletPnlChartGeometry } from "../lib/wallet-pnl";
+import { buildWalletPnlChartGeometry, buildWalletPnlView, buildCustomWalletPnlView, chooseCustomWalletPnlQuery, chooseWalletPnlQuery, nearestWalletPnlPointIndex, type WalletPnlSelection, type WalletPnlCustomRange, type WalletPnlView, type WalletPnlChartGeometry } from "../lib/wallet-pnl";
 import type { WalletPnlSeries } from "../lib/wallet-pnl";
 import { OfficialPnlSummary, OfficialPnlState as PnlState } from "./official-pnl-summary";
 import type { OfficialPnlTimeSelection } from "./official-pnl-controls";
@@ -92,7 +92,7 @@ function WalletPnlCard({ active, executionAccountId, period, customRange, refres
           : await loadSeries(cacheKey, query.interval, query.fidelity);
         if (controller.signal.aborted || requestKey.current !== currentKey) return;
         setSeries(current);
-        setView(period === "CUSTOM" && customRange ? buildCustomWalletPnlView(current.points, customRange, Date.parse(current.fetchedAt), walletPnlFidelitySeconds(current.fidelity)) : buildWalletPnlView(current.points, period === "CUSTOM" ? "ALL" : period, Date.parse(current.fetchedAt), all.points[0]?.timestamp));
+        setView(period === "CUSTOM" && customRange ? buildCustomWalletPnlView(current.points, customRange, Date.parse(current.fetchedAt)) : buildWalletPnlView(current.points, period === "CUSTOM" ? "ALL" : period, Date.parse(current.fetchedAt), all.points[0]?.timestamp));
         setReadyIdentity(identity); setStatus("ready");
       } catch (reason) {
         if (controller.signal.aborted || requestKey.current !== currentKey) return;
@@ -147,7 +147,7 @@ export function PnlSvg({ custom, label, fillId, chart, points, hoverIndex, onHov
       if (event.key === "ArrowLeft") onHover(Math.max(0, active - 1));
       if (event.key === "ArrowRight") onHover(Math.min(points.length - 1, active + 1));
     }} tabIndex={0} aria-label="使用左右方向键查看盈亏采样点" />
-  </svg><div className="wallet-pnl-axis"><span>{custom ? formatHourAxis(chart.domainStartAt) : formatShortDate(points[0].timestamp)}</span><span>{custom ? formatHourAxis(chart.domainEndAt) : formatShortDate(points[points.length - 1].timestamp)}</span></div></div>;
+  </svg><div className="wallet-pnl-axis"><span>{custom ? formatHourAxis(chart.domainStartAt) : formatShortDate(points[0].timestamp)}{custom && <small className="wallet-pnl-start-note">采用开始时间后第一个采样点</small>}</span><span>{custom ? formatHourAxis(chart.domainEndAt) : formatShortDate(points[points.length - 1].timestamp)}</span></div></div>;
 }
 
 function formatShortDate(timestamp: number): string {

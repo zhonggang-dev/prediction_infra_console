@@ -35,7 +35,7 @@ export function OfficialPnlTimeControls({ selection, onChange }: { selection: Of
       <button className="button primary" type="submit">应用时间</button>
       {rangeError && <p role="alert">{rangeError}</p>}
     </form>}
-    {period === "CUSTOM" && customRange && <p className="wallet-pnl-range-note" data-wallet-pnl-range={`${customRange.startDate}/${customRange.endDate}`}>已应用 {customRange.startDate.replace("T", " ")} 至 {customRange.endDate.replace("T", " ")}（{customRange.timeZone}，{customRange.startOffset}{customRange.endOffset !== customRange.startOffset ? ` → ${customRange.endOffset}` : ""}）；图表范围与所选时间一致。</p>}
+    {period === "CUSTOM" && customRange && <p className="wallet-pnl-range-note" data-wallet-pnl-range={`${customRange.startDate}/${customRange.endDate}`}>已应用 {customRange.startDate.replace("T", " ")} 至 {customRange.endDate.replace("T", " ")}（{customRange.timeZone}，{customRange.startOffset}{customRange.endOffset !== customRange.startOffset ? ` → ${customRange.endOffset}` : ""}）。</p>}
   </div>;
 }
 

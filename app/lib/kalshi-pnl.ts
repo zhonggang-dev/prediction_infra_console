@@ -1,4 +1,4 @@
-import type { WalletPnlCustomRange, WalletPnlSelection, WalletPnlView } from "./wallet-pnl.ts";
+import { buildCustomWalletPnlView, type WalletPnlCustomRange, type WalletPnlSelection, type WalletPnlView } from "./wallet-pnl.ts";
 
 export type KalshiPnlRange = "1d" | "1w" | "1m" | "1y" | "all";
 export interface KalshiPnlPoint { timestamp: number; cumulativePnl: number; portfolioValue: number }
@@ -75,10 +75,9 @@ export async function kalshiPnl(account: string, range: KalshiPnlRange, signal?:
 export function chooseKalshiPnlRange(period: WalletPnlSelection, range?: WalletPnlCustomRange, now = Date.now()): KalshiPnlRange {
   if (period !== "CUSTOM") return ({ "1D": "1d", "1W": "1w", "1M": "1m", "1Y": "1y", YTD: "1y", ALL: "all" } as const)[period];
   if (!range) throw new Error("请选择自定义时间。");
-  // Reserve one sampling interval for the value at/before the selected start.
-  if (range.startMs >= now - DAY + 600_000) return "1d";
-  if (range.startMs >= now - 7 * DAY + 3_600_000) return "1w";
-  if (range.startMs >= now - 30 * DAY + 3_600_000) return "1m";
+  if (range.startMs >= now - DAY) return "1d";
+  if (range.startMs >= now - 7 * DAY) return "1w";
+  if (range.startMs >= now - 30 * DAY) return "1m";
   return "all";
 }
 function displayTime(timestamp: number): string {
@@ -89,7 +88,14 @@ export function buildKalshiPnlView(series: KalshiPnlSeries, period: WalletPnlSel
   const now = Date.parse(series.fetchedAt), points = series.points.filter(p => p.timestamp * 1000 <= now);
   if (points.length < 2) return { ...empty, error: "官方尚未提供足够的历史数据。" };
   if (now - points.at(-1)!.timestamp * 1000 > Math.max(series.periodIntervalMinutes * 60_000, 3_600_000)) return { ...empty, error: "官方序列尚未更新到当前周期，请稍后重试。" };
-  if (period === "CUSTOM" || period === "YTD") {
+  if (period === "CUSTOM") {
+    if (!range) return { ...empty, error: "请选择有效的起止时间。" };
+    const view = buildCustomWalletPnlView(points.map(p => ({ timestamp: p.timestamp, tradePnl: p.cumulativePnl })), range, now);
+    const tolerance = series.periodIntervalMinutes >= 1440 ? 26 * 3600 : series.periodIntervalMinutes * 60;
+    if (view.points.some((p, i) => i > 0 && p.timestamp - view.points[i - 1].timestamp > tolerance * 1.5)) return { ...empty, error: "所选期间存在官方历史数据缺口，暂无法计算完整曲线。" };
+    return view;
+  }
+  if (period === "YTD") {
     const date = new Date(now);
     const startMs = period === "YTD" ? new Date(date.getFullYear(), 0, 1).getTime() : range?.startMs;
     const endMs = period === "YTD" ? now : range?.endMs;
