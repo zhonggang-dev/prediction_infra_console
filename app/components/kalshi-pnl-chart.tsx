@@ -62,7 +62,7 @@ function KalshiPnlCard({ active, account, period, range, refreshToken }: { activ
     <div className="section-head wallet-pnl-head"><h3 className="section-title">{account}</h3></div>
     {result?.identity !== identity ? <PnlState title="正在读取官方盈亏" /> : result.error ? <PnlState title="官方盈亏暂时不可用" detail={result.error} retry={() => setRetry(n => n + 1)} /> : view?.error ? <PnlState title="暂无足够盈亏数据" detail={view.error} /> : view && series && amount !== undefined && amount !== null ? <>
       <OfficialPnlSummary platform="kalshi" amount={amount} timestamp={time} intervalMinutes={series.periodIntervalMinutes} approximate={view.approximate} partialHistory={view.partialHistory} baselineAt={view.baselineAt} endSampleAt={view.endSampleAt} />
-      <PnlSvg custom={period === "CUSTOM"} showStartNote label="Kalshi 官方账户盈亏曲线" fillId={`kalshi-pnl-${id}`} chart={chart} points={view.points} hoverIndex={hoverIndex} onHover={index => setHover({ identity, index })} />
+      <PnlSvg custom={period === "CUSTOM"} showStartNote={period === "CUSTOM" && !!range && view.startAt !== null && view.startAt * 1000 !== range.startMs} label="Kalshi 官方账户盈亏曲线" fillId={`kalshi-pnl-${id}`} chart={chart} points={view.points} hoverIndex={hoverIndex} onHover={index => setHover({ identity, index })} />
     </> : <PnlState title="暂无足够盈亏数据" detail="官方尚未提供足够的历史数据。" />}
   </div></section>;
 }
