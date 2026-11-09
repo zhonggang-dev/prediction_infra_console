@@ -230,6 +230,24 @@ test("年化夏普拒绝金额与可用性矛盾、无效日界和错误样本�
   for (const c of [{ ...sharpCoverage, reason: "zero_variance", sample_days: 1 }, { ...sharpCoverage, reason: "insufficient_samples", sample_days: 3 }]) assert.throws(() => decodeAccountCohortMetrics(cohortData({ items: [{ ...good, sharp_annual: null, sharp_annual_coverage: c }] })));
 });
 
+test("年化夏普按显式北京时间校验自然日，省略时区仍兼容旧UTC响应", () => {
+  const beijing = { ...sharpCoverage, day_timezone: "Asia/Shanghai", from: "2026-10-27T16:00:00Z", to: "2026-11-03T16:00:00Z" };
+  const decode = (coverage: unknown, value: string | null = "1.25") => decodeAccountCohortMetrics(cohortData({ items: [{ ...cohortItem, sharp_annual: value, sharp_annual_coverage: coverage }] })).items[0];
+  assert.equal(decode(sharpCoverage).sharpAnnualCoverage?.dayTimezone, undefined);
+  const result = decode(beijing);
+  assert.equal(result.sharpAnnualCoverage?.dayTimezone, "Asia/Shanghai");
+  assert.equal(result.sharpAnnualCoverage?.from, beijing.from);
+  assert.equal(result.sharpAnnualCoverage?.to, beijing.to);
+  assert.equal(result.sharpAnnualCoverage?.sampleDays, 3);
+  const offset = { ...beijing, from: "2026-10-28T00:00:00+08:00", to: "2026-11-04T00:00:00+08:00" };
+  assert.equal(decode(offset).sharpAnnualCoverage?.from, offset.from);
+  assert.equal(decode({ ...beijing, from: "2026-10-27T16:00:00.000000Z" }).sharpAnnual, "1.25");
+  assert.equal(decode({ ...beijing, reason: "not_synced", sample_days: 0, from: null, to: null }, null).sharpAnnualCoverage?.dayTimezone, "Asia/Shanghai");
+  for (const day_timezone of [null, "", "UTC", "Asia/Tokyo", "Asia/Shanghai ", 8, {}, []]) assert.throws(() => decode({ ...beijing, day_timezone }));
+  for (const patch of [{ from: sharpCoverage.from }, { to: sharpCoverage.to }, { from: "2026-10-27T15:59:59Z" }, { from: "2026-10-27T16:00:01Z" }, { from: "2026-10-27T16:00:00.000001Z" }, { from: "2026-11-04T16:00:00Z" }, { sample_days: 8 }]) assert.throws(() => decode({ ...beijing, ...patch }));
+  assert.throws(() => decode({ ...sharpCoverage, from: beijing.from, to: beijing.to }));
+});
+
 test("最近完整结果保留标志供自动刷新使用，缓存值仍须有完整金融依据", () => {
  const dd = { ...drawdownCoverage, reason: null, missing_asset_count: 0, missing_point_count: 0, last_complete: true };
  const sh = { ...sharpCoverage, last_complete: true };

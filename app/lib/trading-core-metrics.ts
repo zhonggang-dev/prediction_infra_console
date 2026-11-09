@@ -87,7 +87,7 @@ export interface CohortDrawdownCoverage {
   lastComplete?: boolean;
 }
 export type SharpeReason = "not_synced" | "missing_prices" | "budget_exceeded" | "insufficient_samples" | "zero_variance" | "nonpositive_nav";
-export interface SharpeCoverage { reason: SharpeReason | null; periodSeconds: 86400; sampleDays: number; from: string | null; to: string | null; computedAt: string | null; lastComplete?: boolean }
+export interface SharpeCoverage { reason: SharpeReason | null; periodSeconds: 86400; sampleDays: number; dayTimezone?: "Asia/Shanghai"; from: string | null; to: string | null; computedAt: string | null; lastComplete?: boolean }
 export interface AccountCohortMetrics extends AccountCoreMetrics {
   openedAssetCount: number; holdingAssetCount: number; closedAssetCount: number;
   roi: string | null; buyFees: string; sellFees: string;
@@ -123,13 +123,15 @@ function decodeSharpe(raw: Record<string, unknown>): Pick<AccountCohortMetrics, 
   const reason = c.reason === null ? null : reasons.find(item => item === c.reason);
   if (c.last_complete !== undefined && (typeof c.last_complete !== "boolean" || (c.last_complete && sharpAnnual === null))) throw invalid();
   if (reason === undefined || c.period_seconds !== 86400 || (sharpAnnual !== null) !== (reason === null)) throw invalid();
+  if (c.day_timezone !== undefined && c.day_timezone !== "Asia/Shanghai") throw invalid();
   const sampleDays = count(c.sample_days), from = coverageTime(c.from), to = coverageTime(c.to), computedAt = coverageTime(c.computed_at);
-  for (const time of [from, to]) if (time !== null && Date.parse(time) % 86_400_000 !== 0) throw invalid();
+  const dayOffsetMs = c.day_timezone === "Asia/Shanghai" ? 8 * 3_600_000 : 0;
+  for (const time of [from, to]) if (time !== null && ((Date.parse(time) + dayOffsetMs) % 86_400_000 !== 0 || /[1-9]/.test(time.match(/\.(\d+)/)?.[1] ?? ""))) throw invalid();
   if (from !== null && to !== null && (Date.parse(from) > Date.parse(to) || sampleDays > (Date.parse(to) - Date.parse(from)) / 86_400_000)) throw invalid();
   if (sharpAnnual !== null && (sampleDays < 2 || from === null || to === null)) throw invalid();
   if (reason === "zero_variance" && sampleDays < 2) throw invalid();
   if (reason === "insufficient_samples" && sampleDays >= 2) throw invalid();
-  return { sharpAnnual, sharpAnnualCoverage: { reason, periodSeconds: 86400, sampleDays, from, to, computedAt, ...(c.last_complete !== undefined ? { lastComplete: c.last_complete === true } : {}) } };
+  return { sharpAnnual, sharpAnnualCoverage: { reason, periodSeconds: 86400, sampleDays, ...(c.day_timezone !== undefined ? { dayTimezone: c.day_timezone } : {}), from, to, computedAt, ...(c.last_complete !== undefined ? { lastComplete: c.last_complete === true } : {}) } };
 }
 export interface UnavailableCohortAccount {
   executionAccountId: string; marketSource: "POLYMARKET" | "KALSHI"; reason: "missing_disposition_evidence";
