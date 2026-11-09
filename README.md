@@ -59,6 +59,7 @@ curl http://127.0.0.1:13000/
 | `PREDICTION_INFRA_BASE_URL` | Go 服务地址，例如 `https://prediction.example.com` |
 | `CONSOLE_API_TOKEN` | 仅读取 `/api/v1/console/*` 的控制台令牌 |
 | `SANDBOX_DOWNLOAD_TOKEN` | 仅供服务端归档下载 BFF 使用的 Sandbox 下载令牌 |
+| `USER_QUESTION_CONSOLE_TOKEN` | 用户问题（`/user-questions`）上传 BFF 使用的令牌，只在服务端；对应 infra 的 `USER_QUESTION_CONSOLE_TOKEN`，只用于 `POST /api/v1/console/user-question-uploads`。列表与历史走 `CONSOLE_API_TOKEN`，下载走 `SANDBOX_DOWNLOAD_TOKEN` |
 | `BACKTEST_DATASET_TOKEN` | 独立的回测数据集读写令牌 |
 | `BACKTEST_PLATFORM_CONSOLE_TOKEN` | 回测平台（`/backtest-platform`）BFF 使用的 Console 角色令牌，只在服务端；与 infra 的同名配置一致 |
 | `BACKTEST_PLATFORM_OPERATOR` | 可选。BFF 通过 `X-Backtest-Operator` 头传给 infra 的操作人，缺省 `console`；V2 接入登录后改为用户名 |

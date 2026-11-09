@@ -28,6 +28,7 @@ const navigationGroups: NavigationGroup[] = [
       { href: "/markets", label: "市场工作区", icon: "markets" as const },
       { href: "/predictions", label: "预测工作区", icon: "trend" as const },
       { href: "/questions", label: "题目库", icon: "questions" as const },
+      { href: "/user-questions", label: "用户问题", icon: "upload" as const },
       { href: "/dataset-rotation", label: "数据集轮转", icon: "box" as const },
       { href: "/sandboxes", label: "Sandbox", icon: "archive" as const },
       { href: "/trading", label: "交易工作区", icon: "trades" as const },

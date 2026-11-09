@@ -10,7 +10,7 @@ Trading 资源转发到 `/api/v1/console/v2/{resource}`：`runtime`、`decision-
 
 `app/lib/console-v2.ts` 是 wire DTO 的唯一解码入口。它保留 generation、selection run、selected market、prediction、Direct task、Sandbox/QA asset、dataset member、CLOB batch、settlement、cycle、order、lot、reconciliation issue 和 redemption 的独立身份。详情只读取安全 projection，不渲染 raw strategy/venue payload。Trading 的 `prediction_model_id`、lot 的 original/remaining shares/cost、reconciliation reason/resolution、redemption payout base units 和 trace 的 `position_lots`/`reconciliation_issues` 均按真实 DTO 映射。
 
-归档下载使用独立的 `/api/console/downloads/*` BFF，服务端只读取 `SANDBOX_DOWNLOAD_TOKEN`，并固定代理 Sandbox 单个、少量 ID 批量、冻结时间范围、固定版本 testset 与累计 trainset 路径。GET 下载使用浏览器原生链接，POST 表单只接受受限字段，响应体保持上游流式传输；不会把令牌、对象路径或预检结果下发到浏览器。历史回测资料页 `/backtests` 仅查询 `backtest-products` 目录；没有外部 Telonex catalog 协议时显示能力说明，不恢复 create 表单。
+归档下载使用独立的 `/api/console/downloads/*` BFF，服务端只读取 `SANDBOX_DOWNLOAD_TOKEN`，并固定代理 Sandbox 单个、按 ID 批量（最多 1000 个 ID、表单体 256 KiB）、冻结时间范围、固定版本 testset 与累计 trainset 路径。GET 下载使用浏览器原生链接，POST 表单只接受受限字段，响应体保持上游流式传输；不会把令牌、对象路径或预检结果下发到浏览器。历史回测资料页 `/backtests` 仅查询 `backtest-products` 目录；没有外部 Telonex catalog 协议时显示能力说明，不恢复 create 表单。
 
 代表性回归位于 `tests/console-v2.test.ts`，覆盖 envelope/nullable 字段、服务端 q/generation 筛选、decoder 缺 observation 时间、GET-only、未知资源、服务端鉴权、响应头过滤和未配置依赖。
 
@@ -53,3 +53,12 @@ Legacy-console, Trading writes and the lower activity list's date filters are un
 官方wallet-pnl响应新增nullable `source_fidelity`，points新增nullable十进制字符串`source_block`；前端完整保留，大于JS安全整数的区块不转number，缺字段/错误类型/冲突点失败。source_fidelity=1d仍允许直接使用官方小时序列原值，文案保留源精度说明。
 
 自定义输入改为本地日期小时，`datetime-local step=3600`，结束即所选时刻，不再自动含结束日全天；重复DST小时须选明确UTC偏移，不存在小时拒绝。先取最小覆盖1d/1w/1m小时网格，否则有界all/1h（10000点/8MiB界不变）；不回退日线冒充小时。累计差额取边界前最近且1小时以内的有效官方网格值，合法同值可0；缺覆盖明确不足。绘图域严格等于输入域，域外基准只算差额不画点，域内单点可绘圆点，阶梯线不增加财务观察。轴、鼠标、触摸、键盘使用同一时间域/基准；六快捷及账本范围保持。PnL窄BFF透传父取消并组合10秒上限。
+
+## 用户问题（2026-11-09）
+
+`/user-questions` 页面：上传 JSON / CSV 问题文件，按文件和问题查看每日 16:30（北京时间）构建进度，下载每道题最新一份或任一历史版本的原始版 Sandbox。
+
+- 上传：浏览器 XHR 发到 `POST /api/console/user-questions/uploads`（请求体就是文件本身，`Content-Type` 为 `application/json` 或 `text/csv`，`X-Upload-Filename` 为百分号编码的文件名）。BFF 要求同源标记头 `X-Requested-With: user-question-console`（`Sec-Fetch-Site` 若有必须同源，否则 403）、`Content-Length`（411）、64 MiB 上限（413）、类型白名单（415），服务端注入 `USER_QUESTION_CONSOLE_TOKEN` 后流式转发到 infra `POST /api/v1/console/user-question-uploads`；未配置 503，上游 401/403 转 502 `UPSTREAM_AUTH_FAILED`。
+- 只读：`/api/console/v2/infra/user-question-uploads`、`user-questions`，以及两条带正整数 ID 的子路径 `user-questions/{id}/sandboxes`、`user-question-uploads/{id}/latest-sandbox-ids`（ID 非法 400）。仍用 `CONSOLE_API_TOKEN`，写方法 405。
+- 下载：单个用原生链接 `sandboxes/{id}/archive?variant=original&asset_kind=USER_QUESTION`；「下载所选 / 下载整个文件」用隐藏表单 POST `sandboxes/archives:batch`（`asset_kind=USER_QUESTION`、`variant=original`）。`USER_QUESTION` 与 `GENERATED_QA` 一样只许 original。整个文件的 ID 清单在选中文件时预先取好，点击时同步提交表单，避免异步请求后新标签页被浏览器拦截。
+- 有等待构建 / 构建中的题时每 30 秒刷新，全部到终态后停止。
