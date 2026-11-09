@@ -7,7 +7,7 @@ const DATASET_VARIANTS = new Set(["original", "mv", "ms", "syn"]);
 const MARKET_SOURCES = new Set(["POLYMARKET", "KALSHI"]);
 const ASSET_KINDS = new Set(["MARKET", "GENERATED_MARKET", "GENERATED_QA", "USER_QUESTION"]);
 /** 只有 original 版本的资料来源（Generated QA、用户问题），不提供 masked。 */
-const ORIGINAL_ONLY_ASSET_KINDS: Record<string, string> = { GENERATED_QA: "Generated QA ", USER_QUESTION: "用户问题" };
+const ORIGINAL_ONLY_ASSET_KINDS: Record<string, string> = { GENERATED_QA: "Generated QA ", USER_QUESTION: "自定义问题" };
 /** 1000 个最长 160 字符的 ID 编码后也放得下（每个 ID 加 3 字节分隔符）。 */
 const MAX_FORM_BYTES = 256 * 1024;
 /** 批量下载一次最多的 ID 数，与 lib/user-questions.ts 的 USER_QUESTION_MAX_BATCH_IDS 一致（测试断言）。 */

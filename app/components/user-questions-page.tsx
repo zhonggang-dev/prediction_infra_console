@@ -18,6 +18,7 @@ import { Icon } from "./icons";
 const POLL_INTERVAL_MS = 30_000;
 const FILES_PAGE_SIZE = 20;
 const HISTORY_PAGE_SIZE = 100;
+const DOWNLOAD_HINT = "每道题最新一份 Sandbox（原始版），外层 tar 内每份一个 .tar；没有成功构建过的题不在里面";
 
 type QuestionFilters = { status: UserQuestionDisplayStatus | ""; q: string };
 type PageState = { uploadId?: number; filters: QuestionFilters; limit: number; page: number; filesQ: string; filesPage: number };
@@ -35,6 +36,7 @@ export function UserQuestionsPage() {
   const [filesDraft, setFilesDraft] = useState(initial.filesQ);
   const [filesPage, setFilesPage] = useState(initial.filesPage);
   const [tick, setTick] = useState(0);
+  const [formatOpen, setFormatOpen] = useState(false);
 
   const [uploads, setUploads] = useState<Loaded<UserQuestionUpload>>();
   const [uploadsError, setUploadsError] = useState<string>();
@@ -197,6 +199,8 @@ export function UserQuestionsPage() {
     setPicked({ ids: new Map() });
     setTick((value) => value + 1);
   };
+  const uploadInput = useRef<HTMLInputElement>(null);
+  const upload = useQuestionUpload(uploadInput, onUploaded);
 
   const pickedIds = picked.uploadId === uploadId ? picked.ids : new Map<number, string>();
   const togglePick = (item: UserQuestion, on: boolean) => {
@@ -239,41 +243,45 @@ export function UserQuestionsPage() {
 
   return <ConsoleShell>
     <header className="page-head">
-      <div><p className="eyebrow">User Questions</p><h1>用户问题</h1><p className="description">上传问题文件后，每天 16:30（北京时间）为每道题构建一份原始版 Sandbox。列表显示每道题最新一份，详情里可下载全部历史版本。</p></div>
+      <div><p className="eyebrow">Custom Questions</p><h1>自定义问题</h1><p className="description">上传问题文件，每天 16:30（北京时间）为每道题构建一份原始版 Sandbox。</p></div>
     </header>
-
-    <UploadPanel onUploaded={onUploaded} />
 
     <section className="panel uq-panel" aria-labelledby="uq-files-title">
       <div className="uq-panel-head">
-        <div><h2 id="uq-files-title" className="section-title">问题文件</h2><p>进度按当前构建轮（北京时间业务日）统计；新上传的题等下一个 16:30 轮次。</p></div>
-        <div className="uq-search"><input className="input" aria-label="按文件名搜索" placeholder="按文件名搜索" value={filesDraft} onChange={(event) => setFilesDraft(event.target.value)} onKeyDown={(event) => event.key === "Enter" && searchFiles()} /><button type="button" className="button" onClick={searchFiles}><Icon name="search" /> 搜索</button></div>
+        <h2 id="uq-files-title" className="section-title">问题文件</h2>
+        <div className="uq-head-actions">
+          <input className="input uq-search" aria-label="按文件名搜索" placeholder="按文件名搜索，回车确认" value={filesDraft} onChange={(event) => setFilesDraft(event.target.value)} onKeyDown={(event) => event.key === "Enter" && searchFiles()} />
+          <button type="button" className="uq-text-button" aria-expanded={formatOpen} aria-controls="uq-format-help" onClick={() => setFormatOpen((open) => !open)}>格式说明</button>
+          <input ref={uploadInput} className="uq-file-input" type="file" accept=".json,.csv" aria-label="选择问题文件" tabIndex={-1} onChange={upload.onChange} />
+          <button type="button" className="button primary" disabled={upload.uploading} onClick={upload.choose}><Icon name="upload" /> {upload.uploading ? `上传中 ${Math.round((upload.progress ?? 0) * 100)}%` : "上传文件"}</button>
+        </div>
       </div>
+      {formatOpen && <p id="uq-format-help" className="uq-format-help">JSON：字符串数组 <code>[&quot;…&quot;]</code> 或对象数组 <code>[{"{"}&quot;question&quot;: &quot;…&quot;{"}"}]</code>；CSV：第一行表头须含 <code>question</code> 列，其余列忽略。每个文件最多 {USER_QUESTION_MAX_QUESTIONS} 道题、不超过 {formatV2Bytes(USER_QUESTION_UPLOAD_LIMIT_BYTES)}，空行跳过；问题按英文设计。</p>}
+      {upload.uploading && <div className="bt-bar uq-upload-bar" role="progressbar" aria-label="上传进度" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round((upload.progress ?? 0) * 100)}><i style={{ width: `${Math.round((upload.progress ?? 0) * 100)}%` }} /></div>}
+      {upload.error && <div className="notice error uq-notice" role="alert"><div><strong>上传失败</strong><p>{upload.error}</p></div></div>}
+      {upload.created && <div className="notice uq-notice uq-success" role="status"><div><strong>已上传 {upload.created.originalFilename}</strong><p>{upload.created.questionCount} 道题{upload.created.blankRowsSkipped ? `，跳过空行 ${upload.created.blankRowsSkipped} 行` : ""}，等待下一个 16:30 构建。</p></div></div>}
       {uploadsError && <div className="notice error uq-notice"><div><strong>文件列表加载失败</strong><p>{uploadsError}{uploads ? `（下方为 ${formatV2Time(uploads.page.observedAt)} 的旧数据）` : ""}</p></div><button type="button" className="button" onClick={() => setTick((value) => value + 1)}>重试</button></div>}
       {!uploads ? (uploadsError ? null : <div className="panel-pad"><div className="skeleton" /><div className="skeleton" /></div>)
         : uploads.page.items.length ? <UploadTable items={uploads.page.items} selectedId={uploadId} onSelect={selectUpload} busy={uploads.key !== uploadsKey} />
-          : <div className="empty"><strong>{filesQ ? "没有匹配的文件" : "还没有上传过问题文件"}</strong><p>{filesQ ? "换个文件名再试。" : "在上方选择 JSON 或 CSV 文件上传。"}</p></div>}
+          : <div className="empty"><strong>{filesQ ? "没有匹配的文件" : "还没有上传过问题文件"}</strong><p>{filesQ ? "换个文件名再试。" : "点右上角「上传文件」，选择 JSON 或 CSV 文件。"}</p></div>}
       {uploads && uploads.page.total > FILES_PAGE_SIZE && <Pager label="文件" result={uploads.page} onPage={(next) => setFilesPage(next)} />}
     </section>
 
     {uploadId !== undefined && <section className="panel uq-panel" aria-labelledby="uq-questions-title">
       <div className="uq-panel-head">
-        <div>
-          <h2 id="uq-questions-title" className="section-title">{selectedUpload ? selectedUpload.originalFilename : `文件 #${uploadId}`} 的问题</h2>
-          <p>{selectedUpload ? `${selectedUpload.questionCount} 道题 · ${selectedUpload.latestSandboxCount} 道已有 Sandbox` : "每道题显示最新一份 Sandbox 的状态和时间。"}</p>
-        </div>
-        <div className="uq-download-bar">
-          <button type="button" className="button" disabled={!pickedIds.size} onClick={() => download(pickedDownloadIds())}>下载所选（{pickedIds.size}）</button>
-          <button type="button" className="button primary" disabled={!wholeFileIds?.length} onClick={() => wholeFileIds && download(wholeFileIds)}>下载整个文件（{wholeFileIds ? `${wholeFileIds.length} 份` : "…"}）</button>
-          {pickedIds.size > 0 && <button type="button" className="button" onClick={() => setPicked({ uploadId, ids: new Map() })}>清除勾选</button>}
+        <h2 id="uq-questions-title" className="section-title">{selectedUpload ? selectedUpload.originalFilename : `文件 #${uploadId}`} 的问题</h2>
+        <div className="uq-head-actions">
+          {pickedIds.size > 0 && <>
+            <button type="button" className="uq-text-button" onClick={() => setPicked({ uploadId, ids: new Map() })}>清除勾选</button>
+            <button type="button" className="button" title={DOWNLOAD_HINT} onClick={() => download(pickedDownloadIds())}>下载所选（{pickedIds.size}）</button>
+          </>}
+          <button type="button" className="button primary" disabled={!wholeFileIds?.length} title={wholeFileIds && !wholeFileIds.length ? "这个文件还没有构建成功的 Sandbox" : DOWNLOAD_HINT} onClick={() => wholeFileIds && download(wholeFileIds)}>下载整个文件（{wholeFileIds ? `${wholeFileIds.length} 份` : "…"}）</button>
         </div>
       </div>
       {(downloadError || latestIdsError) && <p className="uq-inline-error" role="alert">{downloadError ?? `暂时无法获取整个文件的下载清单：${latestIdsError}`}</p>}
-      <p className="uq-inline-note">{wholeFileIds && !wholeFileIds.length ? "这个文件还没有构建成功的 Sandbox，暂时没有可下载的内容。" : "下载得到每道题最新一份 Sandbox（原始版），外层 tar 内每份一个 .tar；没有成功构建过的题不在下载里。"}</p>
       <div className="uq-filters">
-        <label><span>状态</span><select className="select" value={draft.status} onChange={(event) => { const next = { ...draft, status: event.target.value as QuestionFilters["status"] }; setDraft(next); setFilters(next); setPage(0); }}><option value="">全部状态</option>{DISPLAY_STATUSES.map((status) => <option key={status} value={status}>{DISPLAY_STATUS_LABELS[status]}</option>)}</select></label>
-        <label className="uq-filter-q"><span>问题文本</span><input className="input" placeholder="搜索问题文本" value={draft.q} onChange={(event) => setDraft({ ...draft, q: event.target.value })} onKeyDown={(event) => event.key === "Enter" && searchQuestions()} /></label>
-        <div className="uq-filter-actions"><button type="button" className="button" onClick={() => { const empty = { status: "" as const, q: "" }; setDraft(empty); setFilters(empty); setPage(0); }}>重置</button><button type="button" className="button primary" onClick={searchQuestions}><Icon name="search" /> 检索</button></div>
+        <select className="select" aria-label="按状态筛选" value={draft.status} onChange={(event) => { const next = { ...draft, status: event.target.value as QuestionFilters["status"] }; setDraft(next); setFilters(next); setPage(0); }}><option value="">全部状态</option>{DISPLAY_STATUSES.map((status) => <option key={status} value={status}>{DISPLAY_STATUS_LABELS[status]}</option>)}</select>
+        <input className="input uq-filter-q" aria-label="搜索问题文本" placeholder="搜索问题文本，回车确认" value={draft.q} onChange={(event) => setDraft({ ...draft, q: event.target.value })} onKeyDown={(event) => event.key === "Enter" && searchQuestions()} />
       </div>
       {questionsError && <div className="notice error uq-notice"><div><strong>问题列表加载失败</strong><p>{questionsError}{visibleQuestions.length && questions ? `（下方为 ${formatV2Time(questions.page.observedAt)} 的旧数据）` : ""}</p></div><button type="button" className="button" onClick={() => setTick((value) => value + 1)}>重试</button></div>}
       {showQuestionSkeleton ? <div className="panel-pad"><div className="skeleton" /><div className="skeleton" /><div className="skeleton" /></div>
@@ -286,24 +294,25 @@ export function UserQuestionsPage() {
   </ConsoleShell>;
 }
 
-function UploadPanel({ onUploaded }: { onUploaded: (created: UserQuestionUploadCreated) => void }) {
-  const fileInput = useRef<HTMLInputElement>(null);
-  const [file, setFile] = useState<File>();
+/** 点「上传文件」打开系统选择框，选中后立即校验并上传。 */
+function useQuestionUpload(inputRef: RefObject<HTMLInputElement | null>, onUploaded: (created: UserQuestionUploadCreated) => void) {
   const [progress, setProgress] = useState<number>();
   const [error, setError] = useState<string>();
   const [created, setCreated] = useState<UserQuestionUploadCreated>();
   const uploading = progress !== undefined;
-  const localProblem = file && !uploadContentType(file.name) ? "只支持 .json 或 .csv 文件。" : file && file.size > USER_QUESTION_UPLOAD_LIMIT_BYTES ? `文件 ${formatV2Bytes(file.size)} 超过 ${formatV2Bytes(USER_QUESTION_UPLOAD_LIMIT_BYTES)} 上限。` : undefined;
 
-  const submit = async (event: React.FormEvent) => {
-    event.preventDefault();
-    if (!file || localProblem || uploading) return;
-    setError(undefined); setCreated(undefined); setProgress(0);
+  const choose = () => { if (!uploading) inputRef.current?.click(); };
+  const onChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file || uploading) return;
+    setError(undefined); setCreated(undefined);
+    const localProblem = !uploadContentType(file.name) ? "只支持 .json 或 .csv 文件。" : file.size > USER_QUESTION_UPLOAD_LIMIT_BYTES ? `文件 ${formatV2Bytes(file.size)} 超过 ${formatV2Bytes(USER_QUESTION_UPLOAD_LIMIT_BYTES)} 上限。` : undefined;
+    if (localProblem) { setError(localProblem); return; }
+    setProgress(0);
     try {
       const result = await userQuestionApi.upload(file, setProgress);
       setCreated(result);
-      setFile(undefined);
-      if (fileInput.current) fileInput.current.value = "";
       onUploaded(result);
     } catch (cause) {
       setError(v2ErrorText(cause));
@@ -311,34 +320,17 @@ function UploadPanel({ onUploaded }: { onUploaded: (created: UserQuestionUploadC
       setProgress(undefined);
     }
   };
-
-  return <section className="panel panel-pad uq-upload" aria-labelledby="uq-upload-title">
-    <form className="uq-upload-form" onSubmit={submit}>
-      <div className="uq-upload-copy">
-        <h2 id="uq-upload-title" className="section-title">上传问题文件</h2>
-        <p>JSON：字符串数组 <code>[&quot;…&quot;]</code> 或对象数组 <code>[{"{"}&quot;question&quot;: &quot;…&quot;{"}"}]</code>；CSV：第一行表头须含 <code>question</code> 列，其余列忽略。一个文件最多 {USER_QUESTION_MAX_QUESTIONS} 道题，空行跳过；问题按英文设计。</p>
-      </div>
-      <div className="uq-upload-controls">
-        <label><span>文件（.json / .csv，上限 {formatV2Bytes(USER_QUESTION_UPLOAD_LIMIT_BYTES)}）</span><input ref={fileInput} className="input" type="file" accept=".json,.csv" disabled={uploading} onChange={(event) => { setFile(event.target.files?.[0]); setError(undefined); setCreated(undefined); }} /></label>
-        <button className="button primary" type="submit" disabled={!file || Boolean(localProblem) || uploading}>{uploading ? `上传中 ${Math.round((progress ?? 0) * 100)}%` : "上传"}</button>
-      </div>
-      {uploading && <div className="bt-bar" role="progressbar" aria-label="上传进度" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round((progress ?? 0) * 100)}><i style={{ width: `${Math.round((progress ?? 0) * 100)}%` }} /></div>}
-      {localProblem && <p className="uq-inline-error" role="alert">{localProblem}</p>}
-      {error && <div className="notice error uq-notice" role="alert"><div><strong>上传失败</strong><p>{error}</p></div></div>}
-      {created && <div className="notice uq-notice uq-success" role="status"><div><strong>已上传 {created.originalFilename}</strong><p>{created.questionCount} 道题{created.blankRowsSkipped ? `，跳过空行 ${created.blankRowsSkipped} 行` : ""}；状态为「等待构建」，将在下一个 16:30 轮次构建。</p></div></div>}
-    </form>
-  </section>;
+  return { progress, error, created, uploading, choose, onChange };
 }
 
 function UploadTable({ items, selectedId, onSelect, busy }: { items: UserQuestionUpload[]; selectedId?: number; onSelect: (uploadId: number) => void; busy: boolean }) {
   return <div className="table-scroll" aria-busy={busy}><table className="uq-table uq-files-table">
-    <thead><tr><th>文件</th><th>上传时间</th><th>题数</th><th>当前轮进度</th><th>已有 Sandbox</th></tr></thead>
+    <thead><tr><th>文件</th><th>上传时间</th><th>构建进度</th><th>已有 Sandbox</th></tr></thead>
     <tbody>{items.map((item) => {
       const selected = item.uploadId === selectedId;
       return <tr key={item.uploadId} className={selected ? "selected" : undefined}>
         <td className="uq-primary"><button type="button" className="uq-link" aria-pressed={selected} onClick={() => onSelect(item.uploadId)}>{item.originalFilename}</button><small>#{item.uploadId} · {item.fileFormat} · {formatV2Bytes(item.sizeBytes)}{item.blankRowsSkipped ? ` · 跳过空行 ${item.blankRowsSkipped}` : ""}</small></td>
         <td className="mono muted">{formatV2Time(item.createdAt)}</td>
-        <td className="mono">{item.questionCount}</td>
         <td><ProgressCell upload={item} /></td>
         <td className="mono">{item.latestSandboxCount} / {item.questionCount}</td>
       </tr>;
@@ -352,7 +344,7 @@ function ProgressCell({ upload }: { upload: UserQuestionUpload }) {
   const segments: Array<[string, number, string]> = [["succeeded", succeeded, "成功"], ["building", building, "构建中"], ["waiting", waiting, "等待"], ["failed", failed, "失败"]];
   return <div className="uq-progress">
     <div className="uq-progress-bar" role="img" aria-label={`成功 ${succeeded}，构建中 ${building}，等待 ${waiting}，失败 ${failed}`}>{segments.map(([tone, count]) => count > 0 && <i key={tone} className={tone} style={{ width: `${(count / total) * 100}%` }} />)}</div>
-    <small>{upload.currentBusinessDate ? `业务日 ${upload.currentBusinessDate} · ` : "尚未开始构建轮次 · "}{segments.map(([, count, label]) => `${label} ${count}`).join(" · ")}</small>
+    <small>{segments.map(([, count, label]) => `${label} ${count}`).join(" · ")}</small>
   </div>;
 }
 
@@ -362,7 +354,7 @@ function QuestionTable({ items, busy, picked, onPick, onPickPage, onOpen }: { it
   return <div className="table-scroll" aria-busy={busy}><table className="uq-table uq-questions-table">
     <thead><tr>
       <th className="uq-check"><input type="checkbox" aria-label="勾选本页全部已有 Sandbox 的问题" checked={allPicked} disabled={!pickable.length} onChange={(event) => onPickPage(event.target.checked)} /></th>
-      <th>#</th><th>问题</th><th>状态</th><th>最新 Sandbox</th><th>失败原因</th><th>版本数</th>
+      <th>#</th><th>问题</th><th>状态</th><th>最新 Sandbox</th><th>成功次数</th>
     </tr></thead>
     <tbody>{items.map((item) => {
       const build = item.currentBuild;
@@ -370,9 +362,8 @@ function QuestionTable({ items, busy, picked, onPick, onPickPage, onOpen }: { it
         <td className="uq-check"><input type="checkbox" aria-label={`勾选第 ${item.rowNumber} 题`} checked={picked.has(item.questionId)} disabled={!item.latestSandbox} onChange={(event) => onPick(item, event.target.checked)} /></td>
         <td className="mono muted">{item.rowNumber}</td>
         <td className="uq-primary"><button type="button" className="uq-link uq-question-text" onClick={(event) => onOpen(item, event.currentTarget)}>{item.questionText}</button></td>
-        <td><StatusBadge status={item.displayStatus} />{build && build.attemptCount > 1 && <small className="uq-sub">第 {build.attemptCount} 次尝试</small>}</td>
-        <td>{item.latestSandbox ? <div className="v2-cell-copy"><span>{item.latestSandbox.businessDate ?? "—"}</span><small>{formatV2Time(item.latestSandbox.committedAt)}</small></div> : <span className="muted">暂无</span>}</td>
-        <td>{item.displayStatus === "FAILED" && build ? <div className="v2-cell-copy"><span className="mono">{build.errorCode ?? "未知错误"}</span><small title={build.errorMessage}>{build.errorMessage ?? "—"}</small></div> : <span className="muted">—</span>}</td>
+        <td><StatusBadge status={item.displayStatus} />{item.displayStatus === "FAILED" && build ? <small className="uq-sub uq-fail" title={build.errorMessage}>{build.errorCode ?? "未知错误"}</small> : build && build.attemptCount > 1 && <small className="uq-sub">第 {build.attemptCount} 次尝试</small>}</td>
+        <td>{item.latestSandbox ? <span className="mono">{item.latestSandbox.businessDate ?? formatV2Time(item.latestSandbox.committedAt)}</span> : <span className="muted">暂无</span>}</td>
         <td className="mono">{item.sandboxCount}</td>
       </tr>;
     })}</tbody>

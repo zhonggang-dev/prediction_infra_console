@@ -87,7 +87,7 @@ test("服务端可渲染 Prediction Console 首页", async () => {
   assert.match(html, /系统运行/);
   assert.match(html, /href="\/system"[^>]*>.*系统工作区/s);
   assert.match(html, /href="\/questions"[^>]*>.*题目库/s);
-  assert.match(html, /href="\/user-questions"[^>]*>.*用户问题/s);
+  assert.match(html, /href="\/user-questions"[^>]*>.*自定义问题/s);
   assert.match(html, /市场工作区/);
   assert.doesNotMatch(html, /回测数据产品/);
   assert.doesNotMatch(html, /href="\/backtests"/);
@@ -433,12 +433,12 @@ test("数据集轮换 BFF 拒绝写请求", async () => {
   assert.equal(response.status, 404);
 });
 
-test("用户问题页：上传区、单个 ConsoleShell、侧栏入口紧跟题目库", async () => {
+test("自定义问题页：上传入口、单个 ConsoleShell、侧栏入口紧跟题目库", async () => {
   const response = await render("/user-questions");
   assert.equal(response.status, 200);
   const html = await response.text();
-  assert.match(html, /<h1>用户问题<\/h1>/);
-  assert.match(html, /上传问题文件/);
+  assert.match(html, /<h1>自定义问题<\/h1>/);
+  assert.match(html, /上传文件/);
   assert.match(html, /<input[^>]*type="file"[^>]*accept="\.json,\.csv"/);
   assert.match(html, /16:30/);
   assert.equal((html.match(/class="brand"/g) ?? []).length, 1, "/user-questions should have one ConsoleShell");
@@ -447,7 +447,7 @@ test("用户问题页：上传区、单个 ConsoleShell、侧栏入口紧跟题�
   assert.match(sidebar, /href="\/user-questions"[^>]*aria-current="page"/);
   assert.doesNotMatch(sidebar, /href="\/questions"[^>]*aria-current="page"/, "题目库不因前缀相似而高亮");
   const order = ["/questions", "/user-questions", "/dataset-rotation"].map((href) => sidebar.indexOf(`href="${href}"`));
-  assert.ok(order[0] < order[1] && order[1] < order[2], "用户问题位于题目库与数据集轮转之间");
+  assert.ok(order[0] < order[1] && order[1] < order[2], "自定义问题位于题目库与数据集轮转之间");
 });
 
 test("用户问题上传 BFF 拒绝跨站写请求与读请求", async () => {
