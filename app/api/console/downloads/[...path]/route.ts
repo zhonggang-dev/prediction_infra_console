@@ -5,9 +5,13 @@ const DATASET_VERSION = /^[A-Za-z0-9][A-Za-z0-9._-]{0,159}$/;
 const SANDBOX_VARIANTS = new Set(["original", "masked"]);
 const DATASET_VARIANTS = new Set(["original", "mv", "ms", "syn"]);
 const MARKET_SOURCES = new Set(["POLYMARKET", "KALSHI"]);
-const ASSET_KINDS = new Set(["MARKET", "GENERATED_MARKET", "GENERATED_QA"]);
-const MAX_FORM_BYTES = 64 * 1024;
-const MAX_BATCH_IDS = 20;
+const ASSET_KINDS = new Set(["MARKET", "GENERATED_MARKET", "GENERATED_QA", "USER_QUESTION"]);
+/** 只有 original 版本的资料来源（Generated QA、用户问题），不提供 masked。 */
+const ORIGINAL_ONLY_ASSET_KINDS: Record<string, string> = { GENERATED_QA: "Generated QA ", USER_QUESTION: "用户问题" };
+/** 1000 个最长 160 字符的 ID 编码后也放得下（每个 ID 加 3 字节分隔符）。 */
+const MAX_FORM_BYTES = 256 * 1024;
+/** 批量下载一次最多的 ID 数，与 lib/user-questions.ts 的 USER_QUESTION_MAX_BATCH_IDS 一致（测试断言）。 */
+const MAX_BATCH_IDS = 1000;
 
 type ProxyRequest = { endpoint: string; query: URLSearchParams; body?: string };
 type BodyFields = Record<string, unknown>;
@@ -91,7 +95,7 @@ function resolveGet(request: Request, path: string[]): ProxyRequest {
     if (!SANDBOX_VARIANTS.has(variant)) throw new Error("Sandbox variant 仅支持 original 或 masked");
     const assetKind = (oneQuery(url.searchParams, "asset_kind") || "").toUpperCase();
     if (assetKind && !ASSET_KINDS.has(assetKind)) throw new Error("asset_kind 不在下载白名单内");
-    if (assetKind === "GENERATED_QA" && variant !== "original") throw new Error("Generated QA 资料只允许下载 original");
+    assertOriginalOnly(assetKind, variant);
     const query = new URLSearchParams({ variant });
     return { endpoint: `/api/v1/sandboxes/${encodeURIComponent(sandboxId)}/archive`, query };
   }
@@ -155,14 +159,19 @@ function resolveBatch(query: URLSearchParams, fields: BodyFields): ProxyRequest 
   if (!SANDBOX_VARIANTS.has(variant)) throw new Error("Sandbox variant 仅支持 original 或 masked");
   const assetKind = (fieldText(fields.asset_kind) || "").toUpperCase();
   if (assetKind && !ASSET_KINDS.has(assetKind)) throw new Error("asset_kind 不在下载白名单内");
-  if (assetKind === "GENERATED_QA" && variant !== "original") throw new Error("Generated QA 资料只允许下载 original");
+  assertOriginalOnly(assetKind, variant);
   const ids = normalizeIDs(fields.sandbox_ids ?? fields.ids);
-  if (!ids.length || ids.length > MAX_BATCH_IDS) throw new Error(`Sandbox ID 必须是 1 到 ${MAX_BATCH_IDS} 个少量 ID`);
+  if (!ids.length || ids.length > MAX_BATCH_IDS) throw new Error(`Sandbox ID 必须是 1 到 ${MAX_BATCH_IDS} 个`);
   return {
     endpoint: "/api/v1/sandboxes/archives:batch",
     query: new URLSearchParams({ variant }),
     body: JSON.stringify(ids),
   };
+}
+
+function assertOriginalOnly(assetKind: string, variant: string) {
+  const label = Object.hasOwn(ORIGINAL_ONLY_ASSET_KINDS, assetKind) ? ORIGINAL_ONLY_ASSET_KINDS[assetKind] : undefined;
+  if (label && variant !== "original") throw new Error(`${label}资料只允许下载 original`);
 }
 
 function resolveRange(query: URLSearchParams, fields: BodyFields): ProxyRequest {
