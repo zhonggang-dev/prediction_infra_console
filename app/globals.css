@@ -580,7 +580,7 @@ tbody tr:hover { background: #f7faf6; }
 .rotation-table td { min-height: 112px; padding: 13px 4px; border-right: 1px solid var(--line); text-align: center; vertical-align: top; white-space: normal; }
 .rotation-table td:last-child { border-right: 0; }.rotation-table tbody tr + tr td { border-top: 1px solid var(--line); }.rotation-table tbody tr:hover { background: transparent; }
 .rotation-date { display: block; white-space: nowrap; }.rotation-batch-label { display: block; margin-top: 4px; color: var(--muted); font-size: 10px; }
-.rotation-cell-button { width: 100%; min-height: 83px; padding: 0 2px; border: 0; color: var(--ink); background: transparent; text-align: center; }
+.rotation-cell-button { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; width: 100%; min-height: 83px; padding: 0 2px; border: 0; color: var(--ink); background: transparent; text-align: center; }
 .rotation-cell-button:hover { color: var(--mint); }.rotation-cell-button:focus-visible { outline: 2px solid var(--mint); outline-offset: 2px; border-radius: 4px; }
 .rotation-count { display: block; margin-top: 6px; font-size: 20px; line-height: 1; }.rotation-cell-note { display: block; margin-top: 5px; color: var(--muted); font-size: 10px; line-height: 1.35; }
 .rotation-cell-button .rotation-state { margin-top: 7px; }.rotation-data-cell.storage-warning .rotation-cell-button { color: var(--amber); }.rotation-data-cell.storage-warning .rotation-state { color: #8b571c; background: var(--amber-soft); }
