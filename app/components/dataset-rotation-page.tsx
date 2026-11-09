@@ -166,7 +166,7 @@ function DatasetCell({ release, variant, purpose, timezone, onCell }: { release:
       {count === 0 && isTrain && <span className="rotation-cell-note">无训练成员</span>}
       {count === 0 && !isTrain && <span className="rotation-cell-note">暂无测试成员</span>}
       <strong className="rotation-count">{integer(count)}</strong>
-      {!(isTrain && count === 0) && <span className={current || unavailableCurrent || testDownloadState === "download_checked" ? "rotation-state" : "rotation-cell-note"}>{current ? "当前可用" : unavailableCurrent || (!isTrain && testDownloadState === "unavailable" && (variant.storageStatus === "mismatch" || variant.storageStatus === "unavailable")) ? storageStatusText(variant.storageStatus) : testDownloadState === "download_checked" ? "下载时校验" : isTrain ? "本轮增量" : status}</span>}
+      {!(isTrain && count === 0) && testDownloadState !== "download_checked" && <span className={current || unavailableCurrent ? "rotation-state" : "rotation-cell-note"}>{current ? "当前可用" : unavailableCurrent || (!isTrain && testDownloadState === "unavailable" && (variant.storageStatus === "mismatch" || variant.storageStatus === "unavailable")) ? storageStatusText(variant.storageStatus) : isTrain ? "本轮增量" : status}</span>}
     </button>
   </td>;
 }
