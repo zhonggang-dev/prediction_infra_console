@@ -116,7 +116,7 @@ function DatasetDownloadPanel({ version, variant, current, train, canDownloadTes
 }
 
 const sandboxSources = ["POLYMARKET", "KALSHI", "GENERATED_QA", "USER_QUESTION"] as const;
-const sourceLabels: Record<string, string> = { POLYMARKET: "Polymarket", KALSHI: "Kalshi", GENERATED_QA: "Generated QA", USER_QUESTION: "用户问题" };
+const sourceLabels: Record<string, string> = { POLYMARKET: "Polymarket", KALSHI: "Kalshi", GENERATED_QA: "Generated QA", USER_QUESTION: "自定义问题" };
 
 function AssetCatalog() {
   const [source, setSource] = useV2Filter("source");

@@ -173,7 +173,7 @@ test("下载 BFF：USER_QUESTION 只许 original，单个与批量一致", async
   await withUpstream(configured, async () => new Response("tar", { status: 200, headers: { "content-type": "application/x-tar" } }), async (calls) => {
     const masked = await DOWNLOAD_GET(new Request("http://console.test/api/console/downloads/sandboxes/uq-1-20261110/archive?variant=masked&asset_kind=USER_QUESTION"), params(["sandboxes", "uq-1-20261110", "archive"]));
     assert.equal(masked.status, 400);
-    assert.match((await masked.json()).message, /用户问题资料只允许下载 original/);
+    assert.match((await masked.json()).message, /自定义问题资料只允许下载 original/);
     const batchMasked = await DOWNLOAD_POST(new Request("http://console.test/api/console/downloads/sandboxes/archives:batch", { method: "POST", headers: { "content-type": "application/x-www-form-urlencoded" }, body: new URLSearchParams({ sandbox_ids: "uq-1-20261110", variant: "masked", asset_kind: "USER_QUESTION" }) }), params(["sandboxes", "archives:batch"]));
     assert.equal(batchMasked.status, 400);
     assert.equal(calls.length, 0);
