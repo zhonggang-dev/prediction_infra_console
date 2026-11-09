@@ -2,11 +2,11 @@
 
 import { RefreshCw } from "lucide-react";
 import { Fragment, useEffect, useId, useRef, useState } from "react";
-import { accountCohortMetrics, cohortOpeningRangeError, type AccountCohortMetrics as AccountCoreMetrics, type AccountCohortMetricsResponse as AccountCoreMetricsResponse, type AccountCohortQuery, type UnavailableCohortAccount, type CorePriceSource, type CorePriceReason, type CohortDrawdownReason } from "../lib/trading-core-metrics";
+import { accountCohortMetrics, cohortOpeningRangeError, type AccountCohortMetrics as AccountCoreMetrics, type AccountCohortMetricsResponse as AccountCoreMetricsResponse, type AccountCohortQuery, type UnavailableCohortAccount, type CorePriceSource, type CorePriceReason, type CohortDrawdownReason, type SharpeReason } from "../lib/trading-core-metrics";
 import { formatV2Time, useV2Filter } from "./console-v2-resource";
 import { LocalHourInput } from "./wallet-pnl-chart";
 import { validateWalletPnlRange, walletPnlLocalHour, walletPnlHourCandidates, formatWalletPnlOffset } from "../lib/wallet-pnl";
-import { formatCoreMoney as money, formatCorePercent as percent, coreMetricTone as tone } from "../lib/core-metric-display";
+import { formatCoreRatio, formatCoreMoney as money, formatCorePercent as percent, coreMetricTone as tone } from "../lib/core-metric-display";
 import "./account-performance.css";
 
 const sourceLabels: Record<CorePriceSource, string> = { PM_CURRENT_PRICE: "Polymarket 官方现价", PM_CLOB_MID: "Polymarket 盘口中间价（参考）", KALSHI_BOOK_MID: "Kalshi 盘口中间价（参考）", KALSHI_LAST_TRADE: "Kalshi 官方最近成交价", OFFICIAL_SETTLEMENT: "官方确认结算价" };
@@ -14,6 +14,12 @@ const reasonLabels: Record<CorePriceReason, string> = { missing_price: "未返�
 const drawdownLabels: Record<CohortDrawdownReason, string> = { not_synced: "待同步", syncing: "同步中", missing_prices: "历史价格缺口", stale_endpoint: "当前报价不足", budget_exceeded: "范围暂未计算" };
 function drawdownStatus(item: AccountCoreMetrics): string {
   return item.drawdownState === "available" ? "已计算" : item.drawdownCoverage?.reason ? drawdownLabels[item.drawdownCoverage.reason] : "历史回撤尚未计算";
+}
+const sharpeReasons: Record<SharpeReason, string> = { not_synced: "历史数据待同步", missing_prices: "历史价格缺口", budget_exceeded: "范围暂未计算", insufficient_samples: "有效天数不足", zero_variance: "日收益波动为0", nonpositive_nav: "净值不足，无法计算" };
+function sharpeDetail(item: AccountCoreMetrics): string {
+  const coverage = item.sharpAnnualCoverage;
+  if (!coverage) return "暂未计算";
+  return coverage.reason ? `${sharpeReasons[coverage.reason]} · ${coverage.sampleDays}天` : `${coverage.sampleDays}个有效日`;
 }
 function stats(item: AccountCoreMetrics) {
   const drawdown = item.maxDrawdown === null ? null : Number(item.maxDrawdown) > 0 ? `-${item.maxDrawdown}` : "0";
@@ -28,26 +34,45 @@ function stats(item: AccountCoreMetrics) {
     { label: "ROI（累计本金）", value: percent(item.roi), tone: tone(item.roi, "percent") },
     { label: "Return（峰值本金）", value: percent(item.returnRate), tone: tone(item.returnRate, "percent") },
     { label: "最大回撤", value: money(drawdown), tone: tone(drawdown), detail: item.drawdownState === "history_unavailable" ? drawdownStatus(item) : undefined },
+    { label: "年化夏普", value: formatCoreRatio(item.sharpAnnual ?? null), tone: tone(item.sharpAnnual ?? null), detail: sharpeDetail(item) },
     { label: "买入手续费", value: money(item.buyFees) },
     { label: "卖出手续费", value: money(item.sellFees) },
   ];
 }
-const LABELS = ["区间开仓资产数", "当前持仓估值", "最高同时持仓本金", "累计投入本金", "已实现盈亏", "当前浮动盈亏", "总盈亏", "ROI（累计本金）", "Return（峰值本金）", "最大回撤", "买入手续费", "卖出手续费"];
+const LABELS = ["区间开仓资产数", "当前持仓估值", "最高同时持仓本金", "累计投入本金", "已实现盈亏", "当前浮动盈亏", "总盈亏", "ROI（累计本金）", "Return（峰值本金）", "最大回撤", "年化夏普", "买入手续费", "卖出手续费"];
 
 export function AccountCoreMetricsPanel({ active, account, accountOrder = [], accountScope = "active" }: { active: boolean; account: string; accountOrder?: string[]; accountScope?: "active" | "all" }) {
   const [state, setState] = useState<{ key: string; data?: AccountCoreMetricsResponse; error?: string }>({ key: "" });
   const [retry, setRetry] = useState(0);
   const [openingFrom] = useV2Filter("opening_from"), [openingTo] = useV2Filter("opening_to");
-  const identity = `${account}:${accountScope}:${openingFrom}/${openingTo}:${retry}`;
+  const identity = `${account}:${accountScope}:${openingFrom}/${openingTo}`;
   useEffect(() => {
     if (!active) return;
     const controller = new AbortController();
     void accountCohortMetrics({ ...(account ? { execution_account_id: account } : { account_scope: accountScope }), ...(openingFrom ? { opening_from: openingFrom } : {}), ...(openingTo ? { opening_to: openingTo } : {}) }, controller.signal).then(data => { if (!controller.signal.aborted) setState({ key: identity, data }); }).catch((error: unknown) => {
-      if (!controller.signal.aborted) setState({ key: identity, error: error instanceof Error ? error.message : "账户核心指标暂时不可用。" });
+      if (!controller.signal.aborted) setState(previous => ({ key: identity, ...(previous.key === identity && previous.data ? { data: previous.data } : {}), error: error instanceof Error ? error.message : "账户核心指标暂时不可用。" }));
     });
     return () => controller.abort();
   }, [active, account, accountScope, openingFrom, openingTo, retry, identity]);
   const current = state.key === identity ? state : undefined;
+  const needsHistoryRefresh = current?.data?.items.some(item => item.drawdownCoverage?.lastComplete || item.sharpAnnualCoverage?.lastComplete || item.drawdownCoverage?.reason === "not_synced" || item.sharpAnnualCoverage?.reason === "not_synced") ?? false;
+  useEffect(() => {
+    if (!active || !needsHistoryRefresh) return;
+    let timer: number | undefined;
+    const schedule = () => {
+      if (timer !== undefined) window.clearTimeout(timer);
+      timer = document.visibilityState === "visible" ? window.setTimeout(() => {
+        if (document.visibilityState === "visible") setRetry(value => value + 1);
+      }, 60_000) : undefined;
+    };
+    const visibilityChanged = () => {
+      schedule();
+      if (document.visibilityState === "visible") setRetry(value => value + 1);
+    };
+    schedule();
+    document.addEventListener("visibilitychange", visibilityChanged);
+    return () => { if (timer !== undefined) window.clearTimeout(timer); document.removeEventListener("visibilitychange", visibilityChanged); };
+  }, [active, needsHistoryRefresh, retry]);
   const rows = current?.data ? [
     ...current.data.items.map(item => ({ kind: "available" as const, executionAccountId: item.executionAccountId, item })),
     ...current.data.unavailableAccounts.map(item => ({ kind: "unavailable" as const, executionAccountId: item.executionAccountId, item })),
@@ -59,8 +84,8 @@ export function AccountCoreMetricsPanel({ active, account, accountOrder = [], ac
     <div className="section-head"><h2 className="section-title">账户核心指标</h2><div className="trading-block-actions">{current?.data && <span className="section-caption">账本观测 {formatV2Time(current.data.observedAt)}</span>}<button type="button" className="button trading-block-refresh" aria-label="刷新账户核心指标" disabled={active && !current?.data && !current?.error} onClick={() => setRetry(value => value + 1)}><RefreshCw size={14} aria-hidden="true" />刷新</button></div></div>
     <p className="section-caption trading-core-basis">系统纳管口径 · 追踪所选时间内开的仓位，截至现在的表现；剩余持仓按最新价格计算。最大回撤按小时采样，含浮动盈亏，未扣手续费。</p>
     <OpeningRangeForm key={`${openingFrom}/${openingTo}`} from={openingFrom} to={openingTo} />
-    {current?.error ? <div className="notice error" role="alert"><p>{current.error}</p><button type="button" className="button" onClick={() => setRetry(v => v + 1)}>重试</button></div>
-      : !rows ? <p className="trading-core-state">正在读取账户核心指标…</p>
+    {current?.error && <div className="notice error" role="alert"><p>{current.error}</p><button type="button" className="button" onClick={() => setRetry(v => v + 1)}>重试</button></div>}
+    {!rows ? !current?.error && <p className="trading-core-state">正在读取账户核心指标…</p>
         : !rows.length ? <p className="trading-core-state">暂无受管账户。</p>
           : account ? rows[0].kind === "available" ? <SingleAccount key={rows[0].executionAccountId} item={rows[0].item} /> : <UnavailableSingleAccount item={rows[0].item} />
             : <LocalScroll label="全部账户核心指标表格"><table className="trading-core-table"><thead><tr><th scope="col">账户 / 平台</th>{LABELS.map(label => <th scope="col" key={label}>{label}</th>)}</tr></thead><tbody>{rows.map(row => row.kind === "available" ? <AccountTableRow key={row.executionAccountId} item={row.item} /> : <UnavailableAccountRow key={row.executionAccountId} item={row.item} />)}</tbody></table></LocalScroll>}
@@ -73,7 +98,8 @@ export function AccountCoreMetricsPanel({ active, account, accountOrder = [], ac
       <li><strong>当前浮动盈亏</strong><p>当前持仓估值 − 入选批次的剩余买入本金。</p></li>
       <li><strong>总盈亏</strong><p>已实现盈亏 ＋ 当前浮动盈亏。</p></li>
       <li><strong>ROI 与 Return</strong><p>ROI ＝ 总盈亏 ÷ 累计投入本金；Return ＝ 总盈亏 ÷ 最高同时持仓本金。两者都未扣手续费，分母为零时显示“—”。</p></li>
-      <li><strong>最大回撤</strong><p>这批仓位从开仓至今，总盈亏从历史高点到后续低点的最大下降金额。按小时采样，含浮动盈亏，未扣手续费；小时内的短暂峰谷可能未被记录。等待同步或存在缺口时显示“—”及具体原因。</p></li>
+      <li><strong>最大回撤</strong><p>这批仓位从开仓至今，总盈亏从历史高点到后续低点的最大下降金额。按小时采样，含浮动盈亏，未扣手续费；小时内的短暂峰谷可能未被记录。历史数据暂缺时保留同账户、同开仓范围的最近完整结果；没有完整结果时显示“—”及具体原因。</p></li>
+      <li><strong>年化夏普</strong><p>日收益率均值 ÷ 日收益率样本标准差 × √365，无风险利率按0计算。使用所选开仓批次的资金调整后净值收益率，含浮动盈亏、未扣手续费；加减仓时分段计算并合并为每日收益。只统计完整 UTC 自然日，未纳管现金不参与；无资金占用的整日不填0。历史数据暂缺时保留同账户、同开仓范围的最近完整结果；至少需要2个有效日，净值不足或标准差为0时显示“—”。</p></li>
       <li><strong>买入手续费与卖出手续费</strong><p>只列实际记录并归属入选批次的费用，其余指标全部不含手续费。Kalshi 反向买入产生的净对冲费用仍计入买入手续费；到期结算不生成卖出手续费。接管前未记录的费用不补算。</p></li>
     </ol></details>
   </section>;

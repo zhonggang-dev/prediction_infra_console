@@ -1,4 +1,4 @@
-import { formatCoreMoney, formatCorePercent, coreMetricTone } from "../app/lib/core-metric-display.ts";
+import { formatCoreMoney, formatCorePercent, formatCoreRatio, coreMetricTone } from "../app/lib/core-metric-display.ts";
 import assert from "node:assert/strict";
 import test from "node:test";
 import { accountCoreMetrics, decodeAccountCoreMetrics, accountCohortMetrics, decodeAccountCohortMetrics, cohortOpeningRangeError } from "../app/lib/trading-core-metrics.ts";
@@ -207,4 +207,33 @@ test("核心指标符号和颜色与显示精度一致，负零和微小正负�
   assert.equal(formatCorePercent("-0.00005"), "-0.01%"); assert.equal(coreMetricTone("-0.00005", "percent"), "negative");
   assert.equal(formatCorePercent("0.00005"), "+0.01%"); assert.equal(coreMetricTone("0.00005", "percent"), "positive");
   assert.equal(formatCoreMoney(null), "—"); assert.equal(formatCorePercent(null), "—"); assert.equal(coreMetricTone(null), "");
+});
+
+const sharpCoverage = { reason: null, period_seconds: 86400, sample_days: 3, from: "2026-10-28T00:00:00Z", to: "2026-11-04T00:00:00Z", computed_at: observed };
+test("年化夏普保留正负无量纲值和有效天数，缺数据不伪装零，兼容旧后端", () => {
+  assert.equal(decodeAccountCohortMetrics(cohortData()).items[0].sharpAnnual, undefined);
+  for (const value of ["2.345678", "-1.25", "0"]) {
+    const decoded = decodeAccountCohortMetrics(cohortData({ items: [{ ...cohortItem, sharp_annual: value, sharp_annual_coverage: sharpCoverage }] })).items[0];
+    assert.equal(decoded.sharpAnnual, value); assert.equal(decoded.sharpAnnualCoverage?.sampleDays, 3); assert.equal(decoded.sharpAnnualCoverage?.periodSeconds, 86400);
+  }
+  for (const reason of ["not_synced", "missing_prices", "budget_exceeded", "insufficient_samples", "zero_variance", "nonpositive_nav"]) {
+    const c = { ...sharpCoverage, reason, sample_days: reason === "insufficient_samples" ? 0 : 3 };
+    const result = decodeAccountCohortMetrics(cohortData({ items: [{ ...cohortItem, sharp_annual: null, sharp_annual_coverage: c }] })).items[0];
+    assert.equal(result.sharpAnnual, null); assert.equal(result.sharpAnnualCoverage?.reason, reason);
+  }
+  assert.equal(formatCoreRatio("2.345678"), "+2.35"); assert.equal(formatCoreRatio("-1.25"), "-1.25"); assert.equal(formatCoreRatio("-0.000001"), "0.00"); assert.equal(formatCoreRatio(null), "—");
+});
+test("年化夏普拒绝金额与可用性矛盾、无效日界和错误样本数", () => {
+  const good = { ...cohortItem, sharp_annual: "1.25", sharp_annual_coverage: sharpCoverage };
+  for (const patch of [{ sharp_annual: undefined }, { sharp_annual: 1.25 }, { sharp_annual: "NaN" }, { sharp_annual: null }, { sharp_annual_coverage: null }, { sharp_annual_coverage: undefined }]) assert.throws(() => decodeAccountCohortMetrics(cohortData({ items: [{ ...good, ...patch }] })));
+  for (const patch of [{ reason: "missing_prices" }, { reason: undefined }, { period_seconds: 3600 }, { sample_days: -1 }, { sample_days: 1.5 }, { sample_days: 1 }, { sample_days: 8 }, { from: null }, { to: null }, { from: "2026-10-28T01:00:00Z" }, { from: "2026-11-06T00:00:00Z" }, { computed_at: undefined }]) assert.throws(() => decodeAccountCohortMetrics(cohortData({ items: [{ ...good, sharp_annual_coverage: { ...sharpCoverage, ...patch } }] })));
+  for (const c of [{ ...sharpCoverage, reason: "zero_variance", sample_days: 1 }, { ...sharpCoverage, reason: "insufficient_samples", sample_days: 3 }]) assert.throws(() => decodeAccountCohortMetrics(cohortData({ items: [{ ...good, sharp_annual: null, sharp_annual_coverage: c }] })));
+});
+
+test("最近完整结果保留标志供自动刷新使用，缓存值仍须有完整金融依据", () => {
+ const dd = { ...drawdownCoverage, reason: null, missing_asset_count: 0, missing_point_count: 0, last_complete: true };
+ const sh = { ...sharpCoverage, last_complete: true };
+ const value = { ...cohortItem, max_drawdown: "3", drawdown_state: "available", drawdown_coverage: dd, sharp_annual: "1.25", sharp_annual_coverage: sh };
+ const result = decodeAccountCohortMetrics(cohortData({items:[value]})).items[0];assert.equal(result.drawdownCoverage?.lastComplete,true);assert.equal(result.sharpAnnualCoverage?.lastComplete,true);
+ for(const patch of [{drawdown_coverage:{...dd,last_complete:"true"}},{drawdown_coverage:{...dd,last_complete:1}},{max_drawdown:null,drawdown_state:"history_unavailable",drawdown_coverage:{...drawdownCoverage,last_complete:true}},{sharp_annual_coverage:{...sh,last_complete:"true"}},{sharp_annual:null,sharp_annual_coverage:{...sh,reason:"not_synced"}}])assert.throws(()=>decodeAccountCohortMetrics(cohortData({items:[{...value,...patch}]})));
 });

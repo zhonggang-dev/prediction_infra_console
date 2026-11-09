@@ -84,12 +84,16 @@ export interface CohortDrawdownCoverage {
   reason: CohortDrawdownReason | null; fidelitySeconds: 3600;
   from: string | null; to: string | null; computedAt: string | null;
   missingAssetCount: number | null; missingPointCount: number | null;
+  lastComplete?: boolean;
 }
+export type SharpeReason = "not_synced" | "missing_prices" | "budget_exceeded" | "insufficient_samples" | "zero_variance" | "nonpositive_nav";
+export interface SharpeCoverage { reason: SharpeReason | null; periodSeconds: 86400; sampleDays: number; from: string | null; to: string | null; computedAt: string | null; lastComplete?: boolean }
 export interface AccountCohortMetrics extends AccountCoreMetrics {
   openedAssetCount: number; holdingAssetCount: number; closedAssetCount: number;
   roi: string | null; buyFees: string; sellFees: string;
   maxDrawdown: string | null; drawdownState: "available" | "history_unavailable";
   drawdownCoverage?: CohortDrawdownCoverage;
+  sharpAnnual?: string | null; sharpAnnualCoverage?: SharpeCoverage;
 }
 const DRAWDOWN_REASONS: CohortDrawdownReason[] = ["not_synced", "syncing", "missing_prices", "stale_endpoint", "budget_exceeded"];
 function coverageTime(value: unknown): string | null {
@@ -102,6 +106,7 @@ function coverageTime(value: unknown): string | null {
 function decodeDrawdownCoverage(value: unknown, state: AccountCohortMetrics["drawdownState"]): CohortDrawdownCoverage | undefined {
   if (value === undefined) return undefined;
   const raw = record(value);
+  if (raw.last_complete !== undefined && (typeof raw.last_complete !== "boolean" || (raw.last_complete && state !== "available"))) throw invalid();
   const reason = raw.reason === null ? null : DRAWDOWN_REASONS.find(reason => reason === raw.reason);
   if (reason === undefined || raw.fidelity_seconds !== 3600 || (state === "available") !== (reason === null)) throw invalid();
   const from = coverageTime(raw.from), to = coverageTime(raw.to), computedAt = coverageTime(raw.computed_at);
@@ -109,7 +114,22 @@ function decodeDrawdownCoverage(value: unknown, state: AccountCohortMetrics["dra
   const missingAssetCount = raw.missing_asset_count === null ? null : count(raw.missing_asset_count);
   const missingPointCount = raw.missing_point_count === null ? null : count(raw.missing_point_count);
   if (state === "available" && ((missingAssetCount ?? 0) > 0 || (missingPointCount ?? 0) > 0)) throw invalid();
-  return { reason, fidelitySeconds: 3600, from, to, computedAt, missingAssetCount, missingPointCount };
+  return { reason, fidelitySeconds: 3600, from, to, computedAt, missingAssetCount, missingPointCount, ...(raw.last_complete !== undefined ? { lastComplete: raw.last_complete === true } : {}) };
+}
+function decodeSharpe(raw: Record<string, unknown>): Pick<AccountCohortMetrics, "sharpAnnual" | "sharpAnnualCoverage"> {
+  if (!("sharp_annual" in raw) && !("sharp_annual_coverage" in raw)) return {};
+  const sharpAnnual = nullableDecimal(raw.sharp_annual), c = record(raw.sharp_annual_coverage);
+  const reasons: SharpeReason[] = ["not_synced", "missing_prices", "budget_exceeded", "insufficient_samples", "zero_variance", "nonpositive_nav"];
+  const reason = c.reason === null ? null : reasons.find(item => item === c.reason);
+  if (c.last_complete !== undefined && (typeof c.last_complete !== "boolean" || (c.last_complete && sharpAnnual === null))) throw invalid();
+  if (reason === undefined || c.period_seconds !== 86400 || (sharpAnnual !== null) !== (reason === null)) throw invalid();
+  const sampleDays = count(c.sample_days), from = coverageTime(c.from), to = coverageTime(c.to), computedAt = coverageTime(c.computed_at);
+  for (const time of [from, to]) if (time !== null && Date.parse(time) % 86_400_000 !== 0) throw invalid();
+  if (from !== null && to !== null && (Date.parse(from) > Date.parse(to) || sampleDays > (Date.parse(to) - Date.parse(from)) / 86_400_000)) throw invalid();
+  if (sharpAnnual !== null && (sampleDays < 2 || from === null || to === null)) throw invalid();
+  if (reason === "zero_variance" && sampleDays < 2) throw invalid();
+  if (reason === "insufficient_samples" && sampleDays >= 2) throw invalid();
+  return { sharpAnnual, sharpAnnualCoverage: { reason, periodSeconds: 86400, sampleDays, from, to, computedAt, ...(c.last_complete !== undefined ? { lastComplete: c.last_complete === true } : {}) } };
 }
 export interface UnavailableCohortAccount {
   executionAccountId: string; marketSource: "POLYMARKET" | "KALSHI"; reason: "missing_disposition_evidence";
@@ -140,7 +160,8 @@ export function decodeAccountCohortMetrics(data: Record<string, unknown>, reques
     if (raw.drawdown_state !== "available" && raw.drawdown_state !== "history_unavailable") throw invalid();
     if ((raw.drawdown_state === "available") !== (maxDrawdown !== null)) throw invalid();
     const drawdownCoverage = decodeDrawdownCoverage(raw.drawdown_coverage, raw.drawdown_state);
-    return { ...item, openedAssetCount, holdingAssetCount, closedAssetCount, roi, buyFees, sellFees, maxDrawdown, drawdownState: raw.drawdown_state, ...(drawdownCoverage ? { drawdownCoverage } : {}) };
+    const sharpe = decodeSharpe(raw);
+    return { ...item, openedAssetCount, holdingAssetCount, closedAssetCount, roi, buyFees, sellFees, maxDrawdown, drawdownState: raw.drawdown_state, ...sharpe, ...(drawdownCoverage ? { drawdownCoverage } : {}) };
   });
   return { observedAt: core.observedAt, openingFrom, openingTo, items, unavailableAccounts };
 }
