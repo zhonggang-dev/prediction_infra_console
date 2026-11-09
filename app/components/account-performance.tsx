@@ -16,10 +16,10 @@ function drawdownStatus(item: AccountCoreMetrics): string {
   return item.drawdownState === "available" ? "已计算" : item.drawdownCoverage?.reason ? drawdownLabels[item.drawdownCoverage.reason] : "历史回撤尚未计算";
 }
 const sharpeReasons: Record<SharpeReason, string> = { not_synced: "历史数据待同步", missing_prices: "历史价格缺口", budget_exceeded: "范围暂未计算", insufficient_samples: "有效天数不足", zero_variance: "日收益波动为0", nonpositive_nav: "净值不足，无法计算" };
-function sharpeDetail(item: AccountCoreMetrics): string {
+function sharpeDetail(item: AccountCoreMetrics): string | undefined {
   const coverage = item.sharpAnnualCoverage;
   if (!coverage) return "暂未计算";
-  return coverage.reason ? `${sharpeReasons[coverage.reason]} · ${coverage.sampleDays}天` : `${coverage.sampleDays}个有效日`;
+  return coverage.reason ? sharpeReasons[coverage.reason] : undefined;
 }
 function stats(item: AccountCoreMetrics) {
   const drawdown = item.maxDrawdown === null ? null : Number(item.maxDrawdown) > 0 ? `-${item.maxDrawdown}` : "0";
