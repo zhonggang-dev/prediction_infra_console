@@ -1039,3 +1039,8 @@ tbody tr:hover { background: #f7faf6; }
 .member-class { display: inline-block; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: 650; white-space: nowrap; }.member-class-core { color: var(--mint); background: var(--mint-soft); }.member-class-borrowed { color: var(--amber); background: var(--amber-soft); }.member-class-tracked { color: #31508f; background: #eaf0fb; }.member-class-unknown { color: var(--muted); background: #f1f3ef; }
 .prediction-progress { margin: 0 0 14px; }.prediction-progress .section-caption { margin: 4px 0 0; color: var(--muted); font-size: 10px; }.prediction-progress .table-scroll { margin: 0 -18px -18px; border-top: 1px solid var(--line); }
 @media (max-width: 720px) { .round-detail-lists { grid-template-columns: 1fr; } }
+.market-scope-caption { flex: 1 1 320px; margin: 0; padding-bottom: 7px; color: var(--ink-soft); font-size: 11px; line-height: 1.5; }
+.round-drawer { overflow-y: auto; }.round-drawer .round-detail { padding: 20px 22px 28px; border-top: 0; background: transparent; }.round-drawer .round-detail .section-title small { display: block; margin: 4px 0 0; }.round-drawer .round-detail-lists { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.v2-table td.member-identity { min-width: 128px; }.v2-table td.member-identity .v2-cell-copy span.member-class { overflow: visible; text-overflow: clip; justify-self: start; }
+.round-record-actions { display: flex; gap: 6px; }
+.round-drawer .v2-facts { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
