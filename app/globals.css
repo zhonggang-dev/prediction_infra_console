@@ -1040,7 +1040,17 @@ tbody tr:hover { background: #f7faf6; }
 .prediction-progress { margin: 0 0 14px; }.prediction-progress .section-caption { margin: 4px 0 0; color: var(--muted); font-size: 10px; }.prediction-progress .table-scroll { margin: 0 -18px -18px; border-top: 1px solid var(--line); }
 @media (max-width: 720px) { .round-detail-lists { grid-template-columns: 1fr; } }
 .market-scope-caption { flex: 1 1 320px; margin: 0; padding-bottom: 7px; color: var(--ink-soft); font-size: 11px; line-height: 1.5; }
-.round-drawer { overflow-y: auto; }.round-drawer .round-detail { padding: 20px 22px 28px; border-top: 0; background: transparent; }.round-drawer .round-detail .section-title small { display: block; margin: 4px 0 0; }.round-drawer .round-detail-lists { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.round-drawer { width: min(760px, 68vw); overflow-y: auto; }.round-drawer .round-detail { padding: 20px 22px 28px; border-top: 0; background: transparent; }.round-drawer .round-detail .section-title small { display: block; margin: 4px 0 0; }.round-drawer .round-detail-lists { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 .v2-table td.member-identity { min-width: 128px; }.v2-table td.member-identity .v2-cell-copy span.member-class { overflow: visible; text-overflow: clip; justify-self: start; }
 .round-record-actions { display: flex; gap: 6px; }
+.round-drawer .round-quota-rules { display: grid; gap: 10px; padding: 12px 14px; border: 1px solid var(--line); border-radius: 5px; background: #f4f7f3; font-size: 11px; line-height: 1.65; }
+.round-drawer .round-quota-rule { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 12px; }
+.round-drawer .round-quota-rule h4 { margin: 0; color: var(--ink); font-size: inherit; font-weight: 650; }
+.round-drawer .round-quota-rule p { margin: 0; color: var(--ink-soft); }
+.round-drawer .round-quota-ratios { display: flex; flex-wrap: wrap; gap: 2px 14px; margin-top: 4px; color: var(--ink-soft); }
+.round-drawer .round-quota-ratios span { white-space: nowrap; }
+.round-drawer .round-quota-ratios strong { color: var(--ink); }
+.round-drawer .v2-detail-close { white-space: nowrap; }
 .round-drawer .v2-facts { grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); }
+
+@media (max-width: 720px) { .round-drawer { width: 100vw; } }

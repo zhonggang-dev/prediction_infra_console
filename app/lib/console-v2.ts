@@ -264,6 +264,8 @@ export interface ConsoleV2Prediction {
   conditionId: string;
   question: string;
   primaryDomain?: string;
+  /** Domain of the proven prediction round, independent of historical market classification. */
+  roundDomain?: string;
   executionMode?: string;
   outcome0Name?: string;
   outcome0Probability: number | null;
@@ -882,7 +884,7 @@ function decodeSelectedMarket(value: RawRecord): ConsoleV2SelectedMarket {
 
 function decodePrediction(value: RawRecord): ConsoleV2Prediction {
   const sandboxId = optionalText(value.sandbox_id);
-  return { predictionId: requiredText(value.prediction_id, "prediction_id"), sandboxId, sourceJobId: optionalText(value.source_job_id), marketSource: optionalText(value.market_source), selectionRunId: optionalId(value.selection_run_id), selectedMarketId: optionalId(value.selected_market_id), marketId: requiredText(value.market_id, "prediction.market_id"), conditionId: value.market_source === "KALSHI" ? optionalText(value.condition_id) ?? "" : requiredText(value.condition_id, "prediction.condition_id"), question: requiredText(value.question, "prediction.question"), primaryDomain: optionalText(value.primary_domain), executionMode: optionalText(value.execution_mode), outcome0Name: optionalText(value.outcome_0_name), outcome0Probability: nullableNumber(value.outcome_0_probability), outcome1Name: optionalText(value.outcome_1_name), outcome1Probability: nullableNumber(value.outcome_1_probability), modelName: optionalText(value.model_name), predictorVersion: optionalText(value.predictor_version), predictionAsOf: optionalTime(value.prediction_as_of), receivedAt: optionalTime(value.received_at), completedAt: optionalTime(value.completed_at), generationId: optionalId(value.generation_id), sourceKind: sandboxId ? "SANDBOX" : value.sandbox_id === null && hasCompleteDirectIdentity(value) ? "DIRECT" : "UNKNOWN" };
+  return { predictionId: requiredText(value.prediction_id, "prediction_id"), sandboxId, sourceJobId: optionalText(value.source_job_id), marketSource: optionalText(value.market_source), selectionRunId: optionalId(value.selection_run_id), selectedMarketId: optionalId(value.selected_market_id), marketId: requiredText(value.market_id, "prediction.market_id"), conditionId: value.market_source === "KALSHI" ? optionalText(value.condition_id) ?? "" : requiredText(value.condition_id, "prediction.condition_id"), question: requiredText(value.question, "prediction.question"), primaryDomain: optionalText(value.primary_domain), roundDomain: nullableRoundDomain(value.round_domain), executionMode: optionalText(value.execution_mode), outcome0Name: optionalText(value.outcome_0_name), outcome0Probability: nullableNumber(value.outcome_0_probability), outcome1Name: optionalText(value.outcome_1_name), outcome1Probability: nullableNumber(value.outcome_1_probability), modelName: optionalText(value.model_name), predictorVersion: optionalText(value.predictor_version), predictionAsOf: optionalTime(value.prediction_as_of), receivedAt: optionalTime(value.received_at), completedAt: optionalTime(value.completed_at), generationId: optionalId(value.generation_id), sourceKind: sandboxId ? "SANDBOX" : value.sandbox_id === null && hasCompleteDirectIdentity(value) ? "DIRECT" : "UNKNOWN" };
 }
 
 function hasCompleteDirectIdentity(value: RawRecord) {
@@ -1000,6 +1002,11 @@ function asStringRecord(value: unknown): Record<string, string> { const record =
 function text(value: unknown): string | undefined { return value === undefined || value === null || value === "" ? undefined : String(value); }
 function requiredText(value: unknown, field: string): string { const result = text(value)?.trim(); if (!result) throw new ConsoleV2ContractError(`V2 接口缺少 ${field}`); return result; }
 function requiredId(value: unknown, field: string): string { return requiredText(value, field); }
+function nullableRoundDomain(value: unknown): string | undefined {
+  if (value === null || value === undefined) return undefined;
+  if (typeof value !== "string" || !value.trim()) throw new ConsoleV2ContractError("V2 接口返回了无效的 prediction.round_domain");
+  return value.trim();
+}
 function optionalText(value: unknown): string | undefined { const result = text(value)?.trim(); return result || undefined; }
 function optionalId(value: unknown): string | undefined { return optionalText(value); }
 function optionalTime(value: unknown): string | undefined { return typeof value === "string" && !Number.isNaN(Date.parse(value)) ? value : undefined; }
