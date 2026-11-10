@@ -78,7 +78,7 @@ function runtimeStatus(runtime: ConsoleV2Runtime) {
   return String(raw ?? "unknown");
 }
 
-/** "今日已发布 15/16 轮，下一轮 16:10 电竞" across both platforms. */
+/** "今日已发布 15/16 轮，下一轮 16:10 Esports" across both platforms. */
 function RoundProgressCaption({ overview }: { overview: ConsoleV2Overview }) {
   const schedule = overview.roundSchedule;
   if (!schedule) return null;

@@ -1,18 +1,6 @@
 import type { ConsoleV2Generation, ConsoleV2Overview, ConsoleV2RoundSchedule, ConsoleV2TrackedRule } from "./console-v2.ts";
 
-/** User-facing names of the domain-round vocabulary (see market-domain-rounds-contract). */
-export const domainLabels: Record<string, string> = {
-  "World/Geopolitics": "地缘",
-  Politics: "政治",
-  Finance: "金融",
-  Culture: "文化",
-  Crypto: "加密",
-  "Science/Tech": "科技",
-  Weather: "天气",
-  Sports: "体育",
-  Esports: "电竞",
-};
-
+/** Domains are shown by their English names, as in the selection rules (see market-domain-rounds-contract). */
 export const roundDomains = ["World/Geopolitics", "Politics", "Finance", "Culture", "Crypto", "Science/Tech", "Weather", "Sports", "Esports"] as const;
 
 export const membershipLabels: Record<string, string> = { CORE: "正式", BORROWED: "候补", TRACKED: "白名单" };
@@ -39,14 +27,19 @@ export const tierRanges: Record<string, string> = {
 
 export const tierOrder = ["near_settlement", "short", "mid", "mid_long", "long", "ultra_long", "unknown"];
 
+/** Exit reasons the round flow still produces; the filter offers only these. */
 export const retireReasonLabels: Record<string, string> = {
   market_ended: "已结束",
   near_settlement: "剩余≤3 天",
   reclaimed: "候补被回收",
-  event_cap: "同事件超限",
-  admission_rule_changed: "入池规则变更",
-  superseded: "被取代",
 };
+
+/** One-off exits of earlier pool rules (10-28 window rule, legacy cutover); kept in history under one name. */
+const legacyRetireReasons = new Set(["admission_rule_changed", "event_cap", "superseded"]);
+
+export function retireReasonText(reason: string | undefined) {
+  return reason && legacyRetireReasons.has(reason) ? "旧规则退出（10-28）" : labelOf(retireReasonLabels, reason);
+}
 
 export const predictionGateLabels: Record<string, string> = {
   ENABLED: "通过",
@@ -72,7 +65,7 @@ export function labelOf(labels: Record<string, string>, value: string | undefine
   return labels[value] ?? value;
 }
 
-export function domainLabel(value: string | undefined) { return labelOf(domainLabels, value); }
+export function domainLabel(value: string | undefined) { return value || "—"; }
 
 /** 正式 / 候补（借短期名额）/ 白名单 W04. */
 export function membershipText(item: { membershipClass?: string; borrowedFromTier?: string; trackedRuleId?: string }) {
@@ -183,7 +176,7 @@ export function roundState(lane: ConsoleV2RoundSchedule["rounds"][number]["sourc
   return "MISSING";
 }
 
-/** "今日 8/16 轮已发布，下一轮 16:10 电竞" for one source. */
+/** "今日 8/16 轮已发布，下一轮 16:10 Esports" for one source. */
 export function roundProgress(rows: RoundRow[], timeZone: string, now: Date) {
   const published = rows.filter((row) => row.state === "PUBLISHED").length;
   const next = rows.filter((row) => Date.parse(row.slotAt) > now.getTime()).sort((a, b) => Date.parse(a.slotAt) - Date.parse(b.slotAt))[0];
@@ -201,15 +194,14 @@ export function predictionGenerations(overview: ConsoleV2Overview | undefined, s
     .sort((a, b) => (a.roundIndex ?? 0) - (b.roundIndex ?? 0) || sourceOrder(a.marketSource) - sourceOrder(b.marketSource));
 }
 
-/** "第 3 轮 金融 · 11-10" for a generation reference. */
+/** "11-10 第 3 轮 Finance" for a generation reference. */
 export function generationLabel(generation: { domain?: string; businessDate?: string; roundIndex: number | null; generationId: string }) {
   if (!generation.domain) return `维护批次 ${generation.generationId}`;
   return `${shortDate(generation.businessDate)} 第 ${generation.roundIndex ?? "?"} 轮 ${domainLabel(generation.domain)}`;
 }
 
-/** "正常" / "名额不足" / "已命中未入池" / "未找到开放事件" for one whitelist rule. */
-export function trackedRuleState(rule: Pick<ConsoleV2TrackedRule, "activeMemberCount" | "capacityConflictMissing" | "lastSeenAt">, now: Date) {
-  if (rule.capacityConflictMissing > 0) return { label: `名额不足（缺 ${rule.capacityConflictMissing} 个）`, tone: "failed" };
+/** "正常" / "已命中未入池" / "未找到开放事件" for one whitelist rule. */
+export function trackedRuleState(rule: Pick<ConsoleV2TrackedRule, "activeMemberCount" | "lastSeenAt">, now: Date) {
   if (rule.activeMemberCount > 0) return { label: "正常", tone: "published" };
   const seen = rule.lastSeenAt ? Date.parse(rule.lastSeenAt) : NaN;
   if (!Number.isNaN(seen) && now.getTime() - seen < 2 * 86_400_000) return { label: "已命中未入池", tone: "pending" };

@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { consoleV2, ConsoleV2ContractError, type ConsoleV2Generation, type ConsoleV2Overview } from "../app/lib/console-v2.ts";
-import { formatRemainingDays, generationLabel, membershipText, predictionGenerations, remainingDays, roundProgress, roundRows, roundState, ROUND_GRACE_MS, tierText, trackedRuleState } from "../app/lib/market-rounds.ts";
+import { domainLabel, formatRemainingDays, generationLabel, membershipText, retireReasonText, predictionGenerations, remainingDays, roundProgress, roundRows, roundState, ROUND_GRACE_MS, tierText, trackedRuleState } from "../app/lib/market-rounds.ts";
 import { GET } from "../app/api/console/v2/[...path]/route.ts";
 
 async function withFetch(body: unknown, run: (calls: string[]) => Promise<void>) {
@@ -77,7 +77,7 @@ test("running members, retired entries, selection runs, batches and whitelist ru
   await withFetch({ data: { items: [{ model_id: "v4.1 flash", market_source: "POLYMARKET", prediction_as_of: "2026-11-09T20:10:26Z", result_count: 52, sandbox_count: 52, direct_result_count: 0, sandbox_result_count: 52, unknown_result_count: 0, max_result_id: 9, source_kinds: ["SANDBOX"], generation_ids: [579], generations: [{ generation_id: 579, domain: "Finance", business_date: "2026-11-10", round_index: 3 }], latest_received_at: null }], total: 1, limit: 20, offset: 0, has_more: false, observed_at: "2026-11-10T06:00:00Z" } }, async () => {
     const batch = (await consoleV2.infra.predictionBatches()).data.items[0];
     assert.deepEqual(batch.generations, [{ generationId: "579", domain: "Finance", businessDate: "2026-11-10", roundIndex: 3 }]);
-    assert.equal(generationLabel(batch.generations[0]), "11-10 第 3 轮 金融");
+    assert.equal(generationLabel(batch.generations[0]), "11-10 第 3 轮 Finance");
   });
   await withFetch({ data: { items: [{ rule_id: "W20", title: "Instacart 季度交易总额 GTV", market_source: "KALSHI", domain: "Finance", kind: "series", series: "KXCART", event: null, market: null, active_member_count: 0, tracked_event_count: 0, last_seen_at: null, capacity_conflict_missing: 0 }], total: 41, limit: 20, offset: 0, has_more: true, observed_at: "2026-11-10T06:00:00Z" } }, async (calls) => {
     const rule = (await consoleV2.infra.trackedRules({ source: "KALSHI" })).data.items[0];
@@ -129,7 +129,7 @@ test("round rows tell published, running, missed, not-due and carried lanes apar
   assert.equal(roundState({ marketSource: "POLYMARKET" }, slot, new Date(Date.parse(slot) + ROUND_GRACE_MS)), "MISSING");
   assert.equal(roundState({ marketSource: "POLYMARKET", status: "FAILED" }, slot, now), "FAILED");
   assert.equal(roundState({ marketSource: "POLYMARKET", status: "PENDING" }, slot, now), "PENDING");
-  assert.deepEqual(roundProgress(rows.filter((row) => row.marketSource === "POLYMARKET"), "Asia/Shanghai", now), { published: 1, total: 2, next: "16:10 电竞" });
+  assert.deepEqual(roundProgress(rows.filter((row) => row.marketSource === "POLYMARKET"), "Asia/Shanghai", now), { published: 1, total: 2, next: "16:10 Esports" });
   assert.deepEqual(predictionGenerations(overview, "").map((item) => item.generationId), ["578", "560", "563"]);
 });
 
@@ -144,7 +144,10 @@ test("identity and tier wording follow the round vocabulary", () => {
   assert.equal(formatRemainingDays(remainingDays("2026-11-18T12:00:00Z", now)), "8 天");
   assert.equal(formatRemainingDays(remainingDays("2026-11-10T06:00:00Z", now)), "不足 1 天");
   assert.equal(formatRemainingDays(remainingDays(undefined, now)), "—");
-  assert.equal(trackedRuleState({ activeMemberCount: 9, capacityConflictMissing: 0 }, now).label, "正常");
-  assert.equal(trackedRuleState({ activeMemberCount: 9, capacityConflictMissing: 2 }, now).label, "名额不足（缺 2 个）");
-  assert.equal(trackedRuleState({ activeMemberCount: 0, capacityConflictMissing: 0, lastSeenAt: "2026-11-09T12:00:00Z" }, now).label, "已命中未入池");
+  assert.equal(trackedRuleState({ activeMemberCount: 9 }, now).label, "正常");
+  assert.equal(trackedRuleState({ activeMemberCount: 0, lastSeenAt: "2026-11-09T12:00:00Z" }, now).label, "已命中未入池");
+  assert.equal(domainLabel("World/Geopolitics"), "World/Geopolitics");
+  assert.equal(domainLabel(undefined), "—");
+  assert.equal(retireReasonText("near_settlement"), "剩余≤3 天");
+  for (const legacy of ["admission_rule_changed", "event_cap", "superseded"]) assert.equal(retireReasonText(legacy), "旧规则退出（10-28）");
 });

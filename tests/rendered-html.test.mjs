@@ -207,7 +207,7 @@ test("选盘批次直达链接先展示目标成员列表", async () => {
   assert.match(html, /选盘批次(?:\s|<!-- -->)+477/);
   assert.match(html, /aria-label="入选成员搜索"/);
   assert.doesNotMatch(html, /<h2[^>]*>选盘批次<\/h2>/);
-  assert.match(html, /返回选盘记录/);
+  assert.match(html, /返回每轮记录/);
 });
 
 test("数据集轮转的三个兼容入口复用同一类型→版本→用途页面", async () => {
