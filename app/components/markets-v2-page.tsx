@@ -17,7 +17,7 @@ function SourceFilter({ value, onChange }: { value: string; onChange: (value: st
 function EligibilityFilter({ value, onChange }: { value: string; onChange: (value: string) => void }) { return <select className="select" aria-label="预测资格" value={value} onChange={(event) => onChange(event.target.value)}><option value="">全部资格</option><option value="true">可预测</option><option value="false">仅资料</option></select>; }
 function DomainFilter({ value, onChange }: { value: string; onChange: (value: string) => void }) { return <select className="select" aria-label="Domain" value={value} onChange={(event) => onChange(event.target.value)}><option value="">全部 Domain</option>{roundDomains.map((domain) => <option key={domain} value={domain}>{domainLabel(domain)}</option>)}</select>; }
 function MembershipFilter({ value, onChange }: { value: string; onChange: (value: string) => void }) { return <select className="select" aria-label="身份" value={value} onChange={(event) => onChange(event.target.value)}><option value="">全部身份</option>{Object.entries(membershipLabels).map(([key, label]) => <option key={key} value={key}>{label}</option>)}</select>; }
-function TierFilter({ value, onChange }: { value: string; onChange: (value: string) => void }) { return <select className="select" aria-label="期限档" value={value} onChange={(event) => onChange(event.target.value)}><option value="">全部期限档</option>{tierOrder.map((tier) => <option key={tier} value={tier}>{tierLabels[tier]}（{tierRanges[tier]}）</option>)}</select>; }
+function TierFilter({ value, onChange }: { value: string; onChange: (value: string) => void }) { return <select className="select" aria-label="期限档" value={value} onChange={(event) => onChange(event.target.value)}><option value="">全部期限档</option>{tierOrder.filter((tier) => tier !== "unknown").map((tier) => <option key={tier} value={tier}>{tierLabels[tier]}（{tierRanges[tier]}）</option>)}</select>; }
 
 const marketScopes = {
   current: { label: "运行池成员", caption: "每天 9 轮选盘，每轮更新一个 Domain。上表是今天各轮的结果，下表是当前成员；点上表一行，下表筛到该平台和 Domain。" },
@@ -211,7 +211,7 @@ function RoundRecords() {
     { label: "新收 / 退出", render: (item) => item.roundSummary ? `${formatV2Number(item.roundSummary.admitted, 0)} / ${formatV2Number(sumCounts(item.roundSummary.exits), 0)}` : "—" },
     { label: "可预测", render: (item) => formatV2Number(item.predictionEnabledCount, 0) },
     { label: "发布时间", render: (item) => formatV2Time(item.publishedAt) },
-    { label: "查看", className: "v2-action-cell", render: (item) => <div className="round-record-actions"><a className="button" href={`/markets/running?market_scope=current&generation_id=${encodeURIComponent(item.generationId)}&source=${encodeURIComponent(item.marketSource ?? "POLYMARKET")}`}>成员</a>{item.sourceSelectionRunId && <a className="button" href={`/markets/selection?selection_run_id=${encodeURIComponent(item.sourceSelectionRunId)}`}>入选盘</a>}</div> },
+    { label: "查看", className: "v2-action-cell", render: (item) => item.sourceSelectionRunId ? <a className="button" href={`/markets/selection?selection_run_id=${encodeURIComponent(item.sourceSelectionRunId)}`}>入选盘</a> : "—" },
   ]} />;
 }
 type RoundRecord = ConsoleV2Generation & { selection?: ConsoleV2SelectionRun };
