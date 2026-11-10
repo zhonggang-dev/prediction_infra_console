@@ -334,7 +334,8 @@ function UploadTable({ items, selectedId, onSelect, busy }: { items: UserQuestio
         <td className="uq-primary"><button type="button" className="uq-link" aria-pressed={selected} onClick={() => onSelect(item.uploadId)}>{item.originalFilename}</button><small>#{item.uploadId} · {item.fileFormat} · {formatV2Bytes(item.sizeBytes)}{item.blankRowsSkipped ? ` · 跳过空行 ${item.blankRowsSkipped}` : ""}</small></td>
         <td className="mono muted">{formatV2Time(item.createdAt)}</td>
         <td><ProgressCell upload={item} /></td>
-        <td className="mono">{item.latestSandboxCount} / {item.questionCount}</td>
+        {/* 只算当前轮构建成功的题（用户 11-10 确认），以前轮次的 Sandbox 在详情的历史版本里 */}
+        <td className="mono">{item.progress.succeeded} / {item.questionCount}</td>
       </tr>;
     })}</tbody>
   </table></div>;
