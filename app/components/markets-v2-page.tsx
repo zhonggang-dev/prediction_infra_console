@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { consoleV2, type ConsoleV2Generation, type ConsoleV2Overview, type ConsoleV2RunningMarket, type ConsoleV2RunningPool, type ConsoleV2SelectedMarket, type ConsoleV2SelectionRun, type ConsoleV2Settlement, type ConsoleV2TrackedRule } from "../lib/console-v2";
-import { domainLabel, formatRemainingDays, labelOf, membershipLabels, membershipText, predictionGateLabels, predictionGateOrder, remainingDays, retireReasonLabels, retireReasonText, roundDomains, roundProgress, roundRows, roundStateLabels, roundStateTone, shortDate, slotClock, sourceLabels, tierLabels, tierOrder, tierRanges, tierText, trackedRuleState, type RoundRow } from "../lib/market-rounds";
-import { formatV2Number, formatV2Time, V2ContextLinks, V2Facts, V2Frame, V2ListPage, V2Notice, V2Tabs, V2WorkspacePanel, useV2Filter, useWorkspaceTabs, v2ErrorText, v2Status, v2Unknown } from "./console-v2-resource";
+import { domainLabel, formatRemainingDays, labelOf, membershipLabels, membershipText, predictionGateLabels, predictionGateOrder, remainingDays, retireReasonLabels, retireReasonText, roundDomains, roundProgress, roundRows, roundStateLabels, roundStateTone, shortDate, slotClock, sourceLabels, tierLabels, tierOrder, tierRanges, tierText, trackedRuleState, todayRoundGeneration, type RoundRow } from "../lib/market-rounds";
+import { formatV2Number, formatV2Time, V2ContextLinks, V2Facts, V2Frame, V2ListPage, V2Notice, V2Tabs, V2WorkspacePanel, useV2Filter, useV2PanelActive, useWorkspaceTabs, v2ErrorText, v2Status, v2Unknown } from "./console-v2-resource";
 
 type MarketsView = "running" | "selection" | "data";
 const tabs = [{ href: "/markets/running", label: "运行市场", aliases: ["/markets"] }, { href: "/markets/selection", label: "每轮记录" }, { href: "/markets/data", label: "Polymarket 市场结算" }] as const;
@@ -63,6 +63,9 @@ function RoundSummary({ source, domain, onSelect, onClearDomain }: { source: str
   const [error, setError] = useState<string>();
   const [attempt, setAttempt] = useState(0);
   const [opened, setOpened] = useState<string>();
+  const triggerRef = useRef<HTMLButtonElement | null>(null);
+  const active = useV2PanelActive();
+  const closeDrawer = useCallback(() => setOpened(undefined), []);
   useEffect(() => {
     let cancelled = false;
     void consoleV2.infra.overview().then((result) => { if (!cancelled) { setOverview(result.data); setError(undefined); } }).catch((cause: unknown) => { if (!cancelled) setError(v2ErrorText(cause)); });
@@ -75,7 +78,7 @@ function RoundSummary({ source, domain, onSelect, onClearDomain }: { source: str
   const now = new Date();
   const rows = roundRows(overview, now);
   const laneKey = (row: RoundRow) => `${row.marketSource}:${row.domain}`;
-  const openedRow = rows.find((row) => laneKey(row) === opened && row.current);
+  const openedRow = active ? rows.find((row) => laneKey(row) === opened && row.current) : undefined;
   return <section className="round-summary" aria-label="今日轮次">
     {overview.sources.map((item) => {
       const sourceRows = rows.filter((row) => row.marketSource === item.marketSource);
@@ -84,20 +87,20 @@ function RoundSummary({ source, domain, onSelect, onClearDomain }: { source: str
       return <div key={item.marketSource} className="panel round-source">
         <div className="section-head panel-pad"><div><h2 className="section-title">{labelOf(sourceLabels, item.marketSource)} · 今日轮次</h2><p className="section-caption">业务日 {schedule.businessDate} · 已发布 {progress.published}/{progress.total} 轮{progress.next ? ` · 下一轮 ${progress.next}` : ""}</p></div>{filtering && <button type="button" className="button" onClick={onClearDomain}>清除下表 Domain 筛选</button>}</div>
         <div className="table-scroll"><table className="v2-table round-table"><thead><tr><th>轮次</th><th>状态</th><th>成员</th><th>正式</th><th>候补</th><th>白名单</th><th>可预测</th><th>本轮新收</th><th>本轮退出</th><th>名额明细</th></tr></thead><tbody>
-          {sourceRows.map((row) => <RoundSummaryRow key={`${row.marketSource}:${row.roundIndex}`} row={row} timezone={schedule.timezone} selected={domain === row.domain && (source === row.marketSource || source === "ALL")} opened={opened === laneKey(row)} onSelect={() => onSelect(row.marketSource, row.domain)} onOpen={() => setOpened(laneKey(row))} />)}
+          {sourceRows.map((row) => <RoundSummaryRow key={`${row.marketSource}:${row.roundIndex}`} row={row} timezone={schedule.timezone} selected={domain === row.domain && (source === row.marketSource || source === "ALL")} opened={opened === laneKey(row)} onSelect={() => onSelect(row.marketSource, row.domain)} onOpen={(trigger) => { triggerRef.current = trigger; setOpened(laneKey(row)); }} />)}
           <tr className="round-total"><td><strong>合计（每个盘只算一次）</strong></td><td /><td>{formatV2Number(item.currentMemberCount, 0)}</td><td>{formatV2Number(item.currentClassCounts?.core, 0)}</td><td>{formatV2Number(item.currentClassCounts?.borrowed, 0)}</td><td>{formatV2Number(item.currentClassCounts?.tracked, 0)}</td><td>{formatV2Number(item.currentPredictionEnabledCount, 0)}</td><td colSpan={3} /></tr>
         </tbody></table></div>
       </div>;
     })}
-    {openedRow && <RoundQuotaDrawer row={openedRow} timezone={schedule.timezone} onClose={() => setOpened(undefined)} />}
+    {openedRow && <RoundQuotaDrawer row={openedRow} timezone={schedule.timezone} triggerRef={triggerRef} onClose={closeDrawer} />}
   </section>;
 }
 
 function sumCounts(values?: Record<string, number>) { return values ? Object.values(values).reduce((total, value) => total + value, 0) : null; }
 
-function RoundSummaryRow({ row, timezone, selected, opened, onSelect, onOpen }: { row: RoundRow; timezone: string; selected: boolean; opened: boolean; onSelect: () => void; onOpen: () => void }) {
+function RoundSummaryRow({ row, timezone, selected, opened, onSelect, onOpen }: { row: RoundRow; timezone: string; selected: boolean; opened: boolean; onSelect: () => void; onOpen: (trigger: HTMLButtonElement) => void }) {
   const generation = row.current;
-  const summary = generation?.roundSummary;
+  const summary = todayRoundGeneration(row)?.roundSummary;
   return <tr className={selected ? "clickable is-selected" : "clickable"} aria-selected={selected} onClick={onSelect}>
       <td><div className="v2-cell-copy"><strong>{slotClock(row.slotAt, timezone)} 第 {row.roundIndex} 轮 {domainLabel(row.domain)}</strong><small>{row.predict ? "预测轮" : "不预测"}{generation ? ` · 维护批次 ${generation.generationId}` : ""}</small></div></td>
       <td><div className="v2-cell-copy">{v2Status(roundStateTone[row.state], roundStateLabels[row.state])}{row.carriedFrom && <small>成员沿用 {shortDate(row.carriedFrom)}</small>}</div></td>
@@ -108,27 +111,42 @@ function RoundSummaryRow({ row, timezone, selected, opened, onSelect, onOpen }: 
       <td>{row.predict ? formatV2Number(generation?.predictionEnabledCount, 0) : "—"}</td>
       <td>{formatV2Number(summary?.admitted, 0)}</td>
       <td>{formatV2Number(sumCounts(summary?.exits), 0)}</td>
-      <td><button type="button" className="button" aria-haspopup="dialog" aria-expanded={opened} disabled={!generation} onClick={(event) => { event.stopPropagation(); onOpen(); }}>查看</button></td>
+      <td><button type="button" className="button" aria-haspopup="dialog" aria-expanded={opened} disabled={!generation} onClick={(event) => { event.stopPropagation(); onOpen(event.currentTarget); }}>查看</button></td>
     </tr>;
 }
 
 /** Side drawer with the quota table, lending flows, exits and prediction gates of one round generation. */
-function RoundQuotaDrawer({ row, timezone, onClose }: { row: RoundRow; timezone: string; onClose: () => void }) {
+function RoundQuotaDrawer({ row, timezone, triggerRef, onClose }: { row: RoundRow; timezone: string; triggerRef: { current: HTMLButtonElement | null }; onClose: () => void }) {
+  const dialogRef = useRef<HTMLDialogElement | null>(null);
+  const closeRef = useRef<HTMLButtonElement | null>(null);
   useEffect(() => {
-    const close = (event: KeyboardEvent) => { if (event.key === "Escape") onClose(); };
-    window.addEventListener("keydown", close);
-    return () => window.removeEventListener("keydown", close);
-  }, [onClose]);
+    const dialog = dialogRef.current;
+    if (!dialog) return;
+    const trigger = triggerRef.current;
+    const summaryRoot = dialog.closest(".round-summary");
+    dialog.showModal();
+    const focusFrame = window.requestAnimationFrame(() => closeRef.current?.focus({ preventScroll: true }));
+    const closeForWorkspace = () => { dialog.close(); onClose(); };
+    window.addEventListener("v2-workspace-change", closeForWorkspace);
+    return () => {
+      window.cancelAnimationFrame(focusFrame);
+      window.removeEventListener("v2-workspace-change", closeForWorkspace);
+      dialog.close();
+      window.requestAnimationFrame(() => {
+        const target = trigger?.isConnected ? trigger : summaryRoot?.querySelector<HTMLButtonElement>("button:not([disabled])");
+        if (target?.isConnected && !target.closest("[hidden]")) target.focus({ preventScroll: true });
+      });
+    };
+  }, [onClose, triggerRef]);
   const generation = row.current!;
   const summary = generation.roundSummary;
   const tracked = generation.classCounts?.tracked ?? 0;
   const exits = Object.entries(summary?.exits ?? {}).filter(([, count]) => count > 0);
   const gates = predictionGateOrder.filter((gate) => (summary?.predictionGates?.[gate] ?? 0) > 0);
-  return <>
-    <button type="button" className="question-drawer-backdrop" aria-label="关闭名额明细" onClick={onClose} />
-    <aside className="question-drawer round-drawer" role="dialog" aria-modal="true" aria-label="名额明细">
+  // Native modal dialogs make the background inert and contain keyboard focus.
+  return <dialog ref={dialogRef} className="v2-detail-dialog round-drawer" aria-modal="true" aria-label="名额明细" onCancel={(event) => { event.preventDefault(); onClose(); }} onClose={(event) => { if (!event.currentTarget.open) onClose(); }} onPointerUp={(event) => { if (event.target === event.currentTarget) onClose(); }}>
       <div className="round-detail">
-        <div className="section-head"><h3 className="section-title">{labelOf(sourceLabels, row.marketSource)} · {slotClock(row.slotAt, timezone)} 第 {row.roundIndex} 轮 {domainLabel(row.domain)}<small>维护批次 {generation.generationId}{row.carriedFrom ? ` · 沿用 ${shortDate(row.carriedFrom)}` : ""}</small></h3><button type="button" className="button" onClick={onClose}>关闭</button></div>
+        <div className="section-head"><h3 className="section-title">{labelOf(sourceLabels, row.marketSource)} · {slotClock(row.slotAt, timezone)} 第 {row.roundIndex} 轮 {domainLabel(row.domain)}<small>维护批次 {generation.generationId} · 业务日 {generation.businessDate ?? "未知"}{!todayRoundGeneration(row) ? " · 当前沿用代" : ""}</small></h3><button ref={closeRef} type="button" className="button v2-detail-close" onClick={onClose}>关闭</button></div>
         {!summary ? <p className="v2-inline-note">这一代没有轮次摘要（切换前的老流程）。</p> : <>
           <V2Facts values={[
             { label: "容量", value: summary.capacity === null ? "不设容量" : formatV2Number(summary.capacity, 0) },
@@ -142,7 +160,12 @@ function RoundQuotaDrawer({ row, timezone, onClose }: { row: RoundRow; timezone:
               return <tr key={tier.tier}><td>{labelOf(tierLabels, tier.tier)}</td><td>{labelOf(tierRanges, tier.tier)}</td><td>{formatV2Number(tier.target, 0)}</td><td>{formatV2Number(tier.core, 0)}</td><td>{formatV2Number(tier.lent, 0)}</td><td>{formatV2Number(tier.received, 0)}</td><td>{formatV2Number(empty, 0)}</td></tr>;
             })}
           </tbody></table></div>
-          <p className="v2-inline-note">名额 = {tracked > 0 ? "普通成员名额" : "容量"}按 40/30/15/10/5 分到五个档。空位表示这个档的候选盘不够填满。借位只从较短的档借给已经满了、还有候选在排队的较长档，从最短的档开始借；较长档的名额不会借给较短档。空出来的名额按同样的比例分给这些档，某个档填满或候选用完，剩下的再分一遍，所以每个档最多填到自己的名额，分不完的留在原档。</p></> : <p className="v2-inline-note">不分档 · 不设容量</p>}
+          <section className="round-quota-rules" aria-label="名额与借位规则">
+            <div className="round-quota-rule"><h4>名额分配</h4><div><p>{tracked > 0 ? "普通成员名额" : "容量"}按以下比例分到五个档：</p><div className="round-quota-ratios"><span>短期 <strong>40%</strong></span><span>中期 <strong>30%</strong></span><span>中长期 <strong>15%</strong></span><span>长期 <strong>10%</strong></span><span>超长期 <strong>5%</strong></span></div></div></div>
+            <div className="round-quota-rule"><h4>空位含义</h4><p>这个档的候选盘不够填满。</p></div>
+            <div className="round-quota-rule"><h4>借位方向</h4><div><p>只从较短档借给已满、仍有候选排队的较长档。</p><p>从最短档开始借，较长档的名额不会反向借给较短档。</p></div></div>
+            <div className="round-quota-rule"><h4>借位分配</h4><div><p>空出来的名额按同样比例分配；某档填满或候选用完后，剩下的再分一遍。</p><p>每个档最多填到自己的名额，分不完的留在原档。</p></div></div>
+          </section></> : <p className="v2-inline-note">不分档 · 不设容量</p>}
           <div className="round-detail-lists">
             <div><h4>借位流向</h4>{summary.lending.length ? <ul>{summary.lending.map((lent) => <li key={`${lent.lender}:${lent.receiver}`}>{labelOf(tierLabels, lent.lender)} → {labelOf(tierLabels, lent.receiver)}：{formatV2Number(lent.count, 0)}</li>)}</ul> : <p>无</p>}</div>
             <div><h4>本轮退出</h4>{exits.length ? <ul>{exits.map(([reason, count]) => <li key={reason}>{retireReasonText(reason)}：{formatV2Number(count, 0)}</li>)}</ul> : <p>无</p>}</div>
@@ -150,8 +173,7 @@ function RoundQuotaDrawer({ row, timezone, onClose }: { row: RoundRow; timezone:
           </div>
         </>}
       </div>
-    </aside>
-  </>;
+    </dialog>;
 }
 
 type MemberFilters = { generationId: string; enabled: string; setEnabled: (value: string) => void; membership: string; setMembership: (value: string) => void; tier: string; setTier: (value: string) => void; trackedRule: string; setTrackedRule: (value: string) => void };

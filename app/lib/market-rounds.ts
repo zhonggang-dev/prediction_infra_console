@@ -144,6 +144,20 @@ export interface RoundRow {
   carriedFrom?: string;
 }
 
+/** Only the published generation recorded in today's schedule owns today's activity. */
+export function todayRoundGeneration(row: RoundRow) {
+  return row.state === "PUBLISHED" && row.todayGenerationId === row.current?.generationId ? row.current : undefined;
+}
+
+/** Keep the selected model when moving from a progress row to its exact generation. */
+export function roundPredictionHref(row: RoundRow, model: string) {
+  const generation = todayRoundGeneration(row) ?? row.current;
+  if (!generation) return undefined;
+  const query = new URLSearchParams({ scope: "history", source: row.marketSource, generation_id: generation.generationId });
+  if (model) query.set("model", model);
+  return `/predictions?${query}`;
+}
+
 /**
  * One row per (round, source) of today's timetable: today's generation status,
  * or, when there is none yet, whether the slot is still ahead, in progress or
@@ -185,7 +199,7 @@ export function roundProgress(rows: RoundRow[], timeZone: string, now: Date) {
 
 function sourceOrder(source: string | undefined) { return source === "POLYMARKET" ? 0 : source === "KALSHI" ? 1 : 2; }
 
-/** Today's prediction lanes: every current generation that has prediction-enabled members. */
+/** Current prediction lanes, including carried generations with prediction-enabled members. */
 export function predictionGenerations(overview: ConsoleV2Overview | undefined, source: string) {
   if (!overview) return [];
   return overview.sources

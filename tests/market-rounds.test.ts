@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { consoleV2, ConsoleV2ContractError, type ConsoleV2Generation, type ConsoleV2Overview } from "../app/lib/console-v2.ts";
-import { domainLabel, formatRemainingDays, generationLabel, membershipText, retireReasonText, predictionGenerations, remainingDays, roundProgress, roundRows, roundState, ROUND_GRACE_MS, tierText, trackedRuleState } from "../app/lib/market-rounds.ts";
+import { domainLabel, formatRemainingDays, generationLabel, membershipText, retireReasonText, predictionGenerations, remainingDays, roundProgress, roundRows, roundState, ROUND_GRACE_MS, tierText, trackedRuleState, todayRoundGeneration, roundPredictionHref, type RoundRow } from "../app/lib/market-rounds.ts";
 import { GET } from "../app/api/console/v2/[...path]/route.ts";
 
 async function withFetch(body: unknown, run: (calls: string[]) => Promise<void>) {
@@ -150,4 +150,57 @@ test("identity and tier wording follow the round vocabulary", () => {
   assert.equal(domainLabel(undefined), "—");
   assert.equal(retireReasonText("near_settlement"), "剩余≤3 天");
   for (const legacy of ["admission_rule_changed", "event_cap", "superseded"]) assert.equal(retireReasonText(legacy), "旧规则退出（10-28）");
+});
+
+
+test("today's activity excludes carried generations, unfinished rounds and failed reruns", () => {
+  const current: ConsoleV2Generation = {
+    generationId: "563", sourceSelectionRunId: "623", status: "PUBLISHED", isCurrent: true, memberCount: 793,
+    businessDate: "2026-11-09", domain: "Politics", roundIndex: 2, predictionEnabledCount: 20,
+    roundSummary: { capacity: 1200, ordinaryCapacity: 1188, admitted: 182, exits: { near_settlement: 6 }, tiers: [], lending: [], capacityConflicts: [] },
+  };
+  const carried: RoundRow = { marketSource: "KALSHI", domain: "Politics", roundIndex: 2, predict: true, slotAt: "2026-11-09T18:10:00Z", state: "MISSING", current, carriedFrom: "2026-11-09" };
+  const published: RoundRow = { ...carried, state: "PUBLISHED", carriedFrom: undefined, todayGenerationId: "580", current: { ...current, generationId: "580", businessDate: "2026-11-10" } };
+  const pending = { ...carried, state: "PENDING" as const, todayGenerationId: "581" };
+  const failedRerun = { ...published, state: "FAILED" as const, todayGenerationId: "582" };
+  const future = { ...carried, state: "NOT_DUE" as const };
+  const rows = [carried, published, pending, failedRerun, future];
+  assert.deepEqual(rows.flatMap((row) => {
+    const generation = todayRoundGeneration(row);
+    return generation ? [generation.generationId] : [];
+  }), ["580"], "only today's proven published generation may be used for progress requests");
+  assert.equal(todayRoundGeneration(carried)?.roundSummary, undefined, "yesterday's 182 admissions / 6 exits do not become today's activity");
+  assert.equal(todayRoundGeneration(published)?.predictionEnabledCount, 20);
+  assert.equal(todayRoundGeneration({ ...published, todayGenerationId: "599" }), undefined, "a different current generation must not fill a scheduled lane");
+});
+
+test("round result links preserve the selected model for current and carried results", () => {
+  const row = {
+    marketSource: "KALSHI", state: "MISSING", current: { generationId: "563" },
+  } as RoundRow;
+  const target = new URL(roundPredictionHref(row, "model / + 中文")!, "http://console.local");
+  assert.equal(target.pathname, "/predictions");
+  assert.equal(target.searchParams.get("model"), "model / + 中文");
+  assert.equal(target.searchParams.get("source"), "KALSHI");
+  assert.equal(target.searchParams.get("generation_id"), "563");
+  assert.equal(target.searchParams.get("scope"), "history");
+  assert.equal(new URL(roundPredictionHref(row, "")!, "http://console.local").searchParams.has("model"), false);
+  assert.equal(roundPredictionHref({ ...row, current: undefined }, "model"), undefined);
+});
+
+test("prediction round Domain is decoded independently from historical classification", async () => {
+  const base = { prediction_id: "p-round", market_source: "KALSHI", market_id: "m", condition_id: "c", question: "Q", primary_domain: "Entertainment", sandbox_id: "s" };
+  const body = (item: Record<string, unknown>) => ({ data: { items: [item], total: 1, limit: 20, offset: 0, has_more: false, observed_at: "2026-11-10T00:00:00Z" } });
+  for (const roundDomain of ["Culture", null, undefined]) {
+    await withFetch(body({ ...base, round_domain: roundDomain }), async () => {
+      const item = (await consoleV2.infra.predictions()).data.items[0];
+      assert.equal(item.roundDomain, roundDomain ?? undefined);
+      assert.equal(item.primaryDomain, "Entertainment");
+    });
+  }
+  for (const invalid of [42, false, {}, ""]) {
+    await withFetch(body({ ...base, round_domain: invalid }), async () => {
+      await assert.rejects(consoleV2.infra.predictions(), (error: unknown) => error instanceof ConsoleV2ContractError && /round_domain/.test(error.message));
+    });
+  }
 });

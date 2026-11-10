@@ -18,7 +18,13 @@ Trading 资源转发到 `/api/v1/console/v2/{resource}`：`runtime`、`decision-
 
 预测默认查看已有历史结果；页面只保留结果范围、模型/平台、批次选择与原生整批 masked 下载，不再读取任务核对或展示 Direct coverage。旧 `/predictions/tasks` 重定向 `/predictions`，只保留模型/来源/范围/明确代际身份，删除任务状态、搜索、分页和旧批次私有状态。用户可见 `SANDBOX_NEW_READY` 渠道标为 Sandbox，模型原 ID 和协议枚举保持。
 
-显式 `scope=current` 从 `overview.sources[].current_generation` 取得所选真实平台各自 PUBLISHED 代际，与 prediction_coverage 无关。单平台使用 `source` + `generation_id`；全部平台使用 `sources=POLYMARKET,KALSHI` + `generation_ids=<PM ID>,<Kalshi ID>`。集合参数仅用于 predictions/prediction-batches，最多两个互异正 int64，与单 ID 互斥；后端拒绝同源、未知、非发布或来源冲突。缺任一所选平台当前范围则明确阻止查询，不能退到另一平台或历史。范围未确定时列表保持旧快照忙碌状态且不发请求；历史范围或已有冻结身份重载不为已删除摘要额外读取 overview。
+显式 `scope=current` 显示「当前生效预测范围」：从 `overview.sources[].current_generations` 取得所选平台各 Domain 当前 PUBLISHED 且有预测成员的代际，包括仍生效的沿用代，与 prediction_coverage 无关。统一使用 `generation_ids`（1–20 个互异正 int64，可包含同一平台不同 Domain）；与单 ID 互斥，后端拒绝未知、非发布或来源冲突。单平台旧 `source` + `generation_id` 深链继续兼容。缺任一所选平台当前范围则明确阻止查询，不能退到另一平台或历史。范围未确定时列表保持旧快照忙碌状态且不发请求；current 即使已有冻结身份也读取 overview 展示范围标签与今日进度，history 不额外读取。
+
+「今日预测进度」与当前生效范围分开：只有 `round_schedule` 当天该轮为 PUBLISHED，且其 `generation_id` 与该 Domain 的 current 代一致时，才请求、展示这代的今日结果。缺跑、失败、处理中和未到轮次不引用沿用代的历史批次；沿用代保留独立「查看沿用结果」入口。进度行的结果跳转始终保留所选 `model`。市场今日轮次里的成员人数可沿用，但新收/退出仅显示当天已发布代的摘要；沿用代抽屉明确实际业务日。
+
+`predictions` 新增 nullable `round_domain`：后端根据可核实的派发/代际关系投影，前端 `roundDomain` 用于「轮次 Domain」列。`primary_domain` 仍保留历史市场分类语义；无确证的轮次 Domain 显示「—」，不回退为历史分类。缺字段或 null 兼容为未知，非法非字符串或空串为合同错误。
+
+名额明细沿用右侧抽屉布局，使用原生模态 `dialog`：打开聚焦关闭按钮、背景不可聚焦、Esc/遮罩/关闭按钮均可关闭，关闭恢复原触发位置且不滚动；所属工作区隐藏时关闭，不能残留 top-layer。
 
 代际集合写入 URL 与列表 metadata；翻页、返回和重载保持固定范围，total 和排序来自同一后端列表，浏览器不合并局部分页。固定批次父身份包含模型、来源集合、范围、单/多代际和信息时点；改变父范围清除旧批次和分页。选中具体批次后结果/目录查询剥离 generation_ids、收窄为该批次 source + 单 generation_id，目录保留固定 max_result_id、结果另保留原精度 prediction_as_of。下载表单保持原 model_id/market_source/prediction_as_of/max_result_id/可选 generation_id，服务端一次解析完整 Sandbox 集合，保留流式响应，不受当前页或手填 20 ID 工具限制。
 

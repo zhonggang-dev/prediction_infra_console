@@ -15,7 +15,7 @@ export function predictionGenerationIds(value: string) {
 
 /**
  * The current prediction range is every current generation with prediction
- * members of the requested platforms (today's prediction domains), read as one
+ * members of the requested platforms (including carried domains), read as one
  * generation_ids set. A scalar generation_id deep link of one platform and an
  * explicit generation_ids set stay frozen; an invalid one fails closed.
  */

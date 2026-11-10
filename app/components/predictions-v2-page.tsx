@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { consoleV2, type ConsoleV2Overview, type ConsoleV2Prediction, type ConsoleV2PredictionBatchSummary, type ConsoleV2PredictionModel } from "../lib/console-v2";
 import { fixedPredictionBatch, matchingPredictionBatch, predictionBatchParentContext, predictionBatchQueryKeys, predictionResultQuery, type FixedPredictionBatch } from "../lib/prediction-batch-scope";
 import { currentPredictionRange, predictionGenerationIds } from "../lib/prediction-scope";
-import { domainLabel, generationLabel, predictionGenerations, roundRows, roundStateLabels, roundStateTone, shortDate, slotClock, sourceLabels, labelOf } from "../lib/market-rounds";
+import { domainLabel, generationLabel, todayRoundGeneration, roundPredictionHref, roundRows, roundStateLabels, roundStateTone, shortDate, slotClock, sourceLabels, labelOf } from "../lib/market-rounds";
 import { formatV2Number, formatV2Time, V2ContextLinks, V2Frame, V2ListPage, V2Notice, useV2Filter, v2Status, v2Unknown } from "./console-v2-resource";
 
 export function PredictionsV2Page() {
@@ -69,7 +69,7 @@ export function PredictionsV2Page() {
   const rangeText = effectiveScope === "current" ? currentRangeText(overview, activeGenerationId || activeGenerationIds || "") : undefined;
   return <V2Frame eyebrow="Prediction / Results" title="预测结果" description="按模型、平台和维护范围查看已有预测结果与批次下载。">
     <V2ContextLinks links={[{ href: "/markets/running", label: "回到当前市场" }]} />
-    <section className="prediction-scope-bar"><div><strong>结果范围</strong><small>{effectiveScope === "current" ? rangeLabel ? rangeText ?? `当前维护批次 ${rangeLabel}` : lookupNeeded ? "正在读取今日预测轮次" : "今日预测轮次尚未确定" : rangeLabel ? `维护批次 ${rangeLabel}` : "全部已有结果"}</small></div><label><span>范围</span><select className="select" aria-label="预测范围" value={effectiveScope} onChange={(event) => { setScope(event.target.value); clearRange(); }}><option value="history">全部已有结果</option><option value="current">今日预测轮次</option></select></label><label><span>模型</span><select className="select" aria-label="预测模型" value={model} onChange={(event) => { setModel(event.target.value); clearPredictionBatchUrl(); }}><option value="">全部模型</option>{modelCatalogueLoading && <option disabled>读取模型目录…</option>}{!modelCatalogueLoading && !modelCatalogueError && !modelCatalogue.length && <option disabled>暂无模型目录</option>}{[true, false].map((currentDispatch) => <optgroup key={String(currentDispatch)} label={currentDispatch ? "当前派发" : "历史记录"}>{modelCatalogue.filter((item) => Boolean(item.currentDispatchChannels.length) === currentDispatch).map((item) => <option key={item.modelId} value={item.modelId}>{item.modelId}{currentDispatch ? ` · ${item.currentDispatchChannels.map((channel) => channel === "DIRECT" ? "Direct" : "Sandbox").join(" / ")}` : ""}</option>)}</optgroup>)}{model && !modelCatalogue.some((item) => item.modelId === model) && <option value={model}>{model}</option>}</select></label><label><span>平台</span><select className="select" aria-label="预测平台" value={activeSource} onChange={(event) => { setSource(event.target.value); clearRange(); }}><option value="">全部平台</option><option value="POLYMARKET">Polymarket</option><option value="KALSHI">Kalshi</option></select></label></section>
+    <section className="prediction-scope-bar"><div><strong>结果范围</strong><small>{effectiveScope === "current" ? rangeLabel ? rangeText ?? `当前维护批次 ${rangeLabel}` : lookupNeeded ? "正在读取当前生效预测范围" : "当前生效预测范围尚未确定" : rangeLabel ? `维护批次 ${rangeLabel}` : "全部已有结果"}</small></div><label><span>范围</span><select className="select" aria-label="预测范围" value={effectiveScope} onChange={(event) => { setScope(event.target.value); clearRange(); }}><option value="history">全部已有结果</option><option value="current">当前生效预测范围</option></select></label><label><span>模型</span><select className="select" aria-label="预测模型" value={model} onChange={(event) => { setModel(event.target.value); clearPredictionBatchUrl(); }}><option value="">全部模型</option>{modelCatalogueLoading && <option disabled>读取模型目录…</option>}{!modelCatalogueLoading && !modelCatalogueError && !modelCatalogue.length && <option disabled>暂无模型目录</option>}{[true, false].map((currentDispatch) => <optgroup key={String(currentDispatch)} label={currentDispatch ? "当前派发" : "历史记录"}>{modelCatalogue.filter((item) => Boolean(item.currentDispatchChannels.length) === currentDispatch).map((item) => <option key={item.modelId} value={item.modelId}>{item.modelId}{currentDispatch ? ` · ${item.currentDispatchChannels.map((channel) => channel === "DIRECT" ? "Direct" : "Sandbox").join(" / ")}` : ""}</option>)}</optgroup>)}{model && !modelCatalogue.some((item) => item.modelId === model) && <option value={model}>{model}</option>}</select></label><label><span>平台</span><select className="select" aria-label="预测平台" value={activeSource} onChange={(event) => { setSource(event.target.value); clearRange(); }}><option value="">全部平台</option><option value="POLYMARKET">Polymarket</option><option value="KALSHI">Kalshi</option></select></label></section>
     {rangeLabel && effectiveScope === "history" && <section className="panel panel-pad selection-context"><strong>{activeSource || "Polymarket / Kalshi"} 维护批次 {rangeLabel}</strong>{predictionAsOf && <span>信息时点 {formatV2Time(predictionAsOf)}</span>}<button className="button" type="button" onClick={clearRange}>清除维护批次</button><a className="button" href="/markets/selection?record_view=maintenance">返回维护记录</a></section>}
     <p className="v2-inline-note">当前派发来自服务配置，不表示工作进程在线；历史模型保留原始标识。</p>
     {modelCatalogueError && <V2Notice error title="模型目录不可用" description={modelCatalogueError} />}
@@ -128,7 +128,7 @@ function PredictionResults({ enabled, scope, source, model, generationId, genera
   <V2ListPage<ConsoleV2Prediction> title="预测结果" enabled={enabled} load={loadPredictionResults} params={params} discardedFilters={["selection_run_id", "selected_market_id", "status"]} rowKey={(item) => item.predictionId} searchPlaceholder="搜索 prediction、market、condition 或问题" columns={[
     { label: "模型 / 来源", className: "primary", render: (item) => <div className="v2-cell-copy"><strong>{v2Unknown(item.modelName)}</strong><small>{item.marketSource}</small></div> },
     { label: "问题 / 市场身份", className: "wide", render: (item) => <div className="v2-cell-copy"><strong>{item.question}</strong><small className="mono">{item.marketId} · {item.conditionId}</small></div> },
-    { label: "Domain", render: (item) => domainLabel(item.primaryDomain) },
+    { label: "轮次 Domain", render: (item) => domainLabel(item.roundDomain) },
     { label: "概率", render: (item) => `${v2Unknown(item.outcome0Name, "Outcome 0")} ${probability(item.outcome0Probability)} · ${v2Unknown(item.outcome1Name, "Outcome 1")} ${probability(item.outcome1Probability)}` },
     { label: "信息时点 / 接收时间", render: (item) => <div className="v2-cell-copy"><span>{formatV2Time(item.predictionAsOf)}</span><small>{formatV2Time(item.receivedAt)}</small></div> },
   ]} emptyDescription={scope === "current" ? "本轮尚未收到所选模型的预测结果；可切换模型或查看全部已有结果。" : "当前范围没有匹配的预测结果。"} />
@@ -173,13 +173,14 @@ function TodayPredictionProgress({ overview, source, model }: { overview: Consol
   const [truncated, setTruncated] = useState(false);
   const schedule = overview.roundSchedule;
   const rows = roundRows(overview, new Date()).filter((row) => row.predict && (!source || row.marketSource === source));
-  const ids = predictionGenerations(overview, source).map((generation) => generation.generationId).join(",");
+  const ids = rows.flatMap((row) => { const generation = todayRoundGeneration(row); return generation ? [generation.generationId] : []; }).join(",");
   useEffect(() => {
     let cancelled = false;
     const timer = window.setTimeout(() => {
       // No prediction lane today: drop any batches of an earlier range.
       if (!ids) { setBatches([]); setTruncated(false); setError(undefined); setLoading(false); return; }
       setLoading(true);
+      setBatches([]);
       void consoleV2.infra.predictionBatches({ generation_ids: ids, ...sourceParams(source), model: model || undefined, limit: 100 })
         .then((result) => { if (!cancelled) { setBatches(result.data.items); setTruncated(result.data.hasMore); setError(undefined); } })
         .catch((cause: unknown) => { if (!cancelled) { setBatches([]); setTruncated(false); setError(cause instanceof Error ? cause.message : "今日预测批次暂时不可用"); } })
@@ -189,20 +190,21 @@ function TodayPredictionProgress({ overview, source, model }: { overview: Consol
   }, [ids, source, model]);
   if (!schedule || !rows.length) return null;
   return <section className="prediction-progress panel panel-pad" aria-label="今日预测进度">
-    <div className="section-head"><div><h2 className="section-title">今日预测进度</h2><p className="section-caption">业务日 {schedule.businessDate}（{schedule.timezone}）· 第 1–4 轮的预测成员与已收到的结果批次</p></div><span className="prediction-batch-status">{!ids ? "今日暂无预测轮次" : loading ? "读取中" : error ? "读取失败" : `${batches.length} 个批次`}</span></div>
+    <div className="section-head"><div><h2 className="section-title">今日预测进度</h2><p className="section-caption">业务日 {schedule.businessDate}（{schedule.timezone}）· 第 1–4 轮当天已发布的预测成员与已收结果；沿用代的历史结果不计入</p></div><span className="prediction-batch-status">{!ids ? "今日尚无已发布预测轮次" : loading ? "读取中" : error ? "读取失败" : `${batches.length} 个批次`}</span></div>
     {error && <p className="v2-inline-note error">{error}</p>}
     {truncated && !error && <p className="v2-inline-note">今日批次超过 100 个，只读取了最新 100 个；未列出的轮次结果未知，可在下方按批次查看。</p>}
     <div className="table-scroll"><table className="v2-table round-table"><thead><tr><th>平台</th><th>轮次</th><th>状态</th><th>预测成员</th><th>已收结果</th><th>操作</th></tr></thead><tbody>
       {rows.map((row) => {
-        const generation = row.current;
+        const generation = todayRoundGeneration(row);
+        const href = roundPredictionHref(row, model);
         const received = generation ? batches.filter((batch) => batch.marketSource === row.marketSource && batch.generationIds.includes(generation.generationId)) : [];
         return <tr key={`${row.marketSource}:${row.roundIndex}`}>
           <td>{labelOf(sourceLabels, row.marketSource)}</td>
           <td><div className="v2-cell-copy"><strong>{slotClock(row.slotAt, schedule.timezone)} 第 {row.roundIndex} 轮 {domainLabel(row.domain)}</strong>{row.carriedFrom && <small>成员沿用 {shortDate(row.carriedFrom)}</small>}</div></td>
           <td>{v2Status(roundStateTone[row.state], roundStateLabels[row.state])}</td>
           <td>{formatV2Number(generation?.predictionEnabledCount, 0)}</td>
-          <td>{received.length ? <div className="v2-cell-copy">{received.map((batch) => <span key={`${batch.modelId}:${batch.predictionAsOf}`}>{batch.modelId} · {formatV2Number(batch.resultCount, 0)} 条 · {formatV2Time(batch.predictionAsOf)}</span>)}</div> : generation && ids && loading ? "读取中" : error || truncated ? "未知" : "暂无结果"}</td>
-          <td>{generation ? <a className="button" href={`/predictions?scope=history&source=${encodeURIComponent(row.marketSource)}&generation_id=${encodeURIComponent(generation.generationId)}`}>查看本轮结果</a> : "—"}</td>
+          <td>{received.length ? <div className="v2-cell-copy">{received.map((batch) => <span key={`${batch.modelId}:${batch.predictionAsOf}`}>{batch.modelId} · {formatV2Number(batch.resultCount, 0)} 条 · {formatV2Time(batch.predictionAsOf)}</span>)}</div> : !generation ? "本轮尚未发布" : loading ? "读取中" : error || truncated ? "未知" : "暂无结果"}</td>
+          <td>{href ? <a className="button" href={href}>{generation ? "查看本轮结果" : "查看沿用结果"}</a> : "—"}</td>
         </tr>;
       })}
     </tbody></table></div>
