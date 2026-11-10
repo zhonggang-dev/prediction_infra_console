@@ -256,7 +256,7 @@ export function UserQuestionsPage() {
           <button type="button" className="button primary" disabled={upload.uploading} onClick={upload.choose}><Icon name="upload" /> {upload.uploading ? `上传中 ${Math.round((upload.progress ?? 0) * 100)}%` : "上传文件"}</button>
         </div>
       </div>
-      {formatOpen && <p id="uq-format-help" className="uq-format-help">JSON：字符串数组 <code>[&quot;…&quot;]</code> 或对象数组 <code>[{"{"}&quot;question&quot;: &quot;…&quot;{"}"}]</code>；CSV：第一行表头须含 <code>question</code> 列，其余列忽略。每个文件最多 {USER_QUESTION_MAX_QUESTIONS} 道题、不超过 {formatV2Bytes(USER_QUESTION_UPLOAD_LIMIT_BYTES)}，空行跳过；问题按英文设计。</p>}
+      {formatOpen && <p id="uq-format-help" className="uq-format-help">JSON：字符串数组 <code>[&quot;…&quot;]</code> 或对象数组 <code>[{"{"}&quot;question&quot;: &quot;…&quot;{"}"}]</code>；CSV：第一行表头须含 <code>question</code> 列，其余列忽略。每个文件最多 {USER_QUESTION_MAX_QUESTIONS} 道题、不超过 {formatV2Bytes(USER_QUESTION_UPLOAD_LIMIT_BYTES)}，空行跳过。</p>}
       {upload.uploading && <div className="bt-bar uq-upload-bar" role="progressbar" aria-label="上传进度" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round((upload.progress ?? 0) * 100)}><i style={{ width: `${Math.round((upload.progress ?? 0) * 100)}%` }} /></div>}
       {upload.error && <div className="notice error uq-notice" role="alert"><div><strong>上传失败</strong><p>{upload.error}</p></div></div>}
       {upload.created && <div className="notice uq-notice uq-success" role="status"><div><strong>已上传 {upload.created.originalFilename}</strong><p>{upload.created.questionCount} 道题{upload.created.blankRowsSkipped ? `，跳过空行 ${upload.created.blankRowsSkipped} 行` : ""}，等待下一个 16:30 构建。</p></div></div>}
@@ -324,8 +324,10 @@ function useQuestionUpload(inputRef: RefObject<HTMLInputElement | null>, onUploa
 }
 
 function UploadTable({ items, selectedId, onSelect, busy }: { items: UserQuestionUpload[]; selectedId?: number; onSelect: (uploadId: number) => void; busy: boolean }) {
+  // 当前轮是全局的（最近一次 16:30 计划写入的业务日），各行相同；16:30 前仍是前一天那轮
+  const round = items.find((item) => item.currentBusinessDate)?.currentBusinessDate;
   return <div className="table-scroll" aria-busy={busy}><table className="uq-table uq-files-table">
-    <thead><tr><th>文件</th><th>上传时间</th><th>构建进度</th><th>已有 Sandbox</th></tr></thead>
+    <thead><tr><th>文件</th><th>上传时间</th><th>构建进度{round && `（${round.slice(5)} 轮）`}</th><th>已有 Sandbox</th></tr></thead>
     <tbody>{items.map((item) => {
       const selected = item.uploadId === selectedId;
       return <tr key={item.uploadId} className={selected ? "selected" : undefined}>
