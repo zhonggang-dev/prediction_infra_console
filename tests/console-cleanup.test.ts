@@ -140,7 +140,7 @@ test("晚回传更新目录后固定批次保持原水位、完整身份和代�
   const applied = { sources: "POLYMARKET,KALSHI", batch_model: "v4.1 flash", batch_source: "KALSHI", batch_prediction_as_of: "2026-11-03T07:00:00.123456Z", batch_max_result_id: "9007199254741001", batch_generation_id: "468", limit: 20, offset: 20, q: "question" };
   const scope = fixedPredictionBatch(applied);
   assert.deepEqual(scope, { modelId: "v4.1 flash", marketSource: "KALSHI", predictionAsOf: applied.batch_prediction_as_of, maxResultId: applied.batch_max_result_id, generationId: "468" });
-  const original: ConsoleV2PredictionBatchSummary = { modelId: "v4.1 flash", marketSource: "KALSHI", predictionAsOf: applied.batch_prediction_as_of, maxResultId: applied.batch_max_result_id, generationIds: ["468"], resultCount: 300, sandboxCount: 297, sandboxResultCount: 300, directResultCount: 0, unknownResultCount: 0, sourceKinds: ["SANDBOX"] };
+  const original: ConsoleV2PredictionBatchSummary = { modelId: "v4.1 flash", marketSource: "KALSHI", predictionAsOf: applied.batch_prediction_as_of, maxResultId: applied.batch_max_result_id, generationIds: ["468"], generations: [], resultCount: 300, sandboxCount: 297, sandboxResultCount: 300, directResultCount: 0, unknownResultCount: 0, sourceKinds: ["SANDBOX"] };
   assert.equal(matchingPredictionBatch([original], scope), original);
   const updated = { ...original, maxResultId: "9007199254741002", resultCount: 301, sandboxCount: 298 };
   assert.equal(matchingPredictionBatch([updated], scope), undefined);
@@ -201,24 +201,30 @@ test("隐藏结果metadata虽随父模型改变，批次保存的父范围仍阻
   assert.equal(fixedPredictionBatch(allModels)?.modelId, "echoz");
 });
 
-test("当前范围只依赖两平台各自current，不依赖Direct coverage，缺任一平台不得退为全历史", () => {
-  const overview = { sources: [{ marketSource: "POLYMARKET", currentGeneration: { generationId: "467", observedAt: observed }, predictionCoverage: null }, { marketSource: "KALSHI", currentGeneration: { generationId: "468", observedAt: "2026-11-03T07:00:00.123456Z" }, predictionCoverage: null }] } as unknown as ConsoleV2Overview;
-  assert.deepEqual(currentPredictionRange(overview, "", "", ""), { generationId: undefined, generationIds: "467,468", missingSources: [] });
-  assert.deepEqual(currentPredictionRange(overview, "KALSHI", "", ""), { generationId: "468", generationIds: undefined, missingSources: [] });
-  assert.equal(currentPredictionRange(undefined, "", "", "").generationIds, undefined);
-  const incomplete = { ...overview, sources: overview.sources.slice(0, 1) };
+test("当前范围取两平台今天所有可预测的当前代，不依赖Direct coverage，缺任一平台不得退为全历史", () => {
+  const generation = (generationId: string, domain: string, roundIndex: number, predictionEnabledCount: number) => ({ generationId, domain, roundIndex, predictionEnabledCount, businessDate: "2026-11-10", observedAt: observed });
+  const overview = { sources: [
+    { marketSource: "POLYMARKET", currentGeneration: generation("574", "Sports", 8, 0), currentGenerations: [generation("574", "Sports", 8, 0), generation("562", "Politics", 2, 5), generation("561", "World/Geopolitics", 1, 7)] },
+    { marketSource: "KALSHI", currentGeneration: generation("575", "Sports", 8, 0), currentGenerations: [generation("575", "Sports", 8, 0), generation("563", "Politics", 2, 20)] },
+  ] } as unknown as ConsoleV2Overview;
+  // The most recently observed generation (Sports) does not predict and is not the range.
+  assert.deepEqual(currentPredictionRange(overview, "", "", ""), { generationId: undefined, generationIds: "561,562,563", missingSources: [] });
+  assert.deepEqual(currentPredictionRange(overview, "KALSHI", "", ""), { generationId: undefined, generationIds: "563", missingSources: [] });
+  assert.deepEqual(currentPredictionRange(undefined, "", "", "").missingSources, ["POLYMARKET", "KALSHI"]);
+  const incomplete = { ...overview, sources: [overview.sources[0], { ...overview.sources[1], currentGenerations: [generation("575", "Sports", 8, 0)] }] } as unknown as ConsoleV2Overview;
   assert.deepEqual(currentPredictionRange(incomplete, "", "", "").missingSources, ["KALSHI"]);
   assert.equal(currentPredictionRange(incomplete, "", "", "").generationIds, undefined);
-  // URL replay retains a frozen snapshot even after another maintenance run.
+  // URL replay retains a frozen snapshot even after another round.
   assert.equal(currentPredictionRange(overview, "", "", "465,466").generationIds, "465,466");
   assert.equal(currentPredictionRange(undefined, "KALSHI", "466", "").generationId, "466");
-  for (const value of ["", "0", "1,1", "1,2,3", "1,", "-1", "9223372036854775808", "1e2"]) assert.deepEqual(predictionGenerationIds(value), [], value);
+  for (const value of ["", "0", "1,1", "1,", "-1", "9223372036854775808", "1e2", Array.from({ length: 21 }, (_, index) => String(index + 1)).join(",")]) assert.deepEqual(predictionGenerationIds(value), [], value);
+  assert.deepEqual(predictionGenerationIds("1,2,3"), ["1", "2", "3"]);
   assert.deepEqual(predictionGenerationIds("9007199254741001,9223372036854775807"), ["9007199254741001", "9223372036854775807"]);
 });
 
 test("显式非法或冲突的current维护范围不能被overview静默替换", () => {
   const overview = { sources: [{ marketSource: "POLYMARKET", currentGeneration: { generationId: "467" } }, { marketSource: "KALSHI", currentGeneration: { generationId: "468" } }] } as unknown as ConsoleV2Overview;
-  for (const [source, single, multiple] of [["", "", "1,1"], ["", "", "1,"], ["", "", "9223372036854775808,468"], ["", "467", "467,468"], ["KALSHI", "468", "467,468"], ["KALSHI", "", "467,468"]]) {
+  for (const [source, single, multiple] of [["", "", "1,1"], ["", "", "1,"], ["", "", "9223372036854775808,468"], ["", "467", "467,468"], ["KALSHI", "468", "467,468"], ["", "467", ""]]) {
     for (const data of [undefined, overview]) {
       const range = currentPredictionRange(data, source, single, multiple);
       assert.ok(range.error, `${source}/${single}/${multiple}`);
@@ -226,7 +232,8 @@ test("显式非法或冲突的current维护范围不能被overview静默替换",
       assert.equal(range.generationIds, undefined);
     }
   }
-  assert.equal(currentPredictionRange(overview, "KALSHI", "", "466").generationId, "466");
+  assert.equal(currentPredictionRange(overview, "KALSHI", "", "466").generationIds, "466");
+  assert.equal(currentPredictionRange(overview, "KALSHI", "", "465,466").generationIds, "465,466");
   for (const provided of [{ single: true, multiple: false }, { single: false, multiple: true }, { single: true, multiple: true }]) assert.ok(currentPredictionRange(overview, "", "", "", provided).error);
 });
 

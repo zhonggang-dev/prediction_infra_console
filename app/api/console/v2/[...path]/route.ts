@@ -24,6 +24,7 @@ const INFRA_RESOURCES = new Set([
   "market-settlements",
   "page-jobs",
   "backtest-products",
+  "tracked-rules",
   "service-metrics",
   "user-question-uploads",
   "user-questions",

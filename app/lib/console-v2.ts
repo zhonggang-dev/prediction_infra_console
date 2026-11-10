@@ -54,10 +54,49 @@ export interface ConsoleV2Generation {
   publishedAt?: string;
   memberCount: number | null;
   predictionEnabledCount: number | null;
+  /** Domain-round lane identity; absent for legacy per-source generations. */
+  domain?: string;
+  businessDate?: string;
+  roundIndex: number | null;
+  classCounts?: ConsoleV2ClassCounts;
+  roundSummary?: ConsoleV2RoundSummary;
+}
+
+export interface ConsoleV2ClassCounts { core: number; borrowed: number; tracked: number }
+
+/** Planner summary of one round generation; a missing key stays null, never zero. */
+export interface ConsoleV2RoundSummary {
+  capacity: number | null;
+  ordinaryCapacity: number | null;
+  admitted: number | null;
+  exits?: Record<string, number>;
+  tiers: Array<{ tier: string; weight: number | null; target: number | null; core: number | null; lent: number | null; received: number | null }>;
+  lending: Array<{ lender: string; receiver: string; count: number | null }>;
+  capacityConflicts: Array<{ ruleId: string; eventId?: string; missing: number | null }>;
+  predictionGates?: Record<string, number>;
+  currentTierCounts?: Record<string, number>;
+}
+
+export interface ConsoleV2RoundSchedule {
+  timezone: string;
+  businessDate: string;
+  rounds: Array<{ roundIndex: number; domain: string; slotAt: string; predict: boolean; sources: Array<{ marketSource: string; generationId?: string; status?: string; observedAt?: string }> }>;
+}
+
+export interface ConsoleV2OverviewSource {
+  marketSource: string;
+  currentGeneration?: ConsoleV2Generation;
+  /** Every current generation of the platform, newest observed first. */
+  currentGenerations: ConsoleV2Generation[];
+  currentMemberCount: number | null;
+  currentPredictionEnabledCount: number | null;
+  currentClassCounts?: ConsoleV2ClassCounts;
+  predictionCoverage?: ConsoleV2PredictionCoverage;
 }
 
 export interface ConsoleV2Overview {
-  sources: Array<{ marketSource: string; currentGeneration?: ConsoleV2Generation; predictionCoverage?: ConsoleV2PredictionCoverage }>;
+  sources: ConsoleV2OverviewSource[];
+  roundSchedule?: ConsoleV2RoundSchedule;
   marketTotals?: { memberCount: number | null; predictionEnabledCount: number | null; complete: boolean };
   observedAt: string;
   currentGeneration?: ConsoleV2Generation;
@@ -110,7 +149,25 @@ export interface ConsoleV2PredictionBatchSummary {
   maxResultId: string;
   sourceKinds: string[];
   generationIds: string[];
+  generations: ConsoleV2GenerationRef[];
   latestReceivedAt?: string;
+}
+
+export interface ConsoleV2GenerationRef { generationId: string; domain?: string; businessDate?: string; roundIndex: number | null }
+
+export interface ConsoleV2TrackedRule {
+  ruleId: string;
+  title: string;
+  marketSource: string;
+  domain: string;
+  kind?: string;
+  series?: string;
+  event?: string;
+  market?: string;
+  activeMemberCount: number;
+  trackedEventCount: number;
+  lastSeenAt?: string;
+  capacityConflictMissing: number;
 }
 
 export interface ConsoleV2RunningMarket {
@@ -130,6 +187,14 @@ export interface ConsoleV2RunningMarket {
   predictionEnabled: boolean | null;
   marketObservedAt?: string;
   endAt?: string;
+  generationDomain?: string;
+  membershipClass?: string;
+  entryTier?: string;
+  currentTier?: string;
+  borrowedFromTier?: string;
+  trackedRuleId?: string;
+  priorityRank: number | null;
+  predictionGate?: string;
 }
 
 export interface ConsoleV2RunningPool {
@@ -148,6 +213,11 @@ export interface ConsoleV2RunningPool {
   volume24h: number | null;
   marketObservedAt?: string;
   endAt?: string;
+  membershipClass?: string;
+  trackedRuleId?: string;
+  entryTier?: string;
+  borrowedFromTier?: string;
+  currentTier?: string;
 }
 
 export interface ConsoleV2SelectionRun {
@@ -164,6 +234,8 @@ export interface ConsoleV2SelectionRun {
   startedAt?: string;
   completedAt?: string;
   publishedAt?: string;
+  domain?: string;
+  roundIndex: number | null;
 }
 
 export interface ConsoleV2SelectedMarket {
@@ -611,6 +683,7 @@ export const consoleV2 = {
     settlements: (params: PageParams = {}) => page("infra", "market-settlements", params, decodeSettlement),
     pageJobs: (params: PageParams = {}) => page("infra", "page-jobs", params, decodePageJob),
     backtestProducts: (params: PageParams = {}) => page("infra", "backtest-products", params, decodeBacktestProduct),
+    trackedRules: (params: PageParams = {}) => page("infra", "tracked-rules", params, decodeTrackedRule),
     serviceMetrics: () => object("infra", "service-metrics", {}, decodeServiceMetric),
   },
   trading: {
@@ -643,7 +716,15 @@ function decodeOverview(value: RawRecord): ConsoleV2Overview {
     seenSources.add(marketSource);
     const currentGeneration = item.current_generation ? decodeGeneration(asRecord(item.current_generation)) : undefined;
     if (currentGeneration?.marketSource && currentGeneration.marketSource !== marketSource) throw new ConsoleV2ContractError("平台概览代际来源不一致");
-    return { marketSource, currentGeneration, predictionCoverage: item.prediction_coverage ? decodePredictionCoverage(asRecord(item.prediction_coverage)) : undefined };
+    const currentGenerations = arrayRecords(item.current_generations).map(decodeGeneration);
+    if (currentGenerations.some((generation) => generation.marketSource && generation.marketSource !== marketSource)) throw new ConsoleV2ContractError("平台概览代际来源不一致");
+    return {
+      marketSource, currentGeneration, currentGenerations,
+      currentMemberCount: nullableExactCount(item.current_member_count, "sources.current_member_count"),
+      currentPredictionEnabledCount: nullableExactCount(item.current_prediction_enabled_count, "sources.current_prediction_enabled_count"),
+      currentClassCounts: decodeClassCounts(item.current_class_counts, "sources.current_class_counts"),
+      predictionCoverage: item.prediction_coverage ? decodePredictionCoverage(asRecord(item.prediction_coverage)) : undefined,
+    };
   });
   const totals = asRecordOrUndefined(value.market_totals);
   if (totals && typeof totals.complete !== "boolean") throw new ConsoleV2ContractError("平台概览完整状态无效");
@@ -656,6 +737,64 @@ function decodeOverview(value: RawRecord): ConsoleV2Overview {
     lastGeneration: value.last_generation ? decodeGeneration(asRecord(value.last_generation)) : undefined,
     poolDiffersFromGeneration: nullableBoolean(value.pool_differs_from_generation),
     predictionCoverage: value.prediction_coverage ? decodePredictionCoverage(asRecord(value.prediction_coverage)) : undefined,
+    roundSchedule: value.round_schedule ? decodeRoundSchedule(asRecord(value.round_schedule)) : undefined,
+  };
+}
+
+function decodeRoundSchedule(value: RawRecord): ConsoleV2RoundSchedule {
+  if (!Array.isArray(value.rounds)) throw new ConsoleV2ContractError("轮次时间表无效");
+  return {
+    timezone: requiredText(value.timezone, "round_schedule.timezone"),
+    businessDate: requiredText(value.business_date, "round_schedule.business_date"),
+    rounds: arrayRecords(value.rounds).map((round) => ({
+      roundIndex: exactPositiveInteger(round.round_index, "round_schedule.round_index"),
+      domain: requiredText(round.domain, "round_schedule.domain"),
+      slotAt: requiredTime(round.slot_at, "round_schedule.slot_at"),
+      predict: round.predict === true,
+      sources: arrayRecords(round.sources).map((lane) => ({
+        marketSource: requiredText(lane.market_source, "round_schedule.market_source"),
+        generationId: optionalId(lane.generation_id), status: optionalText(lane.status), observedAt: optionalTime(lane.observed_at),
+      })),
+    })),
+  };
+}
+
+function decodeClassCounts(value: unknown, field: string): ConsoleV2ClassCounts | undefined {
+  if (value === null || value === undefined) return undefined;
+  const record = asRecord(value);
+  return { core: exactNonNegativeInteger(record.core, `${field}.core`), borrowed: exactNonNegativeInteger(record.borrowed, `${field}.borrowed`), tracked: exactNonNegativeInteger(record.tracked, `${field}.tracked`) };
+}
+
+function countRecord(value: unknown, field: string): Record<string, number> | undefined {
+  if (value === null || value === undefined) return undefined;
+  return Object.fromEntries(Object.entries(asRecord(value)).map(([key, count]) => [key, exactNonNegativeInteger(count, `${field}.${key}`)]));
+}
+
+function decodeRoundSummary(value: unknown): ConsoleV2RoundSummary | undefined {
+  if (value === null || value === undefined) return undefined;
+  const record = asRecord(value);
+  return {
+    capacity: nullableExactCount(record.capacity, "round_summary.capacity"),
+    ordinaryCapacity: nullableExactCount(record.ordinary_capacity, "round_summary.ordinary_capacity"),
+    admitted: nullableExactCount(record.admitted, "round_summary.admitted"),
+    exits: countRecord(record.exits, "round_summary.exits"),
+    tiers: arrayRecords(record.tiers).map((tier) => ({ tier: requiredText(tier.tier, "round_summary.tiers.tier"), weight: nullableNumber(tier.weight), target: nullableExactCount(tier.target, "round_summary.tiers.target"), core: nullableExactCount(tier.core, "round_summary.tiers.core"), lent: nullableExactCount(tier.lent, "round_summary.tiers.lent"), received: nullableExactCount(tier.received, "round_summary.tiers.received") })),
+    lending: arrayRecords(record.lending).map((lent) => ({ lender: requiredText(lent.lender, "round_summary.lending.lender"), receiver: requiredText(lent.receiver, "round_summary.lending.receiver"), count: nullableExactCount(lent.count, "round_summary.lending.count") })),
+    capacityConflicts: arrayRecords(record.capacity_conflicts).map((conflict) => ({ ruleId: requiredText(conflict.rule_id, "round_summary.capacity_conflicts.rule_id"), eventId: optionalText(conflict.event_id), missing: nullableExactCount(conflict.missing, "round_summary.capacity_conflicts.missing") })),
+    predictionGates: countRecord(record.prediction_gates, "round_summary.prediction_gates"),
+    currentTierCounts: countRecord(record.current_tier_counts, "round_summary.current_tier_counts"),
+  };
+}
+
+function decodeTrackedRule(value: RawRecord): ConsoleV2TrackedRule {
+  return {
+    ruleId: requiredText(value.rule_id, "tracked_rule.rule_id"), title: requiredText(value.title, "tracked_rule.title"),
+    marketSource: requiredText(value.market_source, "tracked_rule.market_source"), domain: requiredText(value.domain, "tracked_rule.domain"),
+    kind: optionalText(value.kind), series: optionalText(value.series), event: optionalText(value.event), market: optionalText(value.market),
+    activeMemberCount: exactNonNegativeInteger(value.active_member_count, "tracked_rule.active_member_count"),
+    trackedEventCount: exactNonNegativeInteger(value.tracked_event_count, "tracked_rule.tracked_event_count"),
+    lastSeenAt: optionalTime(value.last_seen_at),
+    capacityConflictMissing: exactNonNegativeInteger(value.capacity_conflict_missing, "tracked_rule.capacity_conflict_missing"),
   };
 }
 
@@ -683,7 +822,7 @@ function decodePredictionModel(value: RawRecord): ConsoleV2PredictionModel {
 }
 
 function decodePredictionBatch(value: RawRecord): ConsoleV2PredictionBatchSummary {
-  return { modelId: requiredText(value.model_id, "prediction_batch.model_id"), predictionAsOf: requiredTime(value.prediction_as_of, "prediction_batch.prediction_as_of"), marketSource: requiredText(value.market_source, "prediction_batch.market_source"), resultCount: nullableNumber(value.result_count), sandboxCount: nullableNumber(value.sandbox_count), directResultCount: nullableNumber(value.direct_result_count), sandboxResultCount: nullableNumber(value.sandbox_result_count), unknownResultCount: nullableNumber(value.unknown_result_count), maxResultId: requiredId(value.max_result_id, "prediction_batch.max_result_id"), sourceKinds: textArray(value.source_kinds), generationIds: idArray(value.generation_ids, "prediction_batch.generation_ids"), latestReceivedAt: optionalTime(value.latest_received_at) };
+  return { modelId: requiredText(value.model_id, "prediction_batch.model_id"), predictionAsOf: requiredTime(value.prediction_as_of, "prediction_batch.prediction_as_of"), marketSource: requiredText(value.market_source, "prediction_batch.market_source"), resultCount: nullableNumber(value.result_count), sandboxCount: nullableNumber(value.sandbox_count), directResultCount: nullableNumber(value.direct_result_count), sandboxResultCount: nullableNumber(value.sandbox_result_count), unknownResultCount: nullableNumber(value.unknown_result_count), maxResultId: requiredId(value.max_result_id, "prediction_batch.max_result_id"), sourceKinds: textArray(value.source_kinds), generationIds: idArray(value.generation_ids, "prediction_batch.generation_ids"), generations: arrayRecords(value.generations).map((ref) => ({ generationId: requiredId(ref.generation_id, "prediction_batch.generations.generation_id"), domain: optionalText(ref.domain), businessDate: optionalText(ref.business_date), roundIndex: ref.round_index == null ? null : exactPositiveInteger(ref.round_index, "prediction_batch.generations.round_index") })), latestReceivedAt: optionalTime(value.latest_received_at) };
 }
 
 function decodeGeneration(value: RawRecord): ConsoleV2Generation {
@@ -696,6 +835,10 @@ function decodeGeneration(value: RawRecord): ConsoleV2Generation {
     publishedAt: optionalTime(value.published_at),
     memberCount: nullableNumber(value.member_count),
     predictionEnabledCount: nullableNumber(value.prediction_enabled_count),
+    domain: optionalText(value.domain), businessDate: optionalText(value.business_date),
+    roundIndex: value.round_index == null ? null : exactPositiveInteger(value.round_index, "generation.round_index"),
+    classCounts: decodeClassCounts(value.class_counts, "generation.class_counts"),
+    roundSummary: decodeRoundSummary(value.round_summary),
   };
 }
 
@@ -711,6 +854,9 @@ function decodeRunningMarket(value: RawRecord): ConsoleV2RunningMarket {
     primaryDomain: optionalText(value.primary_domain), matchedDomains: textArray(value.matched_domains),
     volume24h: nullableNumber(value.volume_24h), domainRank: nullableNumber(value.domain_rank), predictionEnabled: nullableBoolean(value.prediction_enabled),
     marketObservedAt: optionalTime(value.market_observed_at), endAt: optionalTime(value.end_at),
+    generationDomain: optionalText(value.generation_domain), membershipClass: optionalText(value.membership_class),
+    entryTier: optionalText(value.entry_tier), currentTier: optionalText(value.current_tier), borrowedFromTier: optionalText(value.borrowed_from_tier),
+    trackedRuleId: optionalText(value.tracked_rule_id), priorityRank: nullableNumber(value.priority_rank), predictionGate: optionalText(value.prediction_gate),
   };
 }
 
@@ -719,12 +865,14 @@ function decodeRunningPool(value: RawRecord): ConsoleV2RunningPool {
     runningMarketId: requiredId(value.running_market_id, "running_pool.running_market_id"), marketSource: optionalText(value.market_source), marketId: requiredText(value.market_id, "running_pool.market_id"), conditionId: value.market_source === "KALSHI" ? optionalText(value.condition_id) ?? "" : requiredText(value.condition_id, "running_pool.condition_id"),
     sourceSelectedMarketId: requiredId(value.source_selected_market_id, "running_pool.source_selected_market_id"), sourceSelectionRunId: requiredId(value.source_selection_run_id, "running_pool.source_selection_run_id"),
     isActive: nullableBoolean(value.is_active), retiredAt: optionalTime(value.retired_at), retiredReason: optionalText(value.retired_reason), question: requiredText(value.question, "running_pool.question"), primaryDomain: optionalText(value.primary_domain), matchedDomains: textArray(value.matched_domains), volume24h: nullableNumber(value.volume_24h), marketObservedAt: optionalTime(value.market_observed_at), endAt: optionalTime(value.end_at),
+    membershipClass: optionalText(value.membership_class), trackedRuleId: optionalText(value.tracked_rule_id), entryTier: optionalText(value.entry_tier), borrowedFromTier: optionalText(value.borrowed_from_tier), currentTier: optionalText(value.current_tier),
   };
 }
 
 function decodeSelectionRun(value: RawRecord): ConsoleV2SelectionRun {
   return {
     selectionRunId: requiredId(value.selection_run_id, "selection_run_id"), marketSource: optionalText(value.market_source), selectorType: optionalText(value.selector_type), policyName: optionalText(value.policy_name), policyVersion: optionalText(value.policy_version), status: requiredText(value.status, "selection_run.status"), isCurrent: nullableBoolean(value.is_current), candidateCount: nullableNumber(value.candidate_count), selectedCount: nullableNumber(value.selected_count), rejectedCount: nullableNumber(value.rejected_count), startedAt: optionalTime(value.started_at), completedAt: optionalTime(value.completed_at), publishedAt: optionalTime(value.published_at),
+    domain: optionalText(value.domain), roundIndex: value.round_index == null ? null : exactPositiveInteger(value.round_index, "selection_run.round_index"),
   };
 }
 
