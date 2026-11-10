@@ -5,6 +5,7 @@ import { consoleApi } from "../lib/console-api";
 import type { GeneratedQAList } from "../lib/types";
 import { consoleV2, type ConsoleV2Overview, type ConsoleV2Runtime } from "../lib/console-v2";
 import { ROTATION_VARIANTS, type DatasetRotationData, type RotationVariant } from "../lib/dataset-rotation";
+import { labelOf, roundProgress, roundRows, sourceLabels } from "../lib/market-rounds";
 import { formatV2Number, formatV2Time, V2Frame } from "./console-v2-resource";
 
 type SourceState<T> = { data?: T; loading: boolean; error?: string; observedAt?: string };
@@ -35,7 +36,7 @@ export function OverviewV2Page() {
   return <V2Frame eyebrow="运行概览" title="运行概览" description="从当前业务状态开始，按市场与预测、数据集、题目和交易继续追查。" observedAt={overview?.observedAt} onRefresh={() => setRefreshKey((value) => value + 1)} loading={loading}>
     <section className="home-business-grid" aria-label="业务概览">
       <HomeCard title="市场与预测" caption="当前发布成员与预测资格" links={[{ href: "/markets/running", label: "进入当前市场" }, { href: "/predictions", label: "查看预测" }]}>
-        <HomeSourcePanel title="市场" state={overviewState} onRetry={() => setRefreshKey((value) => value + 1)}><HomeFacts values={[{ label: "当前成员合计", value: formatV2Number(totals?.memberCount, 0) }, { label: "可预测合计", value: formatV2Number(totals?.predictionEnabledCount, 0) }]} />{overview?.sources.map((source) => <div key={source.marketSource} className="home-caption">{source.marketSource} · 成员 {formatV2Number(source.currentGeneration?.memberCount, 0)} · 可预测 {formatV2Number(source.currentGeneration?.predictionEnabledCount, 0)}{!source.currentGeneration && " · 暂无当前维护批次"}</div>)}{totals && !totals.complete && <span className="home-caption">平台当前批次不完整，合计暂不可用</span>}</HomeSourcePanel>
+        <HomeSourcePanel title="市场" state={overviewState} onRetry={() => setRefreshKey((value) => value + 1)}><HomeFacts values={[{ label: "当前成员合计", value: formatV2Number(totals?.memberCount, 0) }, { label: "可预测合计", value: formatV2Number(totals?.predictionEnabledCount, 0) }]} />{overview?.sources.map((source) => <div key={source.marketSource} className="home-caption">{labelOf(sourceLabels, source.marketSource)} · 成员 {formatV2Number(source.currentMemberCount, 0)}{source.currentClassCounts && ` · 正式 ${formatV2Number(source.currentClassCounts.core, 0)} · 候补 ${formatV2Number(source.currentClassCounts.borrowed, 0)} · 白名单 ${formatV2Number(source.currentClassCounts.tracked, 0)}`} · 可预测 {formatV2Number(source.currentPredictionEnabledCount, 0)}{!source.currentGenerations.length && " · 暂无当前维护批次"}</div>)}{overview && <RoundProgressCaption overview={overview} />}{totals && !totals.complete && <span className="home-caption">平台当前批次不完整，合计暂不可用</span>}</HomeSourcePanel>
       </HomeCard>
       <HomeCard title="数据集轮转" caption="四种资料类型的当前版本与训练集合" links={[{ href: "/dataset-rotation", label: "查看数据集轮转" }]}>
         <HomeSourcePanel title="数据集版本" state={datasetsState} onRetry={() => setRefreshKey((value) => value + 1)}><DatasetTypeSummary data={datasetsState.data} /><span className="home-caption">固定测试和累计训练下载在数据集轮转中按资料类型选择</span></HomeSourcePanel>
@@ -75,4 +76,13 @@ function runtimeStatus(runtime: ConsoleV2Runtime) {
   if (raw === true || raw === "running" || raw === "enabled") return "running";
   if (raw === false || raw === "disabled" || raw === "stopped") return "disabled";
   return String(raw ?? "unknown");
+}
+
+/** "今日已发布 15/16 轮，下一轮 16:10 电竞" across both platforms. */
+function RoundProgressCaption({ overview }: { overview: ConsoleV2Overview }) {
+  const schedule = overview.roundSchedule;
+  if (!schedule) return null;
+  const now = new Date();
+  const progress = roundProgress(roundRows(overview, now), schedule.timezone, now);
+  return <span className="home-caption">今日已发布 {progress.published}/{progress.total} 轮{progress.next ? `，下一轮 ${progress.next}` : "，今天的轮次已全部到点"}</span>;
 }
