@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { consoleV2, type ConsoleV2Generation, type ConsoleV2Overview, type ConsoleV2RunningMarket, type ConsoleV2RunningPool, type ConsoleV2SelectedMarket, type ConsoleV2SelectionRun, type ConsoleV2Settlement, type ConsoleV2TrackedRule } from "../lib/console-v2";
 import { domainLabel, formatRemainingDays, labelOf, membershipLabels, membershipText, predictionGateLabels, predictionGateOrder, remainingDays, retireReasonLabels, retireReasonText, roundDomains, roundProgress, roundRows, roundStateLabels, roundStateTone, shortDate, slotClock, sourceLabels, tierLabels, tierOrder, tierRanges, tierText, trackedRuleState, type RoundRow } from "../lib/market-rounds";
 import { formatV2Number, formatV2Time, V2ContextLinks, V2Facts, V2Frame, V2ListPage, V2Notice, V2Tabs, V2WorkspacePanel, useV2Filter, useWorkspaceTabs, v2ErrorText, v2Status, v2Unknown } from "./console-v2-resource";
@@ -142,7 +142,7 @@ function RoundQuotaDrawer({ row, timezone, onClose }: { row: RoundRow; timezone:
               return <tr key={tier.tier}><td>{labelOf(tierLabels, tier.tier)}</td><td>{labelOf(tierRanges, tier.tier)}</td><td>{formatV2Number(tier.target, 0)}</td><td>{formatV2Number(tier.core, 0)}</td><td>{formatV2Number(tier.lent, 0)}</td><td>{formatV2Number(tier.received, 0)}</td><td>{formatV2Number(empty, 0)}</td></tr>;
             })}
           </tbody></table></div>
-          <p className="v2-inline-note">名额 = {tracked > 0 ? "普通成员名额" : "容量"}按 40/30/15/10/5 分到五个档。空位表示这个档的候选盘不够填满。借位只从较短的档借给已经满了、还有候选在排队的较长档，从最短的档开始借；较长档的名额不会借给较短档。</p></> : <p className="v2-inline-note">不分档 · 不设容量</p>}
+          <p className="v2-inline-note">名额 = {tracked > 0 ? "普通成员名额" : "容量"}按 40/30/15/10/5 分到五个档。空位表示这个档的候选盘不够填满。借位只从较短的档借给已经满了、还有候选在排队的较长档，从最短的档开始借；较长档的名额不会借给较短档。空出来的名额按同样的比例分给这些档，某个档填满或候选用完，剩下的再分一遍，所以每个档最多填到自己的名额，分不完的留在原档。</p></> : <p className="v2-inline-note">不分档 · 不设容量</p>}
           <div className="round-detail-lists">
             <div><h4>借位流向</h4>{summary.lending.length ? <ul>{summary.lending.map((lent) => <li key={`${lent.lender}:${lent.receiver}`}>{labelOf(tierLabels, lent.lender)} → {labelOf(tierLabels, lent.receiver)}：{formatV2Number(lent.count, 0)}</li>)}</ul> : <p>无</p>}</div>
             <div><h4>本轮退出</h4>{exits.length ? <ul>{exits.map(([reason, count]) => <li key={reason}>{retireReasonText(reason)}：{formatV2Number(count, 0)}</li>)}</ul> : <p>无</p>}</div>
@@ -158,10 +158,14 @@ type MemberFilters = { generationId: string; enabled: string; setEnabled: (value
 
 function RunningMembers({ source, domain, onSource, onDomain, filters }: { source: string; domain: string; onSource: (value: string) => void; onDomain: (value: string) => void; filters: MemberFilters }) {
   const { generationId, enabled, setEnabled, membership, setMembership, tier, setTier, trackedRule, setTrackedRule } = filters;
+  // Links from the whitelist page and from a frozen generation land here; the
+  // round tables above render later and push the list down, so the jump keeps
+  // following the list while the page settles.
+  const list = useJumpIntoView(Boolean(generationId || trackedRule));
   const ruleTitles = useTrackedRuleTitles();
   const params = useMemo(() => ({ generation_id: generationId || undefined, source, domain: domain || undefined, membership_class: membership || undefined, tier: tier || undefined, tracked_rule_id: trackedRule || undefined, prediction_enabled: enabled || undefined, market_scope: "current" }), [generationId, source, domain, membership, tier, trackedRule, enabled]);
   const now = new Date();
-  return <>{generationId && <section className="panel panel-pad selection-context"><strong>{source === "ALL" ? "指定" : labelOf(sourceLabels, source)} 维护批次 {generationId}</strong><V2ContextLinks links={[{ href: "/markets/running", label: "返回运行池成员" }, { href: "/markets/selection", label: "返回每轮记录" }, { href: `/predictions?generation_id=${encodeURIComponent(generationId)}&${source === "ALL" ? "sources=POLYMARKET,KALSHI" : `source=${source}`}&scope=history`, label: "查看本轮预测" }]} /></section>}
+  return <div ref={list} id="running-members" className="running-members">{generationId && <section className="panel panel-pad selection-context"><strong>{source === "ALL" ? "指定" : labelOf(sourceLabels, source)} 维护批次 {generationId}</strong><V2ContextLinks links={[{ href: "/markets/running", label: "返回运行池成员" }, { href: "/markets/selection", label: "返回每轮记录" }, { href: `/predictions?generation_id=${encodeURIComponent(generationId)}&${source === "ALL" ? "sources=POLYMARKET,KALSHI" : `source=${source}`}&scope=history`, label: "查看本轮预测" }]} /></section>}
   {trackedRule && <section className="panel panel-pad selection-context"><strong>白名单规则 {trackedRule}{ruleTitles.get(trackedRule) ? ` ${ruleTitles.get(trackedRule)}` : ""} 的成员</strong><button type="button" className="button" onClick={() => setTrackedRule("")}>清除规则筛选</button><V2ContextLinks links={[{ href: "/markets/running?market_scope=tracked", label: "返回白名单" }]} /></section>}
   <V2ListPage<ConsoleV2RunningMarket> title="成员明细" description="域内成交量排名按完整一代计算，筛选不重新编号；排名不等同于预测门禁名次。" load={loadRunningMarkets} params={params} rowKey={(item) => `${item.marketSource}:${item.generationId}:${item.runningMarketId}`} controls={<><SourceFilter value={source} onChange={onSource} /><DomainFilter value={domain} onChange={onDomain} /><MembershipFilter value={membership} onChange={setMembership} /><TierFilter value={tier} onChange={setTier} /><EligibilityFilter value={enabled} onChange={setEnabled} /></>} columns={[
     { label: "问题 / 平台 · 市场", className: "primary wide", render: (item) => <div className="v2-cell-copy"><strong>{item.question}</strong><small>{labelOf(sourceLabels, item.marketSource)} · {item.marketId}</small></div> },
@@ -171,8 +175,34 @@ function RunningMembers({ source, domain, onSource, onDomain, filters }: { sourc
     { label: "剩余天数", render: (item) => <div className="v2-cell-copy"><span>{formatRemainingDays(remainingDays(item.endAt, now))}</span><small>{formatV2Time(item.endAt)}</small></div> },
     { label: "24h 成交量 · 域内排名", render: (item) => <div className="v2-cell-copy"><span>{formatV2Number(item.volume24h, 2)}</span><small>第 {formatV2Number(item.domainVolumeRank, 0)} 名 · {formatV2Time(item.marketObservedAt)}</small></div> },
     { label: "预测资格", render: (item) => <div className="v2-cell-copy"><span>{item.predictionEnabled === null ? "未提供" : item.predictionEnabled ? "可预测" : "仅资料"}</span>{!item.predictionEnabled && item.predictionGate && item.predictionGate !== "ENABLED" && item.predictionGate !== "NOT_PREDICTION_DOMAIN" && <small>{labelOf(predictionGateLabels, item.predictionGate)}</small>}</div> },
-  ]} /></>;
+  ]} /></div>;
 }
+/**
+ * Scroll a list into view after a jump link, and keep it in view while the page
+ * above it finishes rendering (the round tables load after this component).
+ * Stops following once the page has been still for a moment or after 4 s.
+ */
+function useJumpIntoView(enabled: boolean) {
+  const target = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!enabled || !target.current) return;
+    const element = target.current;
+    let last = 0;
+    const stop = performance.now() + 4000;
+    const move = () => { last = performance.now(); element.scrollIntoView({ block: "start" }); };
+    move();
+    const observer = new ResizeObserver(move);
+    observer.observe(document.body);
+    // A reader who starts scrolling keeps their position.
+    const still = () => { observer.disconnect(); window.clearInterval(idle); window.removeEventListener("wheel", still); window.removeEventListener("touchstart", still); };
+    const idle = window.setInterval(() => { if (performance.now() > stop || performance.now() - last > 800) still(); }, 200);
+    window.addEventListener("wheel", still, { passive: true });
+    window.addEventListener("touchstart", still, { passive: true });
+    return still;
+  }, [enabled]);
+  return target;
+}
+
 /** Rule ID → title of the whitelist; members only carry the rule ID. Missing rules leave the ID alone. */
 function useTrackedRuleTitles() {
   const [titles, setTitles] = useState<Map<string, string>>(() => new Map());
