@@ -62,7 +62,7 @@ Legacy-console, Trading writes and the lower activity list's date filters are un
 
 ## 用户问题（2026-11-09）
 
-`/user-questions` 页面：上传 JSON / CSV 问题文件，按文件和问题查看每日 16:30（北京时间）构建进度，下载每道题最新一份或任一历史版本的原始版 Sandbox。
+`/user-questions` 页面：上传 JSON / CSV 问题文件，按文件和问题查看每日 17:00（北京时间）构建进度，下载每道题最新一份或任一历史版本的原始版 Sandbox。
 
 - 上传：浏览器 XHR 发到 `POST /api/console/user-questions/uploads`（请求体就是文件本身，`Content-Type` 为 `application/json` 或 `text/csv`，`X-Upload-Filename` 为百分号编码的文件名）。BFF 要求同源标记头 `X-Requested-With: user-question-console`（`Sec-Fetch-Site` 若有必须同源，否则 403）、`Content-Length`（411）、64 MiB 上限（413）、类型白名单（415），服务端注入 `USER_QUESTION_CONSOLE_TOKEN` 后流式转发到 infra `POST /api/v1/console/user-question-uploads`；未配置 503，上游 401/403 转 502 `UPSTREAM_AUTH_FAILED`。
 - 只读：`/api/console/v2/infra/user-question-uploads`、`user-questions`，以及两条带正整数 ID 的子路径 `user-questions/{id}/sandboxes`、`user-question-uploads/{id}/latest-sandbox-ids`（ID 非法 400）。仍用 `CONSOLE_API_TOKEN`，写方法 405。

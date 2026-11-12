@@ -440,7 +440,7 @@ test("自定义问题页：上传入口、单个 ConsoleShell、侧栏入口紧�
   assert.match(html, /<h1>自定义问题<\/h1>/);
   assert.match(html, /上传文件/);
   assert.match(html, /<input[^>]*type="file"[^>]*accept="\.json,\.csv"/);
-  assert.match(html, /16:30/);
+  assert.match(html, /17:00/);
   assert.equal((html.match(/class="brand"/g) ?? []).length, 1, "/user-questions should have one ConsoleShell");
   const sidebar = html.match(/<aside id="console-sidebar"[\s\S]*?<\/aside>/)?.[0] ?? "";
   assert.equal((sidebar.match(/<a[^>]*href="\/user-questions"/g) ?? []).length, 1);
