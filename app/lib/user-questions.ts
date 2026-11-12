@@ -358,13 +358,13 @@ export function isActiveDisplayStatus(status: UserQuestionDisplayStatus): boolea
 
 /**
  * 这道题是否值得继续轮询：构建中，或本轮已排上（有当前轮的 build）但还在等待。
- * 16:30 之前上传、本轮还没排上的题也显示「等待构建」，但几个小时内都不会变，不轮询。
+ * 17:00 之前上传、本轮还没排上的题也显示「等待构建」，但几个小时内都不会变，不轮询。
  */
 export function questionNeedsPolling(item: Pick<UserQuestion, "displayStatus" | "currentBuild">): boolean {
   return item.displayStatus === "BUILDING" || (item.displayStatus === "WAITING" && item.currentBuild !== undefined);
 }
 
-/** 文件级只看「构建中」：等待数里混有本轮还没排上的题，靠它轮询会从上传一直刷到 16:30。 */
+/** 文件级只看「构建中」：等待数里混有本轮还没排上的题，靠它轮询会从上传一直刷到 17:00。 */
 export function uploadHasActiveBuilds(upload: Pick<UserQuestionUpload, "progress">): boolean {
   return upload.progress.building > 0;
 }

@@ -243,7 +243,7 @@ export function UserQuestionsPage() {
 
   return <ConsoleShell>
     <header className="page-head">
-      <div><p className="eyebrow">Custom Questions</p><h1>自定义问题</h1><p className="description">上传问题文件，每天 16:30（北京时间）为每道题构建一份原始版 Sandbox。</p></div>
+      <div><p className="eyebrow">Custom Questions</p><h1>自定义问题</h1><p className="description">上传问题文件，每天 17:00（北京时间）为每道题构建一份原始版 Sandbox。</p></div>
     </header>
 
     <section className="panel uq-panel" aria-labelledby="uq-files-title">
@@ -259,7 +259,7 @@ export function UserQuestionsPage() {
       {formatOpen && <p id="uq-format-help" className="uq-format-help">JSON：字符串数组 <code>[&quot;…&quot;]</code> 或对象数组 <code>[{"{"}&quot;question&quot;: &quot;…&quot;{"}"}]</code>；CSV：第一行表头须含 <code>question</code> 列，其余列忽略。每个文件最多 {USER_QUESTION_MAX_QUESTIONS} 道题、不超过 {formatV2Bytes(USER_QUESTION_UPLOAD_LIMIT_BYTES)}，空行跳过。</p>}
       {upload.uploading && <div className="bt-bar uq-upload-bar" role="progressbar" aria-label="上传进度" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round((upload.progress ?? 0) * 100)}><i style={{ width: `${Math.round((upload.progress ?? 0) * 100)}%` }} /></div>}
       {upload.error && <div className="notice error uq-notice" role="alert"><div><strong>上传失败</strong><p>{upload.error}</p></div></div>}
-      {upload.created && <div className="notice uq-notice uq-success" role="status"><div><strong>已上传 {upload.created.originalFilename}</strong><p>{upload.created.questionCount} 道题{upload.created.blankRowsSkipped ? `，跳过空行 ${upload.created.blankRowsSkipped} 行` : ""}，等待下一个 16:30 构建。</p></div></div>}
+      {upload.created && <div className="notice uq-notice uq-success" role="status"><div><strong>已上传 {upload.created.originalFilename}</strong><p>{upload.created.questionCount} 道题{upload.created.blankRowsSkipped ? `，跳过空行 ${upload.created.blankRowsSkipped} 行` : ""}，等待下一个 17:00 构建。</p></div></div>}
       {uploadsError && <div className="notice error uq-notice"><div><strong>文件列表加载失败</strong><p>{uploadsError}{uploads ? `（下方为 ${formatV2Time(uploads.page.observedAt)} 的旧数据）` : ""}</p></div><button type="button" className="button" onClick={() => setTick((value) => value + 1)}>重试</button></div>}
       {!uploads ? (uploadsError ? null : <div className="panel-pad"><div className="skeleton" /><div className="skeleton" /></div>)
         : uploads.page.items.length ? <UploadTable items={uploads.page.items} selectedId={uploadId} onSelect={selectUpload} busy={uploads.key !== uploadsKey} />
@@ -324,7 +324,7 @@ function useQuestionUpload(inputRef: RefObject<HTMLInputElement | null>, onUploa
 }
 
 function UploadTable({ items, selectedId, onSelect, busy }: { items: UserQuestionUpload[]; selectedId?: number; onSelect: (uploadId: number) => void; busy: boolean }) {
-  // 当前轮是全局的（最近一次 16:30 计划写入的业务日），各行相同；16:30 前仍是前一天那轮
+  // 当前轮是全局的（最近一次 17:00 计划写入的业务日），各行相同；17:00 前仍是前一天那轮
   const round = items.find((item) => item.currentBusinessDate)?.currentBusinessDate;
   return <div className="table-scroll" aria-busy={busy}><table className="uq-table uq-files-table">
     <thead><tr><th>文件</th><th>上传时间</th><th>构建进度{round && `（${round.slice(5)} 轮）`}</th><th>已有 Sandbox</th></tr></thead>
@@ -406,7 +406,7 @@ function QuestionDetail({ item, upload, tick, onClose, closeRef }: { item: UserQ
         <Fact label="开始时间" value={build.startedAt ? formatV2Time(build.startedAt) : "—"} />
         <Fact label="完成时间" value={build.finishedAt ? formatV2Time(build.finishedAt) : "—"} />
         {(build.errorCode || build.errorMessage) && <Fact label="失败原因" value={[build.errorCode, build.errorMessage].filter(Boolean).join("：")} />}
-      </div> : <p className="question-empty-value">还没有进入构建轮次，等待下一个 16:30（北京时间）。</p>}
+      </div> : <p className="question-empty-value">还没有进入构建轮次，等待下一个 17:00（北京时间）。</p>}
     </DetailSection>
     <DetailSection title={`全部历史版本${rows ? `（共 ${rows.total} 次构建）` : ""}`}>
       {error && <div className="notice error uq-notice"><div><strong>历史版本加载失败</strong><p>{error}</p></div><button type="button" className="button" onClick={() => setRetry((value) => value + 1)}>重试</button></div>}
