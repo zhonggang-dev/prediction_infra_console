@@ -1,6 +1,6 @@
 /** System-managed account metrics; upstream prices never replace local quantities. */
-export type CorePriceSource = "PM_CURRENT_PRICE" | "PM_CLOB_MID" | "KALSHI_BOOK_MID" | "KALSHI_LAST_TRADE" | "OFFICIAL_SETTLEMENT";
-export type CorePriceReason = "missing_price" | "one_sided" | "invalid_price" | "identity_mismatch" | "stale" | "timeout" | "source_unavailable" | "unconfirmed_settlement";
+export type CorePriceSource = "PM_CURRENT_PRICE" | "PM_CLOB_MID" | "KALSHI_BOOK_MID" | "KALSHI_LAST_TRADE" | "OFFICIAL_SETTLEMENT" | "HISTORY_HOURLY";
+export type CorePriceReason = "missing_price" | "one_sided" | "invalid_price" | "identity_mismatch" | "stale" | "timeout" | "source_unavailable" | "unconfirmed_settlement" | "history_missing" | "history_not_synced";
 export interface CoreValuationAsset {
   executionAccountId: string; marketSource: "POLYMARKET" | "KALSHI";
   marketId: string; conditionId: string; tokenId: string; outcomeIndex: number | null; outcomeName: string | null; marketQuestion: string | null;
@@ -16,8 +16,8 @@ export interface AccountCoreMetrics {
   hasReferencePrices: boolean; valuationAssets: CoreValuationAsset[];
 }
 export interface AccountCoreMetricsResponse { observedAt: string; items: AccountCoreMetrics[] }
-const SOURCES: CorePriceSource[] = ["PM_CURRENT_PRICE", "PM_CLOB_MID", "KALSHI_BOOK_MID", "KALSHI_LAST_TRADE", "OFFICIAL_SETTLEMENT"];
-const REASONS: CorePriceReason[] = ["missing_price", "one_sided", "invalid_price", "identity_mismatch", "stale", "timeout", "source_unavailable", "unconfirmed_settlement"];
+const SOURCES: CorePriceSource[] = ["PM_CURRENT_PRICE", "PM_CLOB_MID", "KALSHI_BOOK_MID", "KALSHI_LAST_TRADE", "OFFICIAL_SETTLEMENT", "HISTORY_HOURLY"];
+const REASONS: CorePriceReason[] = ["missing_price", "one_sided", "invalid_price", "identity_mismatch", "stale", "timeout", "source_unavailable", "unconfirmed_settlement", "history_missing", "history_not_synced"];
 const isZero = (value: string) => /^-?0+(?:\.0+)?$/.test(value);
 const invalid = () => new Error("账户核心指标数据无效，请稍后重试。");
 function record(value: unknown): Record<string, unknown> { if (!value || typeof value !== "object" || Array.isArray(value)) throw invalid(); return value as Record<string, unknown>; }
@@ -78,7 +78,7 @@ export async function accountCoreMetrics(account = "", signal?: AbortSignal): Pr
 }
 
 
-/** An opening cohort keeps its own lot quantities and follows their lifecycle to now. */
+/** An opening cohort keeps its own lot quantities; a past range end is the snapshot instant (asOf). */
 export type CohortDrawdownReason = "not_synced" | "syncing" | "missing_prices" | "stale_endpoint" | "budget_exceeded";
 export interface CohortDrawdownCoverage {
   reason: CohortDrawdownReason | null; fidelitySeconds: 3600;
@@ -136,7 +136,7 @@ function decodeSharpe(raw: Record<string, unknown>): Pick<AccountCohortMetrics, 
 export interface UnavailableCohortAccount {
   executionAccountId: string; marketSource: "POLYMARKET" | "KALSHI"; reason: "missing_disposition_evidence";
 }
-export interface AccountCohortMetricsResponse { observedAt: string; openingFrom: string | null; openingTo: string | null; items: AccountCohortMetrics[]; unavailableAccounts: UnavailableCohortAccount[] }
+export interface AccountCohortMetricsResponse { observedAt: string; asOf: string; openingFrom: string | null; openingTo: string | null; items: AccountCohortMetrics[]; unavailableAccounts: UnavailableCohortAccount[] }
 export interface AccountCohortQuery { execution_account_id?: string; account_scope?: "active" | "all"; opening_from?: string; opening_to?: string }
 export function decodeAccountCohortMetrics(data: Record<string, unknown>, requested: AccountCohortQuery = {}): AccountCohortMetricsResponse {
   const core = decodeAccountCoreMetrics(data);
@@ -152,6 +152,9 @@ export function decodeAccountCohortMetrics(data: Record<string, unknown>, reques
   const openingFrom = nullableTime(data.opening_from), openingTo = nullableTime(data.opening_to);
   if ((openingFrom === null) !== (openingTo === null) || (openingFrom && openingTo && Date.parse(openingFrom) >= Date.parse(openingTo))) throw invalid();
   if ((requested.opening_from ? Date.parse(requested.opening_from) : null) !== (openingFrom ? Date.parse(openingFrom) : null) || (requested.opening_to ? Date.parse(requested.opening_to) : null) !== (openingTo ? Date.parse(openingTo) : null)) throw invalid();
+  // Older backends omit as_of and always measure to now.
+  const asOf = data.as_of === undefined ? core.observedAt : timestamp(data.as_of);
+  if (Date.parse(asOf) > Date.parse(core.observedAt) || (data.as_of !== undefined && openingTo !== null && Date.parse(asOf) > Date.parse(openingTo))) throw invalid();
   const items = core.items.map((item, index): AccountCohortMetrics => {
     const raw = record((data.items as unknown[])[index]);
     const openedAssetCount = count(raw.opened_asset_count), holdingAssetCount = count(raw.holding_asset_count), closedAssetCount = count(raw.closed_asset_count);
@@ -165,7 +168,7 @@ export function decodeAccountCohortMetrics(data: Record<string, unknown>, reques
     const sharpe = decodeSharpe(raw);
     return { ...item, openedAssetCount, holdingAssetCount, closedAssetCount, roi, buyFees, sellFees, maxDrawdown, drawdownState: raw.drawdown_state, ...sharpe, ...(drawdownCoverage ? { drawdownCoverage } : {}) };
   });
-  return { observedAt: core.observedAt, openingFrom, openingTo, items, unavailableAccounts };
+  return { observedAt: core.observedAt, asOf, openingFrom, openingTo, items, unavailableAccounts };
 }
 /** Browser-local whole hours may map to :30 UTC in half-hour time zones. */
 export function cohortOpeningRangeError(params: Pick<AccountCohortQuery, "opening_from" | "opening_to">): string | undefined {
