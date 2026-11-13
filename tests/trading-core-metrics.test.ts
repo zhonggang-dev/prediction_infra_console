@@ -255,3 +255,18 @@ test("最近完整结果保留标志供自动刷新使用，缓存值仍须有�
  const result = decodeAccountCohortMetrics(cohortData({items:[value]})).items[0];assert.equal(result.drawdownCoverage?.lastComplete,true);assert.equal(result.sharpAnnualCoverage?.lastComplete,true);
  for(const patch of [{drawdown_coverage:{...dd,last_complete:"true"}},{drawdown_coverage:{...dd,last_complete:1}},{max_drawdown:null,drawdown_state:"history_unavailable",drawdown_coverage:{...drawdownCoverage,last_complete:true}},{sharp_annual_coverage:{...sh,last_complete:"true"}},{sharp_annual:null,sharp_annual_coverage:{...sh,reason:"not_synced"}}])assert.throws(()=>decodeAccountCohortMetrics(cohortData({items:[{...value,...patch}]})));
 });
+
+test("区间结束于过去时以结束时刻为快照，历史小时价与缺价原因可解码", () => {
+  const from = "2026-11-01T00:00:00Z", to = "2026-11-03T00:00:00Z";
+  const historical = { ...cohortItem, has_reference_prices: false, quote_observed_from: "2026-11-02T23:00:00Z", quote_observed_to: "2026-11-02T23:00:00Z", valuation_assets: [{ ...asset, price_source: "HISTORY_HOURLY", observed_at: "2026-11-02T23:00:00Z" }] };
+  const result = decodeAccountCohortMetrics(cohortData({ as_of: to, opening_from: from, opening_to: to, items: [historical] }), { opening_from: from, opening_to: to });
+  assert.equal(result.asOf, to);
+  assert.equal(result.items[0].valuationAssets[0].priceSource, "HISTORY_HOURLY");
+  // Older backends omit as_of and measure to now.
+  assert.equal(decodeAccountCohortMetrics(cohortData()).asOf, observed);
+  for (const asOf of ["2026-11-05T00:00:00Z", "2026-11-03T01:00:00Z", "invalid"]) assert.throws(() => decodeAccountCohortMetrics(cohortData({ as_of: asOf, opening_from: from, opening_to: to, items: [historical] }), { opening_from: from, opening_to: to }));
+  for (const reason of ["history_missing", "history_not_synced"]) {
+    const missing = { ...cohortItem, priced_asset_count: 0, market_value: null, unrealized_pnl: null, total_pnl: null, return_rate: null, roi: null, has_reference_prices: false, quote_observed_from: null, quote_observed_to: null, valuation_state: "incomplete", valuation_assets: [{ ...asset, price: null, market_value: null, state: "unpriced", price_source: null, observed_at: null, reason }] };
+    assert.equal(decodeAccountCohortMetrics(cohortData({ as_of: to, opening_from: from, opening_to: to, items: [missing] }), { opening_from: from, opening_to: to }).items[0].valuationAssets[0].reason, reason);
+  }
+});
