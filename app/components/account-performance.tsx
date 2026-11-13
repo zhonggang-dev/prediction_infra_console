@@ -9,8 +9,8 @@ import { validateWalletPnlRange, walletPnlLocalHour, walletPnlHourCandidates, fo
 import { formatCoreRatio, formatCoreMoney as money, formatCorePercent as percent, coreMetricTone as tone } from "../lib/core-metric-display";
 import "./account-performance.css";
 
-const sourceLabels: Record<CorePriceSource, string> = { PM_CURRENT_PRICE: "Polymarket 官方现价", PM_CLOB_MID: "Polymarket 盘口中间价（参考）", KALSHI_BOOK_MID: "Kalshi 盘口中间价（参考）", KALSHI_LAST_TRADE: "Kalshi 官方最近成交价", OFFICIAL_SETTLEMENT: "官方确认结算价", HISTORY_HOURLY: "区间结束时的小时历史价格" };
-const reasonLabels: Record<CorePriceReason, string> = { missing_price: "未返回价格", one_sided: "缺少有效双边盘口", invalid_price: "价格无效", identity_mismatch: "资产身份不一致", stale: "报价已过期", timeout: "取价超时", source_unavailable: "价格来源暂不可用", unconfirmed_settlement: "结算结果尚未最终确认", history_missing: "区间结束时缺少历史价格", history_not_synced: "区间结束时的历史价格待同步" };
+const sourceLabels: Record<CorePriceSource, string> = { PM_CURRENT_PRICE: "Polymarket 官方现价", PM_CLOB_MID: "Polymarket 盘口中间价（参考）", KALSHI_BOOK_MID: "Kalshi 盘口中间价（参考）", KALSHI_LAST_TRADE: "Kalshi 官方最近成交价", OFFICIAL_SETTLEMENT: "官方确认结算价", HISTORY_HOURLY: "小时历史价格" };
+const reasonLabels: Record<CorePriceReason, string> = { missing_price: "未返回价格", one_sided: "缺少有效双边盘口", invalid_price: "价格无效", identity_mismatch: "资产身份不一致", stale: "报价已过期", timeout: "取价超时", source_unavailable: "价格来源暂不可用", unconfirmed_settlement: "结算结果尚未最终确认", history_missing: "缺少历史价格", history_not_synced: "历史价格待同步" };
 const drawdownLabels: Record<CohortDrawdownReason, string> = { not_synced: "待同步", syncing: "同步中", missing_prices: "历史价格缺口", stale_endpoint: "区间末估值不足", budget_exceeded: "范围暂未计算" };
 function drawdownStatus(item: AccountCoreMetrics): string {
   return item.drawdownState === "available" ? "已计算" : item.drawdownCoverage?.reason ? drawdownLabels[item.drawdownCoverage.reason] : "历史回撤尚未计算";
@@ -81,8 +81,8 @@ export function AccountCoreMetricsPanel({ active, account, accountOrder = [], ac
     return (ai < 0 ? Number.MAX_SAFE_INTEGER : ai) - (bi < 0 ? Number.MAX_SAFE_INTEGER : bi) || a.executionAccountId.localeCompare(b.executionAccountId);
   }) : undefined;
   return <section className="section trading-core-metrics" data-v2-extra-query={JSON.stringify({ opening_from: openingFrom, opening_to: openingTo })} aria-label="账户核心指标" aria-busy={active && !current?.data && !current?.error}>
-    <div className="section-head"><h2 className="section-title">账户核心指标</h2><div className="trading-block-actions">{current?.data && <span className="section-caption">{current.data.asOf !== current.data.observedAt && <>统计截至 {formatV2Time(current.data.asOf)} · </>}账本观测 {formatV2Time(current.data.observedAt)}</span>}<button type="button" className="button trading-block-refresh" aria-label="刷新账户核心指标" disabled={active && !current?.data && !current?.error} onClick={() => setRetry(value => value + 1)}><RefreshCw size={14} aria-hidden="true" />刷新</button></div></div>
-    <p className="section-caption trading-core-basis">系统纳管口径 · 统计所选时间内开的仓位在区间结束时刻的状态（“区间末”即区间结束时刻；未选区间时为现在），结束之后的卖出、赎回和价格变化都不计入。区间末持仓在区间结束于过去时按当时的小时历史价格计算，否则按最新价格计算。最大回撤按小时采样，含浮动盈亏，未扣手续费。</p>
+    <div className="section-head"><h2 className="section-title">账户核心指标</h2><div className="trading-block-actions">{current?.data && <span className="section-caption">账本观测 {formatV2Time(current.data.observedAt)}</span>}<button type="button" className="button trading-block-refresh" aria-label="刷新账户核心指标" disabled={active && !current?.data && !current?.error} onClick={() => setRetry(value => value + 1)}><RefreshCw size={14} aria-hidden="true" />刷新</button></div></div>
+    <p className="section-caption trading-core-basis">系统纳管口径 · 追踪所选时间内开的仓位，截至区间结束时的表现；剩余持仓按区间末价格计算。最大回撤按小时采样，含浮动盈亏，未扣手续费。</p>
     <OpeningRangeForm key={`${openingFrom}/${openingTo}`} from={openingFrom} to={openingTo} />
     {current?.error && <div className="notice error" role="alert"><p>{current.error}</p><button type="button" className="button" onClick={() => setRetry(v => v + 1)}>重试</button></div>}
     {!rows ? !current?.error && <p className="trading-core-state">正在读取账户核心指标…</p>
@@ -90,17 +90,17 @@ export function AccountCoreMetricsPanel({ active, account, accountOrder = [], ac
           : account ? rows[0].kind === "available" ? <SingleAccount key={rows[0].executionAccountId} item={rows[0].item} /> : <UnavailableSingleAccount item={rows[0].item} />
             : <LocalScroll label="全部账户核心指标表格"><table className="trading-core-table"><thead><tr><th scope="col">账户 / 平台</th>{LABELS.map(label => <th scope="col" key={label}>{label}</th>)}</tr></thead><tbody>{rows.map(row => row.kind === "available" ? <AccountTableRow key={row.executionAccountId} item={row.item} /> : <UnavailableAccountRow key={row.executionAccountId} item={row.item} />)}</tbody></table></LocalScroll>}
     <details className="trading-core-explanation"><summary>指标口径</summary><ol>
-      <li><strong>区间开仓资产数</strong><p>按开仓时间选择批次，同一种结果资产合并计数。区间开仓资产数 ＝ 区间末持仓 ＋ 已平仓，持仓与平仓按区间结束时刻判断：结束时尚未卖出的份额算持仓，结束后才卖出也不算平仓。部分平仓仍算持仓，包含待赎回资产。区间外买入的份额不计入。</p></li>
-      <li><strong>区间末持仓估值</strong><p>入选批次在区间结束时刻的剩余数量 × 当时价格，再求和。区间结束于过去时，使用结束时刻前一小时内的历史价格，或结束前已确认的结算价；缺少历史价格时整体估值显示“—”，不会用现价代替。未选区间或区间结束于现在时，已确认结算价优先；Polymarket 其次用官方现价、有效盘口中间价；Kalshi 其次用官方最近成交价、有效盘口中间价。</p></li>
-      <li><strong>最高同时持仓本金</strong><p>入选批次从开仓至区间结束时刻，同时尚未收回的买入本金最高值；不含手续费、空闲余额或未成交挂单。</p></li>
+      <li><strong>区间开仓资产数</strong><p>按开仓时间选择批次，同一种结果资产合并计数。区间开仓资产数 ＝ 区间末持仓 ＋ 已平仓；部分平仓仍算持仓，包含待赎回资产。区间外买入的份额不计入。</p></li>
+      <li><strong>区间末持仓估值</strong><p>入选批次区间末的剩余数量 × 区间末价格，再求和。已确认结算价优先；Polymarket 其次用官方现价、有效盘口中间价；Kalshi 其次用官方最近成交价、有效盘口中间价。</p></li>
+      <li><strong>最高同时持仓本金</strong><p>入选批次从开仓至区间末，同时尚未收回的买入本金最高值；不含手续费、空闲余额或未成交挂单。</p></li>
       <li><strong>累计投入本金</strong><p>入选批次的买入、接管和导入本金累计。重复买入会重复累计，不是充值额。</p></li>
-      <li><strong>已实现盈亏</strong><p>入选批次在区间结束时刻之前已平部分的毛回款 − 对应买入本金，包括卖出、赎回、Kalshi 净对冲和到期结算；结束之后发生的不计入。</p></li>
-      <li><strong>区间末浮动盈亏</strong><p>区间末持仓估值 − 入选批次在区间结束时刻的剩余买入本金。</p></li>
+      <li><strong>已实现盈亏</strong><p>入选批次已平部分的毛回款 − 对应买入本金。区间结束后发生的卖出、赎回、Kalshi 净对冲和到期结算，不计入。</p></li>
+      <li><strong>区间末浮动盈亏</strong><p>区间末持仓估值 − 入选批次的剩余买入本金。</p></li>
       <li><strong>总盈亏</strong><p>已实现盈亏 ＋ 区间末浮动盈亏。</p></li>
       <li><strong>ROI 与 Return</strong><p>ROI ＝ 总盈亏 ÷ 累计投入本金；Return ＝ 总盈亏 ÷ 最高同时持仓本金。两者都未扣手续费，分母为零时显示“—”。</p></li>
-      <li><strong>最大回撤</strong><p>这批仓位从开仓至区间结束时刻，总盈亏从历史高点到后续低点的最大下降金额。按小时采样，含浮动盈亏，未扣手续费；小时内的短暂峰谷可能未被记录。历史数据暂缺时保留同账户、同开仓范围的最近完整结果；没有完整结果时显示“—”及具体原因。</p></li>
-      <li><strong>年化夏普</strong><p>日收益率均值 ÷ 日收益率样本标准差 × √365，无风险利率按0计算。使用所选开仓批次的资金调整后净值收益率，含浮动盈亏、未扣手续费；加减仓时分段计算并合并为每日收益。只统计区间结束时刻之前的完整北京时间自然日（00:00 至次日 00:00），未纳管现金不参与；无资金占用的整日不填0。历史数据暂缺时保留同账户、同开仓范围的最近完整结果；至少需要2个有效日，净值不足或标准差为0时显示“—”。</p></li>
-      <li><strong>买入手续费与卖出手续费</strong><p>只列区间结束时刻之前实际记录并归属入选批次的费用，其余指标全部不含手续费。Kalshi 反向买入产生的净对冲费用仍计入买入手续费；到期结算不生成卖出手续费。接管前未记录的费用不补算。</p></li>
+      <li><strong>最大回撤</strong><p>这批仓位从开仓至区间末，总盈亏从历史高点到后续低点的最大下降金额。按小时采样，含浮动盈亏，未扣手续费；小时内的短暂峰谷可能未被记录。历史数据暂缺时保留同账户、同开仓范围的最近完整结果；没有完整结果时显示“—”及具体原因。</p></li>
+      <li><strong>年化夏普</strong><p>日收益率均值 ÷ 日收益率样本标准差 × √365，无风险利率按0计算。使用所选开仓批次的资金调整后净值收益率，含浮动盈亏、未扣手续费；加减仓时分段计算并合并为每日收益。只统计完整北京时间自然日（00:00 至次日 00:00），未纳管现金不参与；无资金占用的整日不填0。历史数据暂缺时保留同账户、同开仓范围的最近完整结果；至少需要2个有效日，净值不足或标准差为0时显示“—”。</p></li>
+      <li><strong>买入手续费与卖出手续费</strong><p>只列实际记录并归属入选批次的费用，其余指标全部不含手续费。Kalshi 反向买入产生的净对冲费用仍计入买入手续费；到期结算不生成卖出手续费。接管前未记录的费用不补算。</p></li>
     </ol></details>
   </section>;
 }
@@ -194,5 +194,5 @@ function OpeningRangeForm({ from, to }: { from: string; to: string }) {
       <LocalHourInput label="结束" ariaPrefix="开仓区间" value={end} max={max} onChange={value => { setEnd(value); setEndInstant(""); setError(undefined); }} />
       {walletPnlHourCandidates(end).length > 1 && <label>结束时区偏移<select className="select" aria-label="开仓结束小时偏移" value={endInstant} onChange={event => setEndInstant(event.target.value)}><option value="">请选择重复小时</option>{walletPnlHourCandidates(end).map(time => <option key={time} value={time}>{formatWalletPnlOffset(time)}</option>)}</select></label>}</>}
     <button type="submit" className="button primary">应用开仓范围</button>{error && <p role="alert">{error}</p>}
-  </form><p className="section-caption trading-core-range-applied">{from && to ? !localReady ? "正在读取已应用的开仓区间…" : `${invalidAppliedRange ? "链接范围尚未应用，请改选本地整点：" : "已应用："}${initialLocal(from).replace("T", " ")} 至 ${initialLocal(to).replace("T", " ")} 前开仓，指标截至 ${initialLocal(to).replace("T", " ")}（本地时间）` : "已应用：全部历史开仓，指标截至现在"} · 与下方官方钱包曲线、成交明细的日期分别筛选。</p></>;
+  </form><p className="section-caption trading-core-range-applied">{from && to ? !localReady ? "正在读取已应用的开仓区间…" : `${invalidAppliedRange ? "链接范围尚未应用，请改选本地整点：" : "已应用："}${initialLocal(from).replace("T", " ")} 至 ${initialLocal(to).replace("T", " ")} 前开仓（本地时间）` : "已应用：全部历史开仓"} · 与下方官方钱包曲线、成交明细的日期分别筛选。</p></>;
 }
