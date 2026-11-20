@@ -126,7 +126,7 @@ function PredictionResults({ enabled, scope, source, model, generationId, genera
 
   return <>{enabled && <PredictionBatchPicker fixedBatch={fixedBatch} batches={batches} loading={batchesLoading} error={batchError} selectedIndex={selectedIndex} generationId={batchGenerationId} onSelect={selectBatch} onGenerationChange={setBatchGenerationId} />}
   <V2ListPage<ConsoleV2Prediction> title="预测结果" enabled={enabled} load={loadPredictionResults} params={params} discardedFilters={["selection_run_id", "selected_market_id", "status"]} rowKey={(item) => item.predictionId} searchPlaceholder="搜索 prediction、market、condition 或问题" columns={[
-    { label: "模型 / 来源", className: "primary", render: (item) => <div className="v2-cell-copy"><strong>{v2Unknown(item.modelName)}</strong><small>{item.marketSource}</small></div> },
+    { label: "模型 / 来源", className: "primary", render: (item) => <div className="v2-cell-copy"><strong>{v2Unknown(item.modelName)}</strong><small>{item.marketSource} · <span className="mono" title={item.predictionId}>{item.predictionId.slice(0, 12)}</span></small></div> },
     { label: "问题 / 市场身份", className: "wide", render: (item) => <div className="v2-cell-copy"><strong>{item.question}</strong><small className="mono">{item.marketId} · {item.conditionId}</small></div> },
     { label: "轮次 Domain", render: (item) => domainLabel(item.roundDomain) },
     { label: "概率", render: (item) => `${v2Unknown(item.outcome0Name, "Outcome 0")} ${probability(item.outcome0Probability)} · ${v2Unknown(item.outcome1Name, "Outcome 1")} ${probability(item.outcome1Probability)}` },
@@ -141,10 +141,16 @@ function PredictionBatchPicker({ fixedBatch, batches, loading, error, selectedIn
   return <section className="prediction-batch-picker panel panel-pad" aria-label="预测结果批次"><div className="section-head"><div><h2 className="section-title">预测结果批次</h2><p className="section-caption">按模型、平台和信息时点选择结果；可下载所选批次的完整 masked Sandbox。</p></div><span className="prediction-batch-status">{loading ? "读取中" : error ? "读取失败" : "选择已有批次"}</span></div>{error && <p className="v2-inline-note error">{error}</p>}<div className="prediction-batch-controls"><label><span>选择批次</span><select className="select" aria-label="预测结果批次" value={selectedIndex} onChange={(event) => onSelect(event.target.value)}><option value="">全部结果</option>{fixedBatch && !selected && <option value="fixed">{fixedBatch.modelId} · {fixedBatch.marketSource} · {formatV2Time(fixedBatch.predictionAsOf)} · 已固定范围</option>}{batches.map((batch, index) => <option key={`${batch.modelId}:${batch.marketSource}:${batch.predictionAsOf}:${batch.maxResultId}`} value={index}>{batchLabel(batch)}</option>)}</select></label>{selected && selected.generationIds.length > 1 && <label><span>维护批次</span><select className="select" aria-label="预测结果维护批次" value={generationId} onChange={(event) => onGenerationChange(event.target.value)}><option value="">全部关联批次</option>{selected.generationIds.map((id) => { const ref = selected.generations.find((item) => item.generationId === id); return <option key={id} value={id}>{ref ? generationLabel(ref) : id}</option>; })}</select></label>}{fixedBatch && <div className="prediction-batch-summary"><span>{fixedBatch.modelId} · {fixedBatch.marketSource}</span><span>{formatV2Time(fixedBatch.predictionAsOf)}</span>{selected && !fixedBatch.generationId ? <><span>结果 {formatV2Number(selected.resultCount, 0)}</span><span>Sandbox {formatV2Number(selected.sandboxCount, 0)}</span></> : <small>范围已固定，结果总数见下方列表；目录更新不会扩大已选范围。</small>}</div>}{canDownload && fixedBatch && <form method="post" action="/api/console/downloads/prediction-batches/archive" target="_blank" className="prediction-batch-download"><input type="hidden" name="model_id" value={fixedBatch.modelId} /><input type="hidden" name="market_source" value={fixedBatch.marketSource} /><input type="hidden" name="prediction_as_of" value={fixedBatch.predictionAsOf} /><input type="hidden" name="max_result_id" value={fixedBatch.maxResultId} /><input type="hidden" name="source_kind" value="SANDBOX" /><input type="hidden" name="variant" value="masked" />{fixedBatch.generationId && <input type="hidden" name="generation_id" value={fixedBatch.generationId}/>}<button className="button primary" type="submit">下载本批 masked Sandbox</button></form>}</div></section>;
 }
 
-/** "11-10 第 3 轮 Finance · v4.1 flash · Polymarket · 52 条"; batches without a proven round keep the as-of time. */
+/** "11-10 第 3 轮 Finance · v4.1 flash · Polymarket · 50 个 Sandbox / 150 条结果"; batches without a proven round keep the as-of time. */
 function batchLabel(batch: ConsoleV2PredictionBatchSummary) {
   const round = batch.generations.length === 1 && batch.generations[0].domain ? generationLabel(batch.generations[0]) : formatV2Time(batch.predictionAsOf);
-  return `${round} · ${batch.modelId} · ${labelOf(sourceLabels, batch.marketSource)} · ${formatV2Number(batch.resultCount, 0)} 条`;
+  return `${round} · ${batch.modelId} · ${labelOf(sourceLabels, batch.marketSource)} · ${batchCountText(batch)}`;
+}
+
+/** A model may predict one Sandbox several times: count Sandboxes first, results only when they differ. */
+function batchCountText(batch: ConsoleV2PredictionBatchSummary) {
+  const sandboxes = `${formatV2Number(batch.sandboxCount, 0)} 个 Sandbox`;
+  return batch.resultCount === batch.sandboxCount ? sandboxes : `${sandboxes} / ${formatV2Number(batch.resultCount, 0)} 条结果`;
 }
 
 /** "Polymarket：World/Geopolitics 11-10 · Politics 11-10；Kalshi：…" for a frozen set of current generations. */
@@ -203,7 +209,7 @@ function TodayPredictionProgress({ overview, source, model }: { overview: Consol
           <td><div className="v2-cell-copy"><strong>{slotClock(row.slotAt, schedule.timezone)} 第 {row.roundIndex} 轮 {domainLabel(row.domain)}</strong>{row.carriedFrom && <small>成员沿用 {shortDate(row.carriedFrom)}</small>}</div></td>
           <td>{v2Status(roundStateTone[row.state], roundStateLabels[row.state])}</td>
           <td>{formatV2Number(generation?.predictionEnabledCount, 0)}</td>
-          <td>{received.length ? <div className="v2-cell-copy">{received.map((batch) => <span key={`${batch.modelId}:${batch.predictionAsOf}`}>{batch.modelId} · {formatV2Number(batch.resultCount, 0)} 条 · {formatV2Time(batch.predictionAsOf)}</span>)}</div> : !generation ? "本轮尚未发布" : loading ? "读取中" : error || truncated ? "未知" : "暂无结果"}</td>
+          <td>{received.length ? <div className="v2-cell-copy">{received.map((batch) => <span key={`${batch.modelId}:${batch.predictionAsOf}:${batch.maxResultId}`}>{batch.modelId} · {batchCountText(batch)} · {formatV2Time(batch.predictionAsOf)}</span>)}</div> : !generation ? "本轮尚未发布" : loading ? "读取中" : error || truncated ? "未知" : "暂无结果"}</td>
           <td>{href ? <a className="button" href={href}>{generation ? "查看本轮结果" : "查看沿用结果"}</a> : "—"}</td>
         </tr>;
       })}
