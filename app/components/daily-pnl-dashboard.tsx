@@ -98,7 +98,7 @@ function WalletComparisonSelector({ rows, selectedWalletIDs, onToggle, onSelectA
 const CHART_WIDTH = 900;
 const CHART_HEIGHT = 322;
 const CHART_PAD = { top: 24, right: 24, bottom: 42, left: 70 };
-const SERIES_COLORS = ["#7ee8c4", "#ffbd69", "#8cabff", "#d894ff", "#ff858d", "#50d7ec"];
+const SERIES_COLORS = ["#7ee8c4", "#ffbd69", "#8cabff", "#d894ff", "#ff858d", "#50d7ec", "#f4e36b", "#ff9ed8", "#b5e86a", "#c9b18a"];
 
 function WalletPnLLineChart({ chart, report }: { chart: PnLChart; report: DailyPnLReport }) {
   const [hoverIndex, setHoverIndex] = useState(() => Math.max(0, chart.days.length - 1));
