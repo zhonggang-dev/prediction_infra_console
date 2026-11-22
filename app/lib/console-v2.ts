@@ -6,6 +6,7 @@
  */
 
 import { decodeTradingLedgerPage } from "./trading-ledger-v2.ts";
+import { predictionRunValue } from "./prediction-run.ts";
 import { decodeTradingHolding, decodeTradingPortfolioHolding, holdingIdentity, portfolioHoldingIdentity, type ConsoleV2Holding, type ConsoleV2PortfolioHolding } from "./trading-holdings.ts";
 
 export type ConsoleV2Service = "infra" | "trading";
@@ -272,6 +273,8 @@ export interface ConsoleV2Prediction {
   outcome1Name?: string;
   outcome1Probability: number | null;
   modelName?: string;
+  /** Which of the model's repeated runs (1..3) produced this result; absent on older backends. */
+  predictionRun?: number;
   predictorVersion?: string;
   predictionAsOf?: string;
   receivedAt?: string;
@@ -428,6 +431,8 @@ export interface ConsoleV2RuntimeSubmission {
 export interface ConsoleV2RuntimeAccount {
   executionAccountId: string;
   modelId: string;
+  /** Run of the bound prediction model this account consumes; absent without binding or on older backends. */
+  predictionRun?: number;
   strategyId: string;
   sourceMode: string;
   configuredBinding: boolean | null;
@@ -466,6 +471,7 @@ export interface ConsoleV2RuntimeRunner {
 
 export interface ConsoleV2Binding {
   predictionModelId?: string;
+  predictionRun?: number;
   modelId?: string;
   strategyId?: string;
   executionAccountId?: string;
@@ -884,7 +890,7 @@ function decodeSelectedMarket(value: RawRecord): ConsoleV2SelectedMarket {
 
 function decodePrediction(value: RawRecord): ConsoleV2Prediction {
   const sandboxId = optionalText(value.sandbox_id);
-  return { predictionId: requiredText(value.prediction_id, "prediction_id"), sandboxId, sourceJobId: optionalText(value.source_job_id), marketSource: optionalText(value.market_source), selectionRunId: optionalId(value.selection_run_id), selectedMarketId: optionalId(value.selected_market_id), marketId: requiredText(value.market_id, "prediction.market_id"), conditionId: value.market_source === "KALSHI" ? optionalText(value.condition_id) ?? "" : requiredText(value.condition_id, "prediction.condition_id"), question: requiredText(value.question, "prediction.question"), primaryDomain: optionalText(value.primary_domain), roundDomain: nullableRoundDomain(value.round_domain), executionMode: optionalText(value.execution_mode), outcome0Name: optionalText(value.outcome_0_name), outcome0Probability: nullableNumber(value.outcome_0_probability), outcome1Name: optionalText(value.outcome_1_name), outcome1Probability: nullableNumber(value.outcome_1_probability), modelName: optionalText(value.model_name), predictorVersion: optionalText(value.predictor_version), predictionAsOf: optionalTime(value.prediction_as_of), receivedAt: optionalTime(value.received_at), completedAt: optionalTime(value.completed_at), generationId: optionalId(value.generation_id), sourceKind: sandboxId ? "SANDBOX" : value.sandbox_id === null && hasCompleteDirectIdentity(value) ? "DIRECT" : "UNKNOWN" };
+  return { predictionId: requiredText(value.prediction_id, "prediction_id"), sandboxId, sourceJobId: optionalText(value.source_job_id), marketSource: optionalText(value.market_source), selectionRunId: optionalId(value.selection_run_id), selectedMarketId: optionalId(value.selected_market_id), marketId: requiredText(value.market_id, "prediction.market_id"), conditionId: value.market_source === "KALSHI" ? optionalText(value.condition_id) ?? "" : requiredText(value.condition_id, "prediction.condition_id"), question: requiredText(value.question, "prediction.question"), primaryDomain: optionalText(value.primary_domain), roundDomain: nullableRoundDomain(value.round_domain), executionMode: optionalText(value.execution_mode), outcome0Name: optionalText(value.outcome_0_name), outcome0Probability: nullableNumber(value.outcome_0_probability), outcome1Name: optionalText(value.outcome_1_name), outcome1Probability: nullableNumber(value.outcome_1_probability), modelName: optionalText(value.model_name), ...optionalRun(value.prediction_run), predictorVersion: optionalText(value.predictor_version), predictionAsOf: optionalTime(value.prediction_as_of), receivedAt: optionalTime(value.received_at), completedAt: optionalTime(value.completed_at), generationId: optionalId(value.generation_id), sourceKind: sandboxId ? "SANDBOX" : value.sandbox_id === null && hasCompleteDirectIdentity(value) ? "DIRECT" : "UNKNOWN" };
 }
 
 function hasCompleteDirectIdentity(value: RawRecord) {
@@ -940,7 +946,7 @@ function decodeRuntimeSubmission(value: RawRecord): ConsoleV2RuntimeSubmission {
 }
 
 function decodeRuntimeAccount(value: RawRecord): ConsoleV2RuntimeAccount {
-  return { executionAccountId: requiredText(value.execution_account_id, "runtime.account.execution_account_id"), modelId: requiredText(value.model_id, "runtime.account.model_id"), strategyId: requiredText(value.strategy_id, "runtime.account.strategy_id"), sourceMode: optionalText(value.source_mode) ?? "unknown", configuredBinding: nullableBoolean(value.configured_binding), databaseBindingEnabled: nullableBoolean(value.database_binding_enabled), riskPolicyEnabled: nullableBoolean(value.risk_policy_enabled), accountPaused: nullableBoolean(value.account_paused), strategyInputState: requiredText(value.strategy_input_state, "runtime.account.strategy_input_state"), entryGateState: requiredText(value.entry_gate_state, "runtime.account.entry_gate_state"), orderSubmissionState: requiredText(value.order_submission_state, "runtime.account.order_submission_state"), lastCycleAt: optionalTime(value.last_cycle_at), lastCycleStatus: optionalText(value.last_cycle_status), lastCycleEntryBlockReason: optionalText(value.last_cycle_entry_block_reason), lastReconciliationAt: optionalTime(value.last_reconciliation_at), lastReconciliationStatus: optionalText(value.last_reconciliation_status), openIssueCount: nullableNumber(value.open_issue_count), openOrderCount: nullableNumber(value.open_order_count) };
+  return { executionAccountId: requiredText(value.execution_account_id, "runtime.account.execution_account_id"), modelId: requiredText(value.model_id, "runtime.account.model_id"), ...optionalRun(value.prediction_run), strategyId: requiredText(value.strategy_id, "runtime.account.strategy_id"), sourceMode: optionalText(value.source_mode) ?? "unknown", configuredBinding: nullableBoolean(value.configured_binding), databaseBindingEnabled: nullableBoolean(value.database_binding_enabled), riskPolicyEnabled: nullableBoolean(value.risk_policy_enabled), accountPaused: nullableBoolean(value.account_paused), strategyInputState: requiredText(value.strategy_input_state, "runtime.account.strategy_input_state"), entryGateState: requiredText(value.entry_gate_state, "runtime.account.entry_gate_state"), orderSubmissionState: requiredText(value.order_submission_state, "runtime.account.order_submission_state"), lastCycleAt: optionalTime(value.last_cycle_at), lastCycleStatus: optionalText(value.last_cycle_status), lastCycleEntryBlockReason: optionalText(value.last_cycle_entry_block_reason), lastReconciliationAt: optionalTime(value.last_reconciliation_at), lastReconciliationStatus: optionalText(value.last_reconciliation_status), openIssueCount: nullableNumber(value.open_issue_count), openOrderCount: nullableNumber(value.open_order_count) };
 }
 
 function decodeRuntimeRunner(value: RawRecord): ConsoleV2RuntimeRunner {
@@ -951,7 +957,7 @@ function decodeRuntimeRunner(value: RawRecord): ConsoleV2RuntimeRunner {
 }
 
 function decodeBinding(value: RawRecord): ConsoleV2Binding {
-  return { predictionModelId: optionalText(value.prediction_model_id), modelId: optionalText(value.model_id), strategyId: optionalText(value.strategy_id), executionAccountId: optionalText(value.execution_account_id), sourceMode: optionalText(value.source_mode) };
+  return { predictionModelId: optionalText(value.prediction_model_id), ...optionalRun(value.prediction_run), modelId: optionalText(value.model_id), strategyId: optionalText(value.strategy_id), executionAccountId: optionalText(value.execution_account_id), sourceMode: optionalText(value.source_mode) };
 }
 
 function decodeDecisionCycle(value: RawRecord): ConsoleV2DecisionCycle {
@@ -1007,6 +1013,8 @@ function nullableRoundDomain(value: unknown): string | undefined {
   if (typeof value !== "string" || !value.trim()) throw new ConsoleV2ContractError("V2 接口返回了无效的 prediction.round_domain");
   return value.trim();
 }
+/** Omit prediction_run unless it is an in-range integer; older backends do not send it. */
+function optionalRun(value: unknown): { predictionRun?: number } { const run = predictionRunValue(value); return run === undefined ? {} : { predictionRun: run }; }
 function optionalText(value: unknown): string | undefined { const result = text(value)?.trim(); return result || undefined; }
 function optionalId(value: unknown): string | undefined { return optionalText(value); }
 function optionalTime(value: unknown): string | undefined { return typeof value === "string" && !Number.isNaN(Date.parse(value)) ? value : undefined; }
@@ -1028,6 +1036,8 @@ export interface ConsoleV2Account {
   strategyId?: string;
   mode?: "ACTIVE" | "SELL_ONLY" | "PAUSED";
   predictionModelId?: string;
+  /** Run of the prediction model consumed by this account; absent without binding or on older backends. */
+  predictionRun?: number;
   sourceMode?: "SANDBOX" | "DIRECT";
 }
 export interface ConsoleV2AccountSettlement { settlementId: string; marketSource: string; executionAccountId: string; marketId?: string; conditionId?: string; status: string; transactionHash?: string; payout?: string; createdAt?: string; updatedAt?: string; settledAt?: string; confirmedAt?: string; appliedAt?: string }
@@ -1047,6 +1057,7 @@ function decodeAccounts(value: RawRecord) {
       ...(strategyId ? { strategyId } : {}),
       ...(mode ? { mode } : {}),
       ...(predictionModelId ? { predictionModelId } : {}),
+      ...optionalRun(item.prediction_run),
       ...(sourceMode ? { sourceMode } : {}),
     };
   }) };

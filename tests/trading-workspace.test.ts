@@ -87,6 +87,15 @@ test("交易工作区共享单账户与活跃账户范围，曲线和账本留�
   assert.match(source, /OfficialWalletPnlPanel/);
 });
 
+test("账户下拉、当前账户配置与运行时账户表在模型名后显示预测序号", async () => {
+  const trading = await readFile(new URL("../app/components/trading-v2-page.tsx", import.meta.url), "utf8");
+  const live = await readFile(new URL("../app/components/live-trading-page.tsx", import.meta.url), "utf8");
+  assert.match(trading, /\{tradingAccountOptionLabel\(item\)\}/);
+  assert.match(trading, /预测模型 <strong>\{accountModelLabel\(selectedAccount\)\}<\/strong>/);
+  assert.doesNotMatch(trading, /模式未提供/);
+  assert.match(live, /modelWithRunLabel\(account\.modelId, account\.predictionRun\)/);
+});
+
 test("account permission display separates current switches from the historical cycle gate", () => {
   const account = {
     executionAccountId: "wallet-a", modelId: "model", strategyId: "strategy", sourceMode: "LIVE",

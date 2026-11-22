@@ -121,6 +121,46 @@ test("Prediction source kind requires sandbox_id proof or a complete Direct iden
   } finally { globalThis.fetch = previousFetch; }
 });
 
+test("预测结果 prediction_run 只接受 1～3 的整数，其他值视为未提供；run 筛选原样转发", async () => {
+  const previousFetch = globalThis.fetch;
+  const base = { prediction_id: "p-run", sandbox_id: "s-1", market_id: "m-1", condition_id: "c-1", question: "Q", model_name: "v4.1 flash", market_source: "POLYMARKET" };
+  const calls: string[] = [];
+  try {
+    for (const [run, expected] of [[1, 1], [2, 2], [3, 3], [0, undefined], [4, undefined], [2.5, undefined], ["2", undefined], [null, undefined], [undefined, undefined]] as const) {
+      globalThis.fetch = (async (input) => { calls.push(String(input)); return new Response(JSON.stringify({ data: { items: [{ ...base, prediction_run: run }], total: 1, limit: 20, offset: 0, has_more: false, observed_at: "2026-11-23T00:00:00Z" } })); }) as typeof fetch;
+      const item = (await consoleV2.infra.predictions({ run: "2" })).data.items[0];
+      assert.equal(item.predictionRun, expected);
+      assert.equal("predictionRun" in item, expected !== undefined);
+    }
+    assert.ok(calls.every((call) => new URL(call, "http://console.local").searchParams.get("run") === "2"));
+  } finally { globalThis.fetch = previousFetch; }
+});
+
+test("Trading runtime 账户与绑定带 prediction_run，缺失或非法时不输出", async () => {
+  const previousFetch = globalThis.fetch;
+  const account = { execution_account_id: "wallet-2", model_id: "v4.1 flash", strategy_id: "s", source_mode: "SANDBOX", strategy_input_state: "enabled", entry_gate_state: "enabled", order_submission_state: "enabled" };
+  globalThis.fetch = (async () => new Response(JSON.stringify({ data: {
+    observed_at: "2026-11-23T00:00:00Z", runner: {}, submission: {}, account_data_state: "available",
+    bindings: [{ execution_account_id: "wallet-2", prediction_model_id: "v4.1 flash", prediction_run: 2 }, { execution_account_id: "main", prediction_model_id: "v4.1 flash" }, { execution_account_id: "bad", prediction_run: "3" }],
+    accounts: [{ ...account, prediction_run: 2 }, { ...account, execution_account_id: "main" }, { ...account, execution_account_id: "bad", prediction_run: 9 }],
+  } }))) as typeof fetch;
+  try {
+    const result = await consoleV2.trading.runtime();
+    assert.deepEqual(result.data.bindings.map((item) => item.predictionRun), [2, undefined, undefined]);
+    assert.deepEqual(result.data.accounts.map((item) => item.predictionRun), [2, undefined, undefined]);
+    assert.equal("predictionRun" in result.data.accounts[1], false);
+  } finally { globalThis.fetch = previousFetch; }
+});
+
+test("预测页结果列显示「第 N 次」并提供次数筛选，批次目录不带 run", async () => {
+  const page = await readFile(new URL("../app/components/predictions-v2-page.tsx", import.meta.url), "utf8");
+  assert.match(page, /useV2Filter\("run"\)/);
+  assert.match(page, /aria-label="预测次数"/);
+  assert.match(page, /全部次数/);
+  assert.match(page, /prediction-run-tag/);
+  assert.match(page, /delete batchQuery\.run;/);
+});
+
 test("V2 client preserves nested Trading error code and message", async () => {
   const previousFetch = globalThis.fetch;
   globalThis.fetch = (async () => new Response(JSON.stringify({ error: { code: "CYCLE_UNAVAILABLE", message: "cycle read unavailable" } }), { status: 503, headers: { "content-type": "application/json" } })) as typeof fetch;

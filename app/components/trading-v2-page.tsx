@@ -10,7 +10,7 @@ import { OfficialPnlTimeControls, type OfficialPnlTimeSelection } from "./offici
 import { RefreshCw } from "lucide-react";
 import { AccountCoreMetricsPanel } from "./account-performance";
 import { TradeRecordsPage } from "./trade-records-page";
-import { orderedTradingAccounts, scopedTradingAccounts, tradingAccountScope } from "../lib/trading-account-scope";
+import { accountJoinsStrategy, accountModeLabel, accountModelLabel, orderedTradingAccounts, scopedTradingAccounts, tradingAccountOptionLabel, tradingAccountScope } from "../lib/trading-account-scope";
 import "./trading-workspace.css";
 
 type TradingView = "orders" | "positions" | "ledger" | "reconciliation";
@@ -45,7 +45,7 @@ export function TradingV2Page({ view = "orders" }: { view?: TradingView }) {
       setAccount(value.startsWith("account:") ? value.slice(8) : "");
       setScope(value === "all" ? "all" : "");
       window.dispatchEvent(new Event(WORKSPACE_FILTER_CHANGE_EVENT));
-    }}><option value="active">全部活跃账户</option><option value="all">全部账户</option>{accounts.map(item => <option key={item.executionAccountId} value={`account:${item.executionAccountId}`} className={item.mode === "PAUSED" ? "trading-account-paused" : undefined}>{item.marketSource === "KALSHI" ? "Kalshi" : "Polymarket"} · {item.executionAccountId}{item.mode === "PAUSED" ? "（暂停）" : item.mode === "SELL_ONLY" ? "（仅卖出）" : item.mode ? "" : "（模式未提供）"}</option>)}{account && !accounts.some(item => item.executionAccountId === account) && <option value={`account:${account}`}>{account}（目录未确认）</option>}</select></label>{selectedAccount && <div className="trading-account-settings" aria-label="当前账户配置"><span>当前策略 <strong>{selectedAccount.strategyId ?? "未提供"}</strong></span><span>运行模式 <strong>{selectedAccount.mode === "ACTIVE" ? "启用" : selectedAccount.mode === "SELL_ONLY" ? "仅卖出" : selectedAccount.mode === "PAUSED" ? "暂停" : "未提供"}</strong></span>{selectedAccount.predictionModelId && <span>预测模型 <strong>{selectedAccount.predictionModelId}</strong></span>}</div>}</section>
+    }}><option value="active">全部活跃账户</option><option value="all">全部账户</option>{accounts.map(item => <option key={item.executionAccountId} value={`account:${item.executionAccountId}`} className={item.mode === "PAUSED" || !accountJoinsStrategy(item) ? "trading-account-paused" : undefined}>{tradingAccountOptionLabel(item)}</option>)}{account && !accounts.some(item => item.executionAccountId === account) && <option value={`account:${account}`}>{account}（目录未确认）</option>}</select></label>{selectedAccount && <div className="trading-account-settings" aria-label="当前账户配置"><span>当前策略 <strong>{selectedAccount.strategyId ?? "未提供"}</strong></span><span>运行模式 <strong>{accountModeLabel(selectedAccount)}</strong></span>{accountModelLabel(selectedAccount) && <span>预测模型 <strong>{accountModelLabel(selectedAccount)}</strong></span>}</div>}</section>
     {accountsError && <div className="notice error"><p>账户目录不可用：{accountsError}</p><button className="button" type="button" onClick={() => setAccountsRetry((value) => value + 1)}>重试</button></div>}
     <V2Tabs tabs={tabs} active={workspace.active} onSelect={(href) => workspace.select(href as typeof workspace.active)} />
     <V2WorkspacePanel active={workspace.active} href="/trading/orders" visited={workspace.visited.has("/trading/orders")}><Orders /></V2WorkspacePanel>
