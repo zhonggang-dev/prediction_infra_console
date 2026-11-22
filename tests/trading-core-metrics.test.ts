@@ -5,7 +5,7 @@ import { accountCoreMetrics, decodeAccountCoreMetrics, accountCohortMetrics, dec
 import { decodeWalletPnl } from "../app/lib/wallet-pnl-api.ts";
 import { GET, POST } from "../app/api/console/v2/[...path]/route.ts";
 import { GET as walletGet } from "../app/api/console/[...path]/route.ts";
-import { accountModeLabel, accountModelLabel, orderedTradingAccounts, scopedTradingAccounts, tradingAccountOptionLabel } from "../app/lib/trading-account-scope.ts";
+import { accountIsPrimary, accountModeLabel, accountModelLabel, accountRoleLabel, groupTradingAccounts, orderedTradingAccounts, scopedTradingAccounts, tradingAccountOptionLabel } from "../app/lib/trading-account-scope.ts";
 
 const observed = "2026-11-04T12:00:00Z";
 const asset = { execution_account_id: "kalshi:main", market_source: "KALSHI", market_id: "market", condition_id: "condition", token_id: "token", outcome_index: 1, outcome_name: "No", market_question: "Question?", remaining_shares: "2.000001", remaining_cost: "1.000001", price: "0.5", market_value: "1.0000005", state: "priced", price_source: "KALSHI_BOOK_MID", source_at: null, observed_at: observed, reason: null };
@@ -134,28 +134,43 @@ test("开仓区间响应须与请求时间一致，账户切换不能接受串�
   assert.throws(() => decodeAccountCohortMetrics(cohortData(), { execution_account_id: "main" }));
 });
 
-test("活跃账户只含ACTIVE或SELL_ONLY，暂停账户其次、不参与策略的账户保留可选并稳定排末尾", () => {
+test("活跃账户只含ACTIVE或SELL_ONLY，组内暂停账户排后，不参与策略的账户在任何范围都隐藏", () => {
   const accounts = [{ executionAccountId: "paused-1", marketSource: "POLYMARKET" as const, mode: "PAUSED" as const }, { executionAccountId: "main", marketSource: "POLYMARKET" as const, mode: "ACTIVE" as const }, { executionAccountId: "unknown", marketSource: "POLYMARKET" as const }, { executionAccountId: "sell-only", marketSource: "KALSHI" as const, mode: "SELL_ONLY" as const }, { executionAccountId: "paused-2", marketSource: "POLYMARKET" as const, mode: "PAUSED" as const }];
   assert.deepEqual(scopedTradingAccounts(accounts, "active").map(a => a.executionAccountId), ["main", "sell-only"]);
-  assert.deepEqual(orderedTradingAccounts(accounts).map(a => a.executionAccountId), ["main", "sell-only", "paused-1", "paused-2", "unknown"]);
-  assert.equal(scopedTradingAccounts(accounts, "all").length, 5);
+  assert.deepEqual(orderedTradingAccounts(accounts).map(a => a.executionAccountId), ["main", "sell-only", "paused-1", "paused-2"]);
+  assert.equal(scopedTradingAccounts(accounts, "all").length, 4);
 });
 
-test("账户下拉与当前配置显示模型序号，缺模式的账户标为不参与策略且不计入活跃范围", () => {
-  const wallet2 = { executionAccountId: "wallet-2", marketSource: "POLYMARKET" as const, mode: "ACTIVE" as const, predictionModelId: "v4.1 flash", predictionRun: 2 };
-  const main = { executionAccountId: "main", marketSource: "POLYMARKET" as const, mode: "ACTIVE" as const, predictionModelId: "v4.1 flash" };
-  const wallet10 = { executionAccountId: "wallet-10", marketSource: "POLYMARKET" as const };
-  const kalshi = { executionAccountId: "kalshi:main", marketSource: "KALSHI" as const, mode: "PAUSED" as const, predictionModelId: "v4.1 flash", predictionRun: 1 };
-  assert.equal(accountModelLabel(wallet2), "v4.1 flash · 第 2 次");
-  assert.equal(accountModelLabel(main), "v4.1 flash");
-  assert.equal(accountModelLabel(wallet10), undefined);
-  assert.equal(tradingAccountOptionLabel(wallet2), "Polymarket · wallet-2 · v4.1 flash · 第 2 次");
+test("账户下拉按策略分组：含主力的策略在前、组内主力在前，对照组标注，不显示第几次，wallet-10 隐藏", () => {
+  const account = (executionAccountId: string, strategyId: string, predictionModelId: string, predictionRun: number, marketSource: "POLYMARKET" | "KALSHI" = "POLYMARKET") => ({ executionAccountId, marketSource, strategyId, mode: "ACTIVE" as const, predictionModelId, predictionRun });
+  const catalog = [
+    account("main", "brier_mid_edge_once", "v4.1 flash", 1),
+    account("wallet-1", "brier_mid_edge_once", "qwen3.8-27b", 1),
+    { executionAccountId: "wallet-10", marketSource: "POLYMARKET" as const },
+    account("wallet-2", "brier_mid_edge_once", "v4.1 flash", 2),
+    account("wallet-6", "multfactor_v2", "qwen3.8-27b", 1),
+    account("wallet-7", "multfactor_v2", "v4.1 flash", 1),
+    account("kalshi:main", "brier_mid_edge_once", "v4.1 flash", 1, "KALSHI"),
+  ];
+  const groups = groupTradingAccounts(catalog);
+  assert.deepEqual(groups.map(g => [g.label, g.accounts.map(a => a.executionAccountId)]), [
+    ["brier_mid_edge_once", ["main", "kalshi:main", "wallet-1", "wallet-2"]],
+    ["multfactor_v2", ["wallet-7", "wallet-6"]],
+  ]);
+  assert.deepEqual(scopedTradingAccounts(catalog, "all").map(a => a.executionAccountId), ["main", "kalshi:main", "wallet-1", "wallet-2", "wallet-7", "wallet-6"]);
+  const [main, wallet1, , wallet2, , wallet7, kalshi] = catalog;
   assert.equal(tradingAccountOptionLabel(main), "Polymarket · main · v4.1 flash");
-  assert.equal(tradingAccountOptionLabel(kalshi), "Kalshi · kalshi:main · v4.1 flash · 第 1 次（暂停）");
-  assert.equal(tradingAccountOptionLabel(wallet10), "Polymarket · wallet-10（不参与策略）");
-  assert.equal(accountModeLabel(wallet10), "不参与策略");
-  assert.deepEqual(scopedTradingAccounts([wallet10, wallet2, main], "active").map(a => a.executionAccountId), ["wallet-2", "main"]);
-  assert.deepEqual(scopedTradingAccounts([wallet10, wallet2, kalshi], "all").map(a => a.executionAccountId), ["wallet-2", "kalshi:main", "wallet-10"]);
+  assert.equal(tradingAccountOptionLabel(kalshi), "Kalshi · kalshi:main · v4.1 flash");
+  assert.equal(tradingAccountOptionLabel(wallet7), "Polymarket · wallet-7 · v4.1 flash");
+  assert.equal(tradingAccountOptionLabel(wallet1), "Polymarket · wallet-1 · qwen3.8-27b · 对照组");
+  assert.equal(tradingAccountOptionLabel(wallet2), "Polymarket · wallet-2 · v4.1 flash · 对照组");
+  assert.equal(tradingAccountOptionLabel({ ...wallet2, mode: "PAUSED" }), "Polymarket · wallet-2 · v4.1 flash · 对照组（暂停）");
+  assert.equal(accountModelLabel(wallet2), "v4.1 flash");
+  assert.equal(accountIsPrimary(main) && accountIsPrimary(kalshi) && accountIsPrimary(wallet7), true);
+  assert.equal(accountRoleLabel(wallet2), "对照组");
+  assert.equal(accountRoleLabel(main), "主力");
+  assert.equal(accountModeLabel({ executionAccountId: "wallet-10", marketSource: "POLYMARKET" }), "不参与策略");
+  assert.deepEqual(groupTradingAccounts([{ executionAccountId: "x", marketSource: "POLYMARKET", mode: "ACTIVE" }, wallet2]).map(g => g.label), ["brier_mid_edge_once", "未配置策略"]);
 });
 
 test("cohort客户端与固定BFF传递开仓范围、活跃账户以及取消，拒绝混合或畸形范围", async () => {
