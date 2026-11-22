@@ -6,6 +6,7 @@ import { consoleV2, type ConsoleV2Overview, type ConsoleV2Prediction, type Conso
 import { fixedPredictionBatch, matchingPredictionBatch, predictionBatchParentContext, predictionBatchQueryKeys, predictionResultQuery, type FixedPredictionBatch } from "../lib/prediction-batch-scope";
 import { currentPredictionRange, predictionGenerationIds } from "../lib/prediction-scope";
 import { domainLabel, generationLabel, todayRoundGeneration, roundPredictionHref, roundRows, roundStateLabels, roundStateTone, shortDate, slotClock, sourceLabels, labelOf } from "../lib/market-rounds";
+import { PREDICTION_RUNS, predictionRunFilter, predictionRunLabel } from "../lib/prediction-run";
 import { formatV2Number, formatV2Time, V2ContextLinks, V2Frame, V2ListPage, V2Notice, useV2Filter, v2Status, v2Unknown } from "./console-v2-resource";
 
 export function PredictionsV2Page() {
@@ -87,15 +88,19 @@ function PredictionResults({ enabled, scope, source, model, generationId, genera
   const [batchSource, setBatchSource] = useV2Filter("batch_source");
   const parentContext = predictionBatchParentContext({ scope, model, ...sourceParams(source), generation_id: generationId, generation_ids: generationIds, prediction_as_of: predictionAsOf });
   const [batchContext, setBatchContext] = useV2Filter("batch_context");
+  // Run only narrows the result list; batches count Sandboxes across all runs.
+  const [runFilter, setRun] = useV2Filter("run");
+  const run = predictionRunFilter(runFilter);
   const [batches, setBatches] = useState<ConsoleV2PredictionBatchSummary[]>([]);
   const [batchesLoading, setBatchesLoading] = useState(true);
   const [batchError, setBatchError] = useState<string>();
-  const params = { scope, model: model || undefined, generation_id: generationId, generation_ids: generationIds, prediction_as_of: predictionAsOf || undefined, ...sourceParams(source), batch_prediction_as_of: batchAsOf || undefined, batch_max_result_id: batchMaxResultId || undefined, batch_generation_id: batchGenerationId || undefined, batch_model: batchModel || undefined, batch_source: batchSource || undefined, batch_context: batchAsOf ? batchContext || undefined : undefined };
+  const params = { scope, model: model || undefined, generation_id: generationId, generation_ids: generationIds, prediction_as_of: predictionAsOf || undefined, ...sourceParams(source), batch_prediction_as_of: batchAsOf || undefined, batch_max_result_id: batchMaxResultId || undefined, batch_generation_id: batchGenerationId || undefined, batch_model: batchModel || undefined, batch_source: batchSource || undefined, batch_context: batchAsOf ? batchContext || undefined : undefined, run: run || undefined };
   const fixedBatch = fixedPredictionBatch(params);
   const selectedBatch = matchingPredictionBatch(batches, fixedBatch);
   const batchQuery = predictionResultQuery(params);
   // Batch directory accepts a fixed watermark and generation, but no as-of.
   delete batchQuery.prediction_as_of;
+  delete batchQuery.run;
   const batchQueryKey = JSON.stringify(batchQuery);
   useEffect(() => {
     if (!enabled) return;
@@ -125,8 +130,8 @@ function PredictionResults({ enabled, scope, source, model, generationId, genera
   const selectedIndex = selectedBatch ? String(batches.indexOf(selectedBatch)) : fixedBatch ? "fixed" : "";
 
   return <>{enabled && <PredictionBatchPicker fixedBatch={fixedBatch} batches={batches} loading={batchesLoading} error={batchError} selectedIndex={selectedIndex} generationId={batchGenerationId} onSelect={selectBatch} onGenerationChange={setBatchGenerationId} />}
-  <V2ListPage<ConsoleV2Prediction> title="预测结果" enabled={enabled} load={loadPredictionResults} params={params} discardedFilters={["selection_run_id", "selected_market_id", "status"]} rowKey={(item) => item.predictionId} searchPlaceholder="搜索 prediction、market、condition 或问题" columns={[
-    { label: "模型 / 来源", className: "primary", render: (item) => <div className="v2-cell-copy"><strong>{v2Unknown(item.modelName)}</strong><small>{item.marketSource} · <span className="mono" title={item.predictionId}>{item.predictionId.slice(0, 12)}</span></small></div> },
+  <V2ListPage<ConsoleV2Prediction> title="预测结果" enabled={enabled} load={loadPredictionResults} params={params} discardedFilters={["selection_run_id", "selected_market_id", "status"]} rowKey={(item) => item.predictionId} searchPlaceholder="搜索 prediction、market、condition 或问题" controls={<select className="select" aria-label="预测次数" value={run} onChange={(event) => setRun(event.target.value)}><option value="">全部次数</option>{PREDICTION_RUNS.map((value) => <option key={value} value={String(value)}>{predictionRunLabel(value)}</option>)}</select>} columns={[
+    { label: "模型 / 来源", className: "primary", render: (item) => <div className="v2-cell-copy"><strong>{v2Unknown(item.modelName)}{item.predictionRun !== undefined && <span className="prediction-run-tag">{predictionRunLabel(item.predictionRun)}</span>}</strong><small>{item.marketSource} · <span className="mono" title={item.predictionId}>{item.predictionId.slice(0, 12)}</span></small></div> },
     { label: "问题 / 市场身份", className: "wide", render: (item) => <div className="v2-cell-copy"><strong>{item.question}</strong><small className="mono">{item.marketId} · {item.conditionId}</small></div> },
     { label: "轮次 Domain", render: (item) => domainLabel(item.roundDomain) },
     { label: "概率", render: (item) => `${v2Unknown(item.outcome0Name, "Outcome 0")} ${probability(item.outcome0Probability)} · ${v2Unknown(item.outcome1Name, "Outcome 1")} ${probability(item.outcome1Probability)}` },

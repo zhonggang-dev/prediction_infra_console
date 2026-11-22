@@ -47,6 +47,8 @@ test("规范旧筛选只改变所属页面并按范围重置offset，维护身�
   const prediction = canonicalConsoleQuery("/predictions/tasks", new URLSearchParams("generation_id=468&source=KALSHI&selection_run_id=573&selected_market_id=1&offset=40"));
   assert.equal(prediction.toString(), "generation_id=468&source=KALSHI");
   assert.equal(canonicalConsoleQuery("/predictions", new URLSearchParams("source=GENERATED&offset=20")).toString(), "");
+  assert.equal(canonicalConsoleQuery("/predictions", new URLSearchParams("run=2&offset=20")).toString(), "run=2&offset=20");
+  for (const run of ["0", "4", "abc", "1.5", ""]) assert.equal(canonicalConsoleQuery("/predictions", new URLSearchParams(`run=${run}&offset=20`)).toString(), "");
   assert.equal(canonicalConsoleQuery("/sandboxes", new URLSearchParams("source=GENERATED_QA&offset=40")).toString(), "source=GENERATED_QA&offset=40");
   assert.equal(canonicalConsoleQuery("/markets/running", new URLSearchParams("market_scope=pool&offset=20")).toString(), "market_scope=current");
   assert.equal(canonicalConsoleQuery("/markets/running", new URLSearchParams("generation_id=468&source=KALSHI&offset=40")).get("offset"), "40");
@@ -273,6 +275,17 @@ test("账户目录读取真实配置，缺失模式不推定启用，拒绝未�
   });
   for (const mode of [undefined, null, ""]) await withFetch({ data: { accounts: [{ ...row, mode }], observed_at: observed } }, async () => { assert.equal((await consoleV2.trading.accounts()).data.accounts[0].mode, undefined); });
   for (const change of [{ mode: "enabled" }, { mode: "NOT_ACTIVE" }, { source_mode: "LIVE" }, { mode: false }, { prediction_model_id: true }, { strategy_id: 2 }]) await withFetch({ data: { accounts: [{ ...row, ...change }], observed_at: observed } }, async () => { await assert.rejects(consoleV2.trading.accounts()); });
+});
+
+test("账户目录 prediction_run 只接受 1～3 的整数，缺失或非法时不输出", async () => {
+  const row = { execution_account_id: "wallet-2", market_source: "POLYMARKET", strategy_id: "s", mode: "ACTIVE", prediction_model_id: "v4.1 flash", source_mode: "SANDBOX" };
+  for (const [run, expected] of [[2, 2], [3, 3], [undefined, undefined], [null, undefined], [0, undefined], [4, undefined], ["2", undefined], [1.5, undefined]] as const) {
+    await withFetch({ data: { accounts: [{ ...row, prediction_run: run }], observed_at: observed } }, async () => {
+      const account = (await consoleV2.trading.accounts()).data.accounts[0];
+      assert.equal(account.predictionRun, expected);
+      assert.equal("predictionRun" in account, expected !== undefined);
+    });
+  }
 });
 
 test("新资产成员BFF限定固定路径与只读token，不开放任意子资源", async () => {

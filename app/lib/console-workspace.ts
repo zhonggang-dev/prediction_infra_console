@@ -1,4 +1,5 @@
 import { predictionBatchParentContext, predictionBatchQueryKeys } from "./prediction-batch-scope.ts";
+import { predictionRunFilter } from "./prediction-run.ts";
 
 /**
  * Build the URL for a workspace tab without carrying a draft filter from the
@@ -85,6 +86,7 @@ export function canonicalConsoleQuery(pathname: string, input: URLSearchParams) 
     for (const key of ["selection_run_id", "selected_market_id", "status", "from", "to", "max_result_id"]) remove(key);
     if (query.has("scope") && !["history", "current"].includes(query.get("scope") ?? "")) remove("scope");
     if (query.has("source") && !["POLYMARKET", "KALSHI"].includes(query.get("source") ?? "")) remove("source");
+    if (query.has("run") && !predictionRunFilter(query.get("run"))) remove("run");
     if (query.has("source")) query.delete("sources");
     else if (query.has("sources")) {
       const sources = [...new Set((query.get("sources") || "").split(",").filter((source) => ["POLYMARKET", "KALSHI"].includes(source)))];
