@@ -109,7 +109,25 @@
   .trading-account-context > .trading-account-settings { flex-basis: 100%; padding-left: 0; }
 }
 
-.trading-account-context option.trading-account-paused{color:var(--muted,#7b8983)}
+/* 账户下拉按策略分组：主力账户（main / kalshi:main / wallet-7）用主题绿加粗，对照组正常色，暂停置灰。
+   macOS 原生下拉菜单不认 option 颜色，所以在支持的浏览器里改用可定制下拉（base-select）；不支持时仍有「对照组」文字区分。 */
+.trading-account-context option.trading-account-primary, .trading-account-settings strong.trading-account-primary { color: var(--mint); font-weight: 700; }
+.trading-account-context option.trading-account-paused { color: var(--muted, #7b8983); }
+@supports (appearance: base-select) {
+  .trading-account-context select.select, .trading-account-context select.select::picker(select) { appearance: base-select; }
+  .trading-account-context select.select { display: flex; align-items: center; }
+  .trading-account-context select.select::picker-icon { color: var(--muted); }
+  .trading-account-context select.select::picker(select) { margin-top: 4px; padding: 4px 0; border: 1px solid var(--line); border-radius: 6px; background: var(--surface); box-shadow: 0 8px 24px rgba(16, 39, 32, .12); }
+  .trading-account-context select.select optgroup { padding: 4px 0 2px; color: var(--muted); font-size: 11px; font-weight: 600; text-indent: 12px; }
+  .trading-account-context select.select optgroup + optgroup { margin-top: 4px; border-top: 1px solid var(--line); padding-top: 6px; }
+  .trading-account-context select.select option { padding: 5px 12px 5px 24px; color: var(--ink); font-size: 12px; font-weight: 400; text-indent: 0; }
+  .trading-account-context select.select > option { padding-left: 12px; }
+  .trading-account-context select.select option.trading-account-primary { color: var(--mint); font-weight: 700; }
+  .trading-account-context select.select option.trading-account-paused { color: var(--muted, #7b8983); }
+  .trading-account-context select.select option:checked { background: var(--mint-soft); }
+  .trading-account-context select.select option:hover, .trading-account-context select.select option:focus-visible { background: #f1f4ef; }
+  .trading-account-context select.select option::checkmark { display: none; }
+}
 
 /* Three ledger sections share one visual hierarchy; venue periods stay independent. */
 .trading-ledger-layout { display: grid; grid-template-columns: minmax(0, 1fr); gap: 28px; min-width: 0; margin-top: 20px; }

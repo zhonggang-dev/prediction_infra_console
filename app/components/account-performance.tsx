@@ -76,7 +76,7 @@ export function AccountCoreMetricsPanel({ active, account, accountOrder = [], ac
   const rows = current?.data ? [
     ...current.data.items.map(item => ({ kind: "available" as const, executionAccountId: item.executionAccountId, item })),
     ...current.data.unavailableAccounts.map(item => ({ kind: "unavailable" as const, executionAccountId: item.executionAccountId, item })),
-  ].toSorted((a, b) => {
+  ].filter(row => account || !accountOrder.length || accountOrder.includes(row.executionAccountId)).toSorted((a, b) => {
     const ai = accountOrder.indexOf(a.executionAccountId), bi = accountOrder.indexOf(b.executionAccountId);
     return (ai < 0 ? Number.MAX_SAFE_INTEGER : ai) - (bi < 0 ? Number.MAX_SAFE_INTEGER : bi) || a.executionAccountId.localeCompare(b.executionAccountId);
   }) : undefined;
