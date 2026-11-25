@@ -1,11 +1,11 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import type { ReactNode, RefObject } from "react";
+import type { RefObject } from "react";
 import { useSearchParams } from "next/navigation";
 import type { ConsoleV2Page } from "../lib/console-v2";
 import {
-  BATCH_DOWNLOAD_ACTION, batchDownloadFields, DISPLAY_STATUS_LABELS, DISPLAY_STATUS_TONES, DISPLAY_STATUSES, questionNeedsPolling, singleDownloadHref,
+  batchDownloadFields, DISPLAY_STATUS_LABELS, DISPLAY_STATUS_TONES, DISPLAY_STATUSES, questionNeedsPolling, singleDownloadHref,
   uploadContentType, uploadHasActiveBuilds, userQuestionApi, USER_QUESTION_MAX_QUESTIONS, USER_QUESTION_UPLOAD_LIMIT_BYTES,
   type UserQuestion, type UserQuestionBuildStatus, type UserQuestionDisplayStatus, type UserQuestionHistoryItem, type UserQuestionLatestSandboxIds,
   type UserQuestionUpload, type UserQuestionUploadCreated,
@@ -13,6 +13,7 @@ import {
 import { ConsoleShell } from "./console-shell";
 import { formatV2Bytes, formatV2Time, v2ErrorText } from "./console-v2-resource";
 import { Icon } from "./icons";
+import { DetailSection, Fact, normalizeLimit, pageFromOffset, Pager, submitBatchDownload, useDetailDrawer } from "./question-workspace-parts";
 
 /** 有等待构建 / 构建中的题时，每 30 秒刷新一次；全部到终态后停止。 */
 const POLL_INTERVAL_MS = 30_000;
@@ -139,39 +140,13 @@ export function UserQuestionsPage() {
     return () => window.clearInterval(timer);
   }, [polling]);
 
-  // 详情抽屉：焦点、Escape、Tab 循环
-  useEffect(() => {
-    if (!detail) return;
-    const timer = window.setTimeout(() => drawerCloseRef.current?.focus({ preventScroll: true }), 0);
-    const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        setDetail(undefined);
-        const trigger = detailTriggerRef.current;
-        detailTriggerRef.current = null;
-        window.requestAnimationFrame(() => trigger?.isConnected && trigger.focus({ preventScroll: true }));
-        return;
-      }
-      if (event.key !== "Tab") return;
-      const drawer = drawerCloseRef.current?.closest<HTMLElement>(".question-drawer");
-      if (!drawer) return;
-      const focusable = Array.from(drawer.querySelectorAll<HTMLElement>("button:not([disabled]), a[href], input, select, textarea, [tabindex]:not([tabindex=\"-1\"])"));
-      if (!focusable.length) return;
-      const first = focusable[0];
-      const last = focusable[focusable.length - 1];
-      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
-      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
-    };
-    window.addEventListener("keydown", onKeyDown);
-    return () => { window.clearTimeout(timer); window.removeEventListener("keydown", onKeyDown); };
-  }, [detail]);
-
   const closeDetail = () => {
     setDetail(undefined);
     const trigger = detailTriggerRef.current;
     detailTriggerRef.current = null;
     window.requestAnimationFrame(() => trigger?.isConnected && trigger.focus({ preventScroll: true }));
   };
+  useDetailDrawer(detail, drawerCloseRef, closeDetail);
 
   const selectUpload = (next: number) => {
     if (next === uploadId) return;
@@ -229,7 +204,7 @@ export function UserQuestionsPage() {
   };
   const download = (ids: string[]) => {
     try {
-      submitBatchDownload(ids);
+      submitBatchDownload(batchDownloadFields(ids));
       setDownloadError(undefined);
     } catch (error) {
       setDownloadError(error instanceof Error ? error.message : "无法发起下载");
@@ -429,66 +404,14 @@ function QuestionDetail({ item, upload, tick, onClose, closeRef }: { item: UserQ
   </div>;
 }
 
-function Pager<T>({ label, result, limit, onLimit, onPage }: { label: string; result: ConsoleV2Page<T>; limit?: number; onLimit?: (limit: number) => void; onPage: (page: number) => void }) {
-  const pageSize = result.limit;
-  const current = Math.floor(result.offset / pageSize);
-  const totalPages = Math.ceil(result.total / pageSize);
-  return <div className="question-pagination">
-    <span>第 {result.total ? result.offset + 1 : 0}–{Math.min(result.offset + result.items.length, result.total)} 条，共 {result.total} 条 · 第 {result.total ? current + 1 : 0} / {totalPages} 页</span>
-    <div className="question-pagination-controls">
-      {onLimit && <label className="v2-page-size"><span>每页</span><select className="select" aria-label={`${label}每页条数`} value={limit} onChange={(event) => onLimit(normalizeLimit(event.target.value))}><option value={20}>20</option><option value={50}>50</option><option value={100}>100</option></select></label>}
-      <button type="button" className="button" disabled={result.offset === 0} onClick={() => onPage(Math.max(0, current - 1))}>上一页</button>
-      <button type="button" className="button" disabled={result.offset + pageSize >= result.total} onClick={() => onPage(current + 1)}>下一页</button>
-    </div>
-  </div>;
-}
-
 function StatusBadge({ status }: { status: UserQuestionDisplayStatus | UserQuestionBuildStatus }) {
   return <span className={`status ${DISPLAY_STATUS_TONES[status]}`}>{DISPLAY_STATUS_LABELS[status]}</span>;
-}
-
-function DetailSection({ title, children }: { title: string; children: ReactNode }) {
-  return <section className="question-detail-section"><h4>{title}</h4>{children}</section>;
-}
-
-function Fact({ label, value }: { label: string; value: string }) {
-  return <div><span>{label}</span><strong>{value}</strong></div>;
-}
-
-/** 用隐藏表单 POST 到下载 BFF：浏览器原生下载、流式，不把归档读进页面内存。 */
-function submitBatchDownload(ids: string[]) {
-  const fields = batchDownloadFields(ids);
-  const form = document.createElement("form");
-  form.method = "POST";
-  form.action = BATCH_DOWNLOAD_ACTION;
-  form.target = "_blank";
-  form.rel = "noopener";
-  form.hidden = true;
-  for (const [name, value] of Object.entries(fields)) {
-    const input = document.createElement("input");
-    input.type = "hidden";
-    input.name = name;
-    input.value = value;
-    form.append(input);
-  }
-  document.body.append(form);
-  try { form.submit(); } finally { form.remove(); }
-}
-
-function normalizeLimit(value: string | number | null | undefined) {
-  const numeric = Number(value);
-  return numeric === 50 || numeric === 100 ? numeric : 20;
 }
 
 function positiveId(value: string | null): number | undefined {
   if (!value || !/^[1-9][0-9]{0,15}$/.test(value)) return undefined;
   const numeric = Number(value);
   return Number.isSafeInteger(numeric) ? numeric : undefined;
-}
-
-function pageFromOffset(value: string | null, limit: number) {
-  const numeric = Number(value);
-  return Number.isSafeInteger(numeric) && numeric > 0 ? Math.floor(numeric / limit) : 0;
 }
 
 function stateFromUrl(params: URLSearchParams): PageState {

@@ -1033,6 +1033,18 @@ tbody tr:hover { background: #f7faf6; }
   .uq-filters .select, .uq-filter-q { flex: 1 1 100%; width: 100%; }
 }
 
+/* 金融题（/financial-questions）：沿用自定义问题的面板与表格，只补列宽与结果样式 */
+.fq-questions-table { min-width: 1080px; table-layout: fixed; }
+.fq-questions-table th:nth-child(1) { width: 44px; }.fq-questions-table th:nth-child(2) { width: 150px; }.fq-questions-table th:nth-child(4) { width: 130px; }.fq-questions-table th:nth-child(5) { width: 100px; }.fq-questions-table th:nth-child(6) { width: 90px; }.fq-questions-table th:nth-child(7) { width: 100px; }.fq-questions-table th:nth-child(8) { width: 190px; }
+.fq-questions-table td { overflow: hidden; overflow-wrap: anywhere; }
+.fq-build-failed { color: var(--red); }
+.fq-result { display: inline-flex; align-items: center; gap: 6px; }.fq-result strong.yes { color: var(--mint); }.fq-result strong.no { color: var(--red); }
+.fq-result em { padding: 1px 5px; border-radius: 4px; background: var(--amber-soft); color: var(--amber); font-size: 10px; font-style: normal; }
+.fq-rule { margin: 0; font-size: 11px; }
+.fq-resolutions-table { min-width: 520px; }
+.fq-runs > summary { padding: 12px 15px; cursor: pointer; color: var(--ink-soft); font-size: 12px; font-weight: 700; }.fq-runs[open] > summary { border-bottom: 1px solid var(--line); }
+.fq-runs-table { min-width: 900px; }
+
 /* Domain rounds: today's round summary, quota detail and member identity. */
 .round-summary { margin: 0 0 14px; display: grid; gap: 12px; }.round-source .section-head { margin: 0; padding-bottom: 10px; }.round-source .section-caption { margin: 4px 0 0; color: var(--muted); font-size: 10px; }
 .round-table { min-width: 780px; }.round-table tbody tr.is-selected { background: var(--mint-soft); box-shadow: inset 3px 0 0 var(--mint); }.round-table tr.round-total td { border-top: 1px solid var(--line); background: #fbfcfa; font-weight: 650; }

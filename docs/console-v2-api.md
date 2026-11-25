@@ -68,3 +68,13 @@ Legacy-console, Trading writes and the lower activity list's date filters are un
 - 只读：`/api/console/v2/infra/user-question-uploads`、`user-questions`，以及两条带正整数 ID 的子路径 `user-questions/{id}/sandboxes`、`user-question-uploads/{id}/latest-sandbox-ids`（ID 非法 400）。仍用 `CONSOLE_API_TOKEN`，写方法 405。
 - 下载：单个用原生链接 `sandboxes/{id}/archive?variant=original&asset_kind=USER_QUESTION`；「下载所选 / 下载整个文件」用隐藏表单 POST `sandboxes/archives:batch`（`asset_kind=USER_QUESTION`、`variant=original`）。`USER_QUESTION` 与 `GENERATED_QA` 一样只许 original。整个文件的 ID 清单在选中文件时预先取好，点击时同步提交表单，避免异步请求后新标签页被浏览器拦截。
 - 有等待构建 / 构建中的题时每 30 秒刷新，全部到终态后停止。
+
+## 金融题（2026-11-25）
+
+`/financial-questions` 页面：按标的、频率、状态筛选系统自动生成的价格预测题，详情显示门槛、参考价、判定历史与各轮 Sandbox，下载单个或批量原始版 Sandbox；轮次摘要默认收起，展开才读取。纯读，没有写接口和新令牌。
+
+- 只读（`CONSOLE_API_TOKEN`）：`/api/console/v2/infra/financial-questions`（`asset_key`、`frequency`、`status`、`q`、`limit`、`offset`）、`financial-questions/{id}`、`financial-questions/{id}/sandboxes`、`financial-question-runs`。ID 必须是正整数，非法 400。
+- 门槛、参考价、系数、结果价都是十进制字符串，`app/lib/financial-questions.ts` 严格解码（number 类型直接报错），页面原样展示。
+- 判定状态 `PROVISIONAL` 显示「临时」；判定历史按时间倒序，第一条为当前结果。
+- 下载：`asset_kind=FINANCIAL_QUESTION`，只许 original；批量不超过 1000 个。
+- Sandbox 页来源新增 `FINANCIAL_QUESTION`（`market_source` 与 `asset_kind` 同值），「全部来源」的 `sources` 变为 5 个。infra 的 `/assets` 必须先支持该值（`sources` 上限 6），否则列表会返回 400，因此上线顺序是先 infra、后 Console。

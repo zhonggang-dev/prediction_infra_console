@@ -234,6 +234,10 @@ test("资料工作区把真实版本/变体/用途和轮换嵌入同一业务壳
 
   const sandboxes = await (await render("/sandboxes")).text();
   assert.match(sandboxes, /<h1>Sandbox<\/h1>/);
+  for (const [value, label] of [["POLYMARKET", "Polymarket"], ["KALSHI", "Kalshi"], ["GENERATED_QA", "Generated QA"], ["USER_QUESTION", "自定义问题"], ["FINANCIAL_QUESTION", "金融题"]]) assert.match(sandboxes, new RegExp(`<option value="${value}"[^>]*>${label}</option>`));
+  assert.match(sandboxes, /sources[^<]*POLYMARKET,KALSHI,GENERATED_QA,USER_QUESTION,FINANCIAL_QUESTION/, "全部来源包含金融题");
+  const financialOnly = await (await render("/sandboxes?source=FINANCIAL_QUESTION")).text();
+  assert.match(financialOnly, /<option value="FINANCIAL_QUESTION" selected="">金融题<\/option>/);
   assert.doesNotMatch(sandboxes, /高级归档工具|全部资料类型|模式 \/ 交易|历史回测导出|打开 PM Backtest/);
   assert.equal((sandboxes.match(/class="brand"/g) ?? []).length, 1, "资料归档只能有一个 ConsoleShell");
   assert.doesNotMatch(datasets, /高级归档工具/);
@@ -448,6 +452,35 @@ test("自定义问题页：上传入口、单个 ConsoleShell、侧栏入口紧�
   assert.doesNotMatch(sidebar, /href="\/questions"[^>]*aria-current="page"/, "题目库不因前缀相似而高亮");
   const order = ["/questions", "/user-questions", "/dataset-rotation"].map((href) => sidebar.indexOf(`href="${href}"`));
   assert.ok(order[0] < order[1] && order[1] < order[2], "自定义问题位于题目库与数据集轮转之间");
+});
+
+test("金融题页：筛选项、单个 ConsoleShell、纯读、侧栏入口紧跟自定义问题", async () => {
+  const response = await render("/financial-questions?asset_key=US_NVDA&frequency=W&status=PENDING_RESULT&q=NVDA&limit=50");
+  assert.equal(response.status, 200);
+  const html = await response.text();
+  assert.match(html, /<h1>金融题<\/h1>/);
+  assert.match(html, /<option value="US_NVDA" selected="">英伟达（NVDA）<\/option>/);
+  assert.match(html, /<option value="W" selected="">周题<\/option>/);
+  assert.match(html, /<option value="PENDING_RESULT" selected="">待结果<\/option>/);
+  assert.match(html, /aria-label="搜索题面"[^>]*value="NVDA"/);
+  assert.match(html, /<summary>轮次摘要<\/summary>/);
+  assert.doesNotMatch(html, /type="file"|上传文件/);
+  assert.equal((html.match(/class="brand"/g) ?? []).length, 1, "/financial-questions should have one ConsoleShell");
+  const sidebar = html.match(/<aside id="console-sidebar"[\s\S]*?<\/aside>/)?.[0] ?? "";
+  assert.equal((sidebar.match(/<a[^>]*href="\/financial-questions"/g) ?? []).length, 1);
+  assert.match(sidebar, /href="\/financial-questions"[^>]*aria-current="page"/);
+  assert.equal((sidebar.match(/aria-current="page"/g) ?? []).length, 1);
+  const order = ["/questions", "/user-questions", "/financial-questions", "/dataset-rotation"].map((href) => sidebar.indexOf(`href="${href}"`));
+  assert.ok(order.every((position, index) => position > 0 && (index === 0 || order[index - 1] < position)), "金融题位于自定义问题与数据集轮转之间");
+});
+
+test("金融题页：地址里的非法筛选值按未筛选处理", async () => {
+  const html = await (await render("/financial-questions?asset_key=..%2Fx&frequency=Y&status=DONE")).text();
+  assert.doesNotMatch(html.slice(html.indexOf("<main")), /\.\.\/x|清除筛选/);
+  assert.match(html, /<option value="" selected="">全部标的<\/option>/);
+  // 与中台 asset_key 校验一致：必须大写字母开头，否则按未筛选处理（不把必然 400 的请求发出去）
+  const digitFirst = await (await render("/financial-questions?asset_key=1ABC")).text();
+  assert.doesNotMatch(digitFirst.slice(digitFirst.indexOf("<main")), /1ABC|清除筛选/);
 });
 
 test("用户问题上传 BFF 拒绝跨站写请求与读请求", async () => {

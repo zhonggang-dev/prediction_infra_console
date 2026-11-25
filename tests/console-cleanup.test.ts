@@ -50,6 +50,7 @@ test("规范旧筛选只改变所属页面并按范围重置offset，维护身�
   assert.equal(canonicalConsoleQuery("/predictions", new URLSearchParams("run=2&offset=20")).toString(), "run=2&offset=20");
   for (const run of ["0", "4", "abc", "1.5", ""]) assert.equal(canonicalConsoleQuery("/predictions", new URLSearchParams(`run=${run}&offset=20`)).toString(), "");
   assert.equal(canonicalConsoleQuery("/sandboxes", new URLSearchParams("source=GENERATED_QA&offset=40")).toString(), "source=GENERATED_QA&offset=40");
+  assert.equal(canonicalConsoleQuery("/sandboxes", new URLSearchParams("source=FINANCIAL_QUESTION&offset=40")).toString(), "source=FINANCIAL_QUESTION&offset=40");
   assert.equal(canonicalConsoleQuery("/markets/running", new URLSearchParams("market_scope=pool&offset=20")).toString(), "market_scope=current");
   assert.equal(canonicalConsoleQuery("/markets/running", new URLSearchParams("generation_id=468&source=KALSHI&offset=40")).get("offset"), "40");
 });

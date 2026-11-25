@@ -28,13 +28,19 @@ const INFRA_RESOURCES = new Set([
   "service-metrics",
   "user-question-uploads",
   "user-questions",
+  "financial-questions",
+  "financial-question-runs",
 ]);
 
-/** 用户问题的两条只读子路径：资源名 → 子资源名，中间段是正整数 ID。 */
+/** 用户问题与金融题的只读子路径：资源名 → 子资源名，中间段是正整数 ID。 */
 const INFRA_ID_SUBRESOURCES: Record<string, string> = {
   "user-questions": "sandboxes",
   "user-question-uploads": "latest-sandbox-ids",
+  "financial-questions": "sandboxes",
 };
+
+/** 有单条详情接口的资源：`资源名/{正整数 ID}`。 */
+const INFRA_ID_DETAILS = new Set(["financial-questions"]);
 
 const TRADING_RESOURCES = new Set([
   "accounts",
@@ -58,7 +64,7 @@ const TRADING_RESOURCES = new Set([
 // Opaque cycle IDs may contain a colon (for example main:20260818T042000Z),
 // while slash, control characters and traversal segments remain impossible.
 const SAFE_ID = /^[A-Za-z0-9_:-]{1,160}$/;
-// 用户问题 / 上传批次 ID 是正整数，在 SAFE_ID 之上再收紧。
+// 用户问题 / 上传批次 / 金融题 ID 是正整数，在 SAFE_ID 之上再收紧。
 const POSITIVE_ID = /^[1-9][0-9]{0,15}$/;
 
 export async function GET(request: Request, { params }: RouteParams) {
@@ -83,7 +89,8 @@ export async function DELETE() {
 }
 
 async function forward(request: Request, path: string[]): Promise<Response> {
-  if (path[0] === "infra" && path.length === 4 && INFRA_ID_SUBRESOURCES[path[1]] === path[3] && !(SAFE_ID.test(path[2]) && POSITIVE_ID.test(path[2]))) {
+  const infraIdPath = path[0] === "infra" && (path.length === 4 && INFRA_ID_SUBRESOURCES[path[1]] === path[3] || path.length === 3 && INFRA_ID_DETAILS.has(path[1]));
+  if (infraIdPath && !(SAFE_ID.test(path[2]) && POSITIVE_ID.test(path[2]))) {
     return json({ code: "INVALID_CONSOLE_V2_ID", message: "ID 必须是正整数。" }, 400);
   }
   const target = resolveTarget(path);
@@ -130,6 +137,9 @@ function resolveTarget(path: string[]): ProxyTarget | undefined {
   if (service === "infra") {
     if (segments.length === 3 && INFRA_ID_SUBRESOURCES[resource] === segments[2] && SAFE_ID.test(segments[1]) && POSITIVE_ID.test(segments[1])) {
       return { baseUrl: process.env.PREDICTION_INFRA_BASE_URL, token: process.env.CONSOLE_API_TOKEN, endpoint: `/api/v1/console/v2/${resource}/${encodeURIComponent(segments[1])}/${segments[2]}`, serviceName: "Prediction Infra" };
+    }
+    if (segments.length === 2 && INFRA_ID_DETAILS.has(resource) && SAFE_ID.test(segments[1]) && POSITIVE_ID.test(segments[1])) {
+      return { baseUrl: process.env.PREDICTION_INFRA_BASE_URL, token: process.env.CONSOLE_API_TOKEN, endpoint: `/api/v1/console/v2/${resource}/${encodeURIComponent(segments[1])}`, serviceName: "Prediction Infra" };
     }
     if (segments.length !== 1 || !INFRA_RESOURCES.has(resource)) return undefined;
     return { baseUrl: process.env.PREDICTION_INFRA_BASE_URL, token: process.env.CONSOLE_API_TOKEN, endpoint: `/api/v1/console/v2/${resource}`, serviceName: "Prediction Infra" };
