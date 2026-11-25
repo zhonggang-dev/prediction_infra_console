@@ -138,6 +138,12 @@ test("解码：题目枚举与必需字段严格，数值只接受十进制字�
     { resolution: { label: "YES", state: "FINAL", value: 1, resolved_at: "2026-12-04T22:00:00Z" } },
   ]) assert.throws(() => decodeFinancialQuestion({ ...questionItem, ...bad }), /金融题接口缺少有效/, JSON.stringify(bad));
   for (const key of ["question_id", "asset_key", "asset_name", "period_key", "type_code", "unit", "created_at"]) assert.throws(() => decodeFinancialQuestion(without(questionItem, key)), new RegExp(key));
+  // 中台只把空串置 null；构建服务回报的 error_message 可以是纯空白，不能因此让整页列表解码失败
+  const blank = decodeFinancialQuestion({ ...questionItem, status_reason: "  ", current_build: { ...build, error_message: " \n" } });
+  assert.equal(blank.statusReason, undefined);
+  assert.equal(blank.currentBuild?.errorMessage, undefined);
+  assert.equal(blank.currentBuild?.errorCode, "COLLECT_FAILED");
+  assert.throws(() => decodeFinancialQuestion({ ...questionItem, current_build: { ...build, error_message: 5 } }), /current_build\.error_message/);
 });
 
 test("解码：详情含参考快照、判定规则与判定历史，题目必须与请求一致", () => {
@@ -176,6 +182,9 @@ test("解码：轮次摘要的数字可空，缺失不当 0", () => {
   assert.equal(empty.frozenAt, undefined);
   assert.equal(empty.summary.expectedAssets, null);
   assert.equal(empty.summary.failedBuilds, null);
+  assert.equal(empty.summary.reason, undefined);
+  assert.equal(decodeFinancialRun({ ...runItem, status: "MISSED", summary: { ...runItem.summary, reason: "ROUND_MISSED" } }).summary.reason, "ROUND_MISSED");
+  assert.equal(decodeFinancialRun({ ...runItem, summary: { ...runItem.summary, reason: null } }).summary.reason, undefined);
   for (const bad of [{ summary: null }, { summary: { ...runItem.summary, failed_builds: "8" } }, { summary: { ...runItem.summary, failed_builds: -1 } }, { batch: "HK" }, { business_date: "20261201" }, { status: "" }]) assert.throws(() => decodeFinancialRun({ ...runItem, ...bad }), /金融题接口缺少有效/, JSON.stringify(bad));
   assert.equal(elapsedText(null), "—");
   assert.equal(elapsedText(0), "0 秒");

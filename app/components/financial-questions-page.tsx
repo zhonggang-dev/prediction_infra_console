@@ -312,7 +312,7 @@ function RunsPanel({ tick }: { tick: number }) {
         <thead><tr><th>轮次</th><th>状态</th><th title="按交易日历本轮应参与的标的数">标的</th><th>新建题</th><th>复用题</th><th title="入选构建的题数">入选</th><th>成功</th><th>失败</th><th title="因休市跳过的标的数">休市</th><th title="本轮到期、不再构建的题数">到期</th><th title="到期后等待结果的题数">待结果</th><th>耗时</th></tr></thead>
         <tbody>{runs.items.map((run) => <tr key={run.runId}>
           <td className="uq-primary" title={`计划时刻 ${formatV2Time(run.plannedAt)}${run.frozenAt ? `，冻结于 ${formatV2Time(run.frozenAt)}` : ""}`}>{run.businessDate} {BATCH_LABELS[run.batch]}</td>
-          <td title={run.status}>{runStatusLabel(run.status)}</td>
+          <td title={run.summary.reason ? `${run.status}：${run.summary.reason}` : run.status}>{runStatusLabel(run.status)}</td>
           {[run.summary.expectedAssets, run.summary.createdQuestions, run.summary.reusedQuestions, run.summary.selectedBuilds, run.summary.succeededBuilds, run.summary.failedBuilds, run.summary.closedSkipped, run.summary.expiredQuestions, run.summary.pendingResults].map((value, index) => <td key={index} className="mono">{value ?? "—"}</td>)}
           <td className="mono">{elapsedText(run.summary.elapsedSeconds)}</td>
         </tr>)}</tbody>
@@ -340,7 +340,8 @@ function stateFromUrl(params: URLSearchParams): PageState {
   const status = params.get("status") ?? "";
   return {
     filters: {
-      assetKey: /^[A-Z0-9_]{1,64}$/.test(assetKey) ? assetKey : "",
+      // 与中台 asset_key 校验一致：大写字母开头，其余为大写字母、数字、下划线，最长 64
+      assetKey: /^[A-Z][A-Z0-9_]{0,63}$/.test(assetKey) ? assetKey : "",
       frequency: (FREQUENCIES as readonly string[]).includes(frequency) ? frequency as FinancialFrequency : "",
       status: (QUESTION_STATUSES as readonly string[]).includes(status) ? status as FinancialQuestionStatus : "",
       q: params.get("q") ?? "",

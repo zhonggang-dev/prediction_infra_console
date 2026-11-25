@@ -92,6 +92,8 @@ export interface FinancialRunSummary {
   expiredQuestions: number | null;
   pendingResults: number | null;
   elapsedSeconds: number | null;
+  /** 轮次未完成或错过的原因（如 ROUND_MISSED），放悬浮提示。 */
+  reason?: string;
 }
 
 export interface FinancialRun {
@@ -222,6 +224,7 @@ export function decodeFinancialRun(value: RawRecord): FinancialRun {
       expiredQuestions: count("expired_questions"),
       pendingResults: count("pending_results"),
       elapsedSeconds: optionalNonNegativeNumber(summary.elapsed_seconds, "summary.elapsed_seconds"),
+      reason: optionalText(summary.reason, "summary.reason"),
     },
   };
 }
@@ -373,7 +376,8 @@ function nonNegativeInteger(value: unknown, field: string): number { if (typeof 
 function optionalNonNegativeInteger(value: unknown, field: string): number | null { return value === null || value === undefined ? null : nonNegativeInteger(value, field); }
 function optionalNonNegativeNumber(value: unknown, field: string): number | null { if (value === null || value === undefined) return null; if (typeof value !== "number" || !Number.isFinite(value) || value < 0) fail(field); return value; }
 function requiredText(value: unknown, field: string): string { if (typeof value !== "string" || !value.trim()) fail(field); return value; }
-function optionalText(value: unknown, field: string): string | undefined { if (value === null || value === undefined || value === "") return undefined; return requiredText(value, field); }
+/** 可选文本：null、缺失、空串或纯空白都当作没有（中台只把空串置 null，构建服务回报的错误信息可能是纯空白）；非字符串仍报错。 */
+function optionalText(value: unknown, field: string): string | undefined { if (value === null || value === undefined || (typeof value === "string" && !value.trim())) return undefined; return requiredText(value, field); }
 function decimal(value: unknown, field: string): string { if (typeof value !== "string" || !DECIMAL.test(value)) fail(field); return value; }
 function requiredTime(value: unknown, field: string): string { if (typeof value !== "string" || !RFC3339.test(value) || !Number.isFinite(Date.parse(value))) fail(field); return value; }
 function calendarDate(value: unknown, field: string): string { if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value) || !Number.isFinite(Date.parse(`${value}T00:00:00Z`))) fail(field); return value; }

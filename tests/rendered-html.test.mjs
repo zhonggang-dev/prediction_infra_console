@@ -478,6 +478,9 @@ test("金融题页：地址里的非法筛选值按未筛选处理", async () =>
   const html = await (await render("/financial-questions?asset_key=..%2Fx&frequency=Y&status=DONE")).text();
   assert.doesNotMatch(html.slice(html.indexOf("<main")), /\.\.\/x|清除筛选/);
   assert.match(html, /<option value="" selected="">全部标的<\/option>/);
+  // 与中台 asset_key 校验一致：必须大写字母开头，否则按未筛选处理（不把必然 400 的请求发出去）
+  const digitFirst = await (await render("/financial-questions?asset_key=1ABC")).text();
+  assert.doesNotMatch(digitFirst.slice(digitFirst.indexOf("<main")), /1ABC|清除筛选/);
 });
 
 test("用户问题上传 BFF 拒绝跨站写请求与读请求", async () => {
