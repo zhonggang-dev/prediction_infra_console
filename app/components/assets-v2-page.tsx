@@ -115,8 +115,8 @@ function DatasetDownloadPanel({ version, variant, current, train, canDownloadTes
   return <section className="section panel panel-pad v2-version-downloads"><div className="section-head"><div><h2 className="section-title">数据集下载</h2><p className="section-caption">{version} / {variantLabels[variant]} 的数据集文件。固定 test 绑定真实版本；累计 train 按资料类型跨已发布批次合并去重。</p></div>{v2Status(canDownloadTest ? "available" : "unknown", testDownloadLabel)}</div><div className="v2-download-actions"><strong>{version} · {variantLabels[variant]}</strong>{canDownloadTest ? <a className="button" href={`/api/console/downloads/testsets/${encodedVersion}?variant=${encodedVariant}`} target="_blank" rel="noreferrer">下载固定 test（{formatV2Number(current?.testCount, 0)}）</a> : <span className="v2-inline-note">该类型版本当前不可生成固定 test 下载。</span>}{trainState === "available" ? <a className="button" href={`/api/console/downloads/trainsets?variant=${encodedVariant}`} target="_blank" rel="noreferrer">下载累计 train（{formatV2Number(train?.count, 0)}）</a> : trainState === "empty" ? <span className="v2-inline-note">无累计训练数据，当前不生成 train 下载。</span> : <span className="v2-inline-note">累计训练数量未知，当前不生成 train 下载。</span>}<small>{testDownloadLabel === "下载时校验" ? "历史清单尚未核对，下载时由服务端执行严格文件预检。" : "累计 train 按资料类型跨已发布批次合并去重。"}</small></div></section>;
 }
 
-const sandboxSources = ["POLYMARKET", "KALSHI", "GENERATED_QA", "USER_QUESTION"] as const;
-const sourceLabels: Record<string, string> = { POLYMARKET: "Polymarket", KALSHI: "Kalshi", GENERATED_QA: "Generated QA", USER_QUESTION: "自定义问题" };
+const sandboxSources = ["POLYMARKET", "KALSHI", "GENERATED_QA", "USER_QUESTION", "FINANCIAL_QUESTION"] as const;
+const sourceLabels: Record<string, string> = { POLYMARKET: "Polymarket", KALSHI: "Kalshi", GENERATED_QA: "Generated QA", USER_QUESTION: "自定义问题", FINANCIAL_QUESTION: "金融题" };
 
 function AssetCatalog() {
   const [source, setSource] = useV2Filter("source");
@@ -147,7 +147,7 @@ function AssetDetail({ item }: { item: ConsoleV2Asset }) {
     { label: "来源", value: sourceLabels[item.marketSource ?? ""] ?? v2Unknown(item.marketSource) },
     { label: "Sandbox ID", value: v2Unknown(item.sandboxId), mono: true },
     { label: "任务 ID", value: v2Unknown(item.jobId), mono: true },
-    ...(item.generatedQaId ? [{ label: "QA ID", value: String(item.generatedQaId), mono: true }] : [{ label: "市场 ID", value: v2Unknown(item.marketId), mono: true }]),
+    ...(item.assetKind === "FINANCIAL_QUESTION" ? [] : item.generatedQaId ? [{ label: "QA ID", value: String(item.generatedQaId), mono: true }] : [{ label: "市场 ID", value: v2Unknown(item.marketId), mono: true }]),
     { label: "信息时点", value: formatV2Time(item.informationCutoffAt) },
     { label: "构建时间", value: formatV2Time(item.builtAt) },
   ]} /><AssetDownloadActions key={item.sandboxId ?? "unknown"} item={item} /></>;
@@ -167,7 +167,7 @@ function AssetDownloadActions({ item }: { item: ConsoleV2Asset }) {
     return () => controller.abort();
   }, [item.sandboxId, retry]);
   if (!item.sandboxId) return <p className="v2-inline-note">该记录没有 Sandbox ID，无法下载。</p>;
-  const qa = item.assetKind === "GENERATED_QA" || item.assetKind === "USER_QUESTION";
+  const qa = item.assetKind === "GENERATED_QA" || item.assetKind === "USER_QUESTION" || item.assetKind === "FINANCIAL_QUESTION";
   const visible = (options?.variants ?? []).filter((option) => !qa || option.variant === "original");
   const current = visible.find((option) => option.variant === variant);
   const href = `/api/console/downloads/sandboxes/${encodeURIComponent(item.sandboxId)}/archive?variant=${encodeURIComponent(variant)}&asset_kind=${encodeURIComponent(item.assetKind)}`;
