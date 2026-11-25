@@ -169,7 +169,9 @@ test("解码：轮次摘要的数字可空，缺失不当 0", () => {
   const run = decodeFinancialRun(runItem);
   assert.equal(run.summary.selectedBuilds, 288);
   assert.equal(runStatusLabel(run.status), "已完成");
-  assert.equal(runStatusLabel("PREPARING"), "PREPARING", "没有中文名的原样显示");
+  assert.equal(runStatusLabel("PREPARING"), "准备中");
+  assert.equal(runStatusLabel("MISSED"), "已错过");
+  assert.equal(runStatusLabel("UNKNOWN_STATE"), "UNKNOWN_STATE", "没有中文名的原样显示");
   const empty = decodeFinancialRun({ ...runItem, frozen_at: null, summary: { expected_assets: null } });
   assert.equal(empty.frozenAt, undefined);
   assert.equal(empty.summary.expectedAssets, null);

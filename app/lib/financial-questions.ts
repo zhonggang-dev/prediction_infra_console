@@ -304,7 +304,7 @@ export const QUESTION_STATUS_LABELS: Record<FinancialQuestionStatus, string> = {
 export const QUESTION_STATUS_TONES: Record<FinancialQuestionStatus, string> = { ACTIVE: "active", PAUSED: "pending", PENDING_RESULT: "pending", RESOLVED: "done", VOID: "default" };
 export const BUILD_STATUS_LABELS: Record<FinancialBuildStatus, string> = { PENDING: "等待构建", RUNNING: "构建中", SUCCEEDED: "成功", FAILED: "失败", SKIPPED: "已跳过" };
 export const BUILD_STATUS_TONES: Record<FinancialBuildStatus, string> = { PENDING: "pending", RUNNING: "running", SUCCEEDED: "done", FAILED: "failed", SKIPPED: "default" };
-const RUN_STATUS_LABELS: Record<string, string> = { FROZEN: "构建中", FINISHED: "已完成", ROUND_MISSED: "已错过" };
+const RUN_STATUS_LABELS: Record<string, string> = { PREPARING: "准备中", FROZEN: "构建中", FINISHED: "已完成", MISSED: "已错过" };
 
 /** 轮次状态以中台为准，没有对应中文名的原样显示。 */
 export function runStatusLabel(status: string): string { return Object.hasOwn(RUN_STATUS_LABELS, status) ? RUN_STATUS_LABELS[status] : status; }
