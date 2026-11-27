@@ -1,7 +1,7 @@
 import { formatCoreMoney, formatCorePercent, formatCoreRatio, coreMetricTone } from "../app/lib/core-metric-display.ts";
 import assert from "node:assert/strict";
 import test from "node:test";
-import { accountCoreMetrics, decodeAccountCoreMetrics, accountCohortMetrics, decodeAccountCohortMetrics, cohortOpeningRangeError } from "../app/lib/trading-core-metrics.ts";
+import { accountCoreMetrics, decodeAccountCoreMetrics, accountCohortMetrics, decodeAccountCohortMetrics, cohortMetricRefreshDelay, cohortOpeningRangeError, hasPendingCohortValuation } from "../app/lib/trading-core-metrics.ts";
 import { decodeWalletPnl } from "../app/lib/wallet-pnl-api.ts";
 import { GET, POST } from "../app/api/console/v2/[...path]/route.ts";
 import { GET as walletGet } from "../app/api/console/[...path]/route.ts";
@@ -301,4 +301,33 @@ test("区间结束于过去时以结束时刻为快照，历史小时价与缺�
     const missing = { ...cohortItem, priced_asset_count: 0, market_value: null, unrealized_pnl: null, total_pnl: null, return_rate: null, roi: null, has_reference_prices: false, quote_observed_from: null, quote_observed_to: null, valuation_state: "incomplete", valuation_assets: [{ ...asset, price: null, market_value: null, state: "unpriced", price_source: null, observed_at: null, reason }] };
     assert.equal(decodeAccountCohortMetrics(cohortData({ as_of: to, opening_from: from, opening_to: to, items: [missing] }), { opening_from: from, opening_to: to }).items[0].valuationAssets[0].reason, reason);
   }
+});
+
+
+test("近期历史估值待同步时每15秒刷新，补齐、明确缺价或超过等待窗口即停止快刷", () => {
+  const from = "2026-11-01T00:00:00Z", to = "2026-11-04T11:58:00Z";
+  const now = Date.parse(observed);
+  const missing = {
+    ...cohortItem, priced_asset_count: 0, market_value: null, unrealized_pnl: null, total_pnl: null, return_rate: null, roi: null,
+    has_reference_prices: false, quote_observed_from: null, quote_observed_to: null, valuation_state: "incomplete",
+    valuation_assets: [{ ...asset, price: null, market_value: null, state: "unpriced", price_source: null, observed_at: null, reason: "history_not_synced" }],
+  };
+  const snapshot = (row: unknown) => decodeAccountCohortMetrics(cohortData({
+    as_of: to, opening_from: from, opening_to: to, items: [row],
+  }), { opening_from: from, opening_to: to });
+  const pending = snapshot(missing);
+  assert.equal(hasPendingCohortValuation(pending.items[0]), true);
+  assert.equal(cohortMetricRefreshDelay(pending, now), 15_000);
+  assert.equal(cohortMetricRefreshDelay(pending, Date.parse(to) + 20 * 60_000), undefined);
+  assert.equal(cohortMetricRefreshDelay(decodeAccountCohortMetrics(cohortData({ items: [missing] })), now), undefined);
+  assert.equal(cohortMetricRefreshDelay(snapshot(cohortItem), now), undefined);
+
+  const terminal = { ...missing, valuation_assets: [{ ...missing.valuation_assets[0], reason: "history_missing" }] };
+  assert.equal(hasPendingCohortValuation(snapshot(terminal).items[0]), false);
+  assert.equal(cohortMetricRefreshDelay(snapshot(terminal), now), undefined);
+
+  const drawdownPending = { ...drawdownCoverage, reason: "not_synced" };
+  assert.equal(cohortMetricRefreshDelay(snapshot({ ...missing, drawdown_coverage: drawdownPending }), now), 15_000);
+  assert.equal(cohortMetricRefreshDelay(snapshot({ ...missing, drawdown_coverage: drawdownPending }), now + 20 * 60_000), 60_000);
+  assert.equal(cohortMetricRefreshDelay(snapshot({ ...cohortItem, drawdown_coverage: drawdownPending }), now), 60_000);
 });

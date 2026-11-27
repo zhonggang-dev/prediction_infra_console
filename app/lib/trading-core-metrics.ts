@@ -138,6 +138,22 @@ export interface UnavailableCohortAccount {
 }
 export interface AccountCohortMetricsResponse { observedAt: string; asOf: string; openingFrom: string | null; openingTo: string | null; items: AccountCohortMetrics[]; unavailableAccounts: UnavailableCohortAccount[] }
 export interface AccountCohortQuery { execution_account_id?: string; account_scope?: "active" | "all"; opening_from?: string; opening_to?: string }
+
+export function hasPendingCohortValuation(item: AccountCohortMetrics): boolean {
+  return item.valuationState === "incomplete" && item.valuationAssets.some(asset => asset.reason === "history_not_synced");
+}
+
+export function cohortMetricRefreshDelay(data: AccountCohortMetricsResponse, now: number): number | undefined {
+  const asOf = Date.parse(data.asOf);
+  const observedAt = Date.parse(data.observedAt);
+  const recentSnapshot = data.openingTo !== null && asOf === Date.parse(data.openingTo)
+    && asOf < observedAt && Math.max(observedAt, now) - asOf < 20 * 60_000;
+  if (recentSnapshot && data.items.some(hasPendingCohortValuation)) return 15_000;
+  if (data.items.some(item => item.drawdownCoverage?.lastComplete || item.sharpAnnualCoverage?.lastComplete
+    || item.drawdownCoverage?.reason === "not_synced" || item.sharpAnnualCoverage?.reason === "not_synced")) return 60_000;
+  return undefined;
+}
+
 export function decodeAccountCohortMetrics(data: Record<string, unknown>, requested: AccountCohortQuery = {}): AccountCohortMetricsResponse {
   const core = decodeAccountCoreMetrics(data);
   if (!Array.isArray(data.unavailable_accounts)) throw invalid();
