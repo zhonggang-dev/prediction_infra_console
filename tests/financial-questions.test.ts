@@ -5,7 +5,7 @@ import { GET as DOWNLOAD_GET, POST as DOWNLOAD_POST } from "../app/api/console/d
 import {
   decodeFinancialPage, decodeFinancialQuestion, decodeFinancialQuestionDetail, decodeFinancialRun, decodeFinancialSandboxItem, elapsedText,
   financialAssetOptions, financialBatchDownloadFields, financialQuestionApi, financialQuestionNeedsPolling, financialSingleDownloadHref,
-  FINANCIAL_ASSETS, FINANCIAL_QUESTION_MAX_BATCH_IDS, runStatusLabel, thresholdText,
+  FINANCIAL_ASSETS, FINANCIAL_QUESTION_MAX_BATCH_IDS, QUESTION_STATUS_FILTER_OPTIONS, QUESTION_STATUS_LABELS, runStatusLabel, thresholdText,
 } from "../app/lib/financial-questions.ts";
 
 const envNames = ["PREDICTION_INFRA_BASE_URL", "CONSOLE_API_TOKEN", "SANDBOX_DOWNLOAD_TOKEN"];
@@ -114,6 +114,15 @@ test("解码：分页 total/limit/offset/observed_at 严格", () => {
   assert.equal(decoded.items[0].assetName, "英伟达（NVDA）");
   for (const bad of [{ total: undefined }, { total: null }, { total: "1" }, { total: -1 }, { total: 1.5 }, { limit: 0 }, { offset: "0" }, { observed_at: undefined }, { observed_at: "2026-12-01" }, { items: null }]) {
     assert.throws(() => decodeFinancialPage(page([questionItem], bad), decodeFinancialQuestion), /金融题接口缺少有效/, JSON.stringify(bad));
+  }
+});
+
+test("状态下拉不列暂停与作废，但这两种状态的题照常解码并显示", () => {
+  assert.deepEqual([...QUESTION_STATUS_FILTER_OPTIONS], ["ACTIVE", "PENDING_RESULT", "RESOLVED"]);
+  for (const status of ["PAUSED", "VOID"] as const) {
+    const item = decodeFinancialQuestion({ ...questionItem, status, status_reason: "CALENDAR_CHANGED" });
+    assert.equal(item.status, status);
+    assert.ok(QUESTION_STATUS_LABELS[item.status]);
   }
 });
 
