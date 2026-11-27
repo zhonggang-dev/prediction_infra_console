@@ -24,6 +24,9 @@ const BATCHES: readonly FinancialBatch[] = ["CN", "OVERSEAS"];
 export const FREQUENCIES: readonly FinancialFrequency[] = ["D", "W", "M"];
 const DIRECTIONS: readonly FinancialDirection[] = ["GTE", "LTE"];
 export const QUESTION_STATUSES: readonly FinancialQuestionStatus[] = ["ACTIVE", "PAUSED", "PENDING_RESULT", "RESOLVED", "VOID"];
+// 状态下拉里提供的选项：暂停 / 作废只由人工操作产生、平时没有，不单独列出；它们仍出现在「全部状态」与表格状态列里，
+// 地址栏带 status=PAUSED / VOID 也照常筛选（QUESTION_STATUSES 同时用于校验接口返回，不能删）。
+export const QUESTION_STATUS_FILTER_OPTIONS: readonly FinancialQuestionStatus[] = ["ACTIVE", "PENDING_RESULT", "RESOLVED"];
 const BUILD_STATUSES: readonly FinancialBuildStatus[] = ["PENDING", "RUNNING", "SUCCEEDED", "FAILED", "SKIPPED"];
 const LABELS: readonly FinancialLabel[] = ["YES", "NO"];
 const RESOLUTION_STATES: readonly FinancialResolutionState[] = ["PROVISIONAL", "FINAL"];

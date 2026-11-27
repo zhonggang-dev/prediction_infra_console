@@ -6,7 +6,7 @@ import { useSearchParams } from "next/navigation";
 import type { ConsoleV2Page } from "../lib/console-v2";
 import {
   BATCH_LABELS, BUILD_STATUS_LABELS, BUILD_STATUS_TONES, elapsedText, financialAssetOptions, financialBatchDownloadFields, financialQuestionApi,
-  financialQuestionNeedsPolling, financialSingleDownloadHref, FREQUENCIES, FREQUENCY_LABELS, QUESTION_STATUS_LABELS, QUESTION_STATUS_TONES, QUESTION_STATUSES,
+  financialQuestionNeedsPolling, financialSingleDownloadHref, FREQUENCIES, FREQUENCY_LABELS, QUESTION_STATUS_FILTER_OPTIONS, QUESTION_STATUS_LABELS, QUESTION_STATUS_TONES, QUESTION_STATUSES,
   runStatusLabel, thresholdText,
   type FinancialBuild, type FinancialFrequency, type FinancialLabel, type FinancialQuestion, type FinancialQuestionDetail, type FinancialQuestionStatus,
   type FinancialResolutionState, type FinancialRun, type FinancialSandboxItem,
@@ -136,7 +136,7 @@ export function FinancialQuestionsPage() {
           {(["OVERSEAS", "CN"] as const).map((batch) => <optgroup key={batch} label={BATCH_LABELS[batch]}>{options.filter((option) => option.batch === batch).map((option) => <option key={option.key} value={option.key}>{option.name}</option>)}</optgroup>)}
         </select>
         <select className="select" aria-label="按频率筛选" value={filters.frequency} onChange={(event) => applyFilters({ frequency: event.target.value as Filters["frequency"] })}><option value="">全部频率</option>{FREQUENCIES.map((value) => <option key={value} value={value}>{FREQUENCY_LABELS[value]}</option>)}</select>
-        <select className="select" aria-label="按状态筛选" value={filters.status} onChange={(event) => applyFilters({ status: event.target.value as Filters["status"] })}><option value="">全部状态</option>{QUESTION_STATUSES.map((value) => <option key={value} value={value}>{QUESTION_STATUS_LABELS[value]}</option>)}</select>
+        <select className="select" aria-label="按状态筛选" value={filters.status} onChange={(event) => applyFilters({ status: event.target.value as Filters["status"] })}><option value="">全部状态</option>{QUESTION_STATUS_FILTER_OPTIONS.map((value) => <option key={value} value={value}>{QUESTION_STATUS_LABELS[value]}</option>)}</select>
         <input className="input uq-filter-q" aria-label="搜索题面" placeholder="搜索题面，回车确认" value={draftQ} onChange={(event) => setDraftQ(event.target.value)} onKeyDown={(event) => event.key === "Enter" && applyFilters({ q: draftQ.trim() })} />
         {filtered && <button type="button" className="uq-text-button" onClick={clearFilters}>清除筛选</button>}
       </div>
