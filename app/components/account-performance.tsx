@@ -2,7 +2,7 @@
 
 import { RefreshCw } from "lucide-react";
 import { Fragment, useEffect, useId, useRef, useState } from "react";
-import { accountCohortMetrics, cohortOpeningRangeError, type AccountCohortMetrics as AccountCoreMetrics, type AccountCohortMetricsResponse as AccountCoreMetricsResponse, type AccountCohortQuery, type UnavailableCohortAccount, type CorePriceSource, type CorePriceReason, type CohortDrawdownReason, type SharpeReason } from "../lib/trading-core-metrics";
+import { accountCohortMetrics, cohortMetricRefreshDelay, cohortOpeningRangeError, hasPendingCohortValuation, type AccountCohortMetrics as AccountCoreMetrics, type AccountCohortMetricsResponse as AccountCoreMetricsResponse, type AccountCohortQuery, type UnavailableCohortAccount, type CorePriceSource, type CorePriceReason, type CohortDrawdownReason, type SharpeReason } from "../lib/trading-core-metrics";
 import { formatV2Time, useV2Filter } from "./console-v2-resource";
 import { LocalHourInput } from "./wallet-pnl-chart";
 import { validateWalletPnlRange, walletPnlLocalHour, walletPnlHourCandidates, formatWalletPnlOffset } from "../lib/wallet-pnl";
@@ -20,6 +20,9 @@ function sharpeDetail(item: AccountCoreMetrics): string | undefined {
   const coverage = item.sharpAnnualCoverage;
   if (!coverage) return "暂未计算";
   return coverage.reason ? sharpeReasons[coverage.reason] : undefined;
+}
+function pendingValuationText(item: AccountCoreMetrics): string | undefined {
+  if (hasPendingCohortValuation(item)) return `历史价格待同步 · 已定价 ${item.pricedAssetCount}/${item.assetCount}`;
 }
 function stats(item: AccountCoreMetrics) {
   const drawdown = item.maxDrawdown === null ? null : Number(item.maxDrawdown) > 0 ? `-${item.maxDrawdown}` : "0";
@@ -48,31 +51,66 @@ export function AccountCoreMetricsPanel({ active, account, accountOrder = [], ac
   const identity = `${account}:${accountScope}:${openingFrom}/${openingTo}`;
   useEffect(() => {
     if (!active) return;
-    const controller = new AbortController();
-    void accountCohortMetrics({ ...(account ? { execution_account_id: account } : { account_scope: accountScope }), ...(openingFrom ? { opening_from: openingFrom } : {}), ...(openingTo ? { opening_to: openingTo } : {}) }, controller.signal).then(data => { if (!controller.signal.aborted) setState({ key: identity, data }); }).catch((error: unknown) => {
-      if (!controller.signal.aborted) setState(previous => ({ key: identity, ...(previous.key === identity && previous.data ? { data: previous.data } : {}), error: error instanceof Error ? error.message : "账户核心指标暂时不可用。" }));
-    });
-    return () => controller.abort();
-  }, [active, account, accountScope, openingFrom, openingTo, retry, identity]);
-  const current = state.key === identity ? state : undefined;
-  const needsHistoryRefresh = current?.data?.items.some(item => item.drawdownCoverage?.lastComplete || item.sharpAnnualCoverage?.lastComplete || item.drawdownCoverage?.reason === "not_synced" || item.sharpAnnualCoverage?.reason === "not_synced") ?? false;
-  useEffect(() => {
-    if (!active || !needsHistoryRefresh) return;
+    const query: AccountCohortQuery = {
+      ...(account ? { execution_account_id: account } : { account_scope: accountScope }),
+      ...(openingFrom ? { opening_from: openingFrom } : {}),
+      ...(openingTo ? { opening_to: openingTo } : {}),
+    };
+    let controller: AbortController | undefined;
+    let latest: AccountCoreMetricsResponse | undefined;
     let timer: number | undefined;
-    const schedule = () => {
-      if (timer !== undefined) window.clearTimeout(timer);
-      timer = document.visibilityState === "visible" ? window.setTimeout(() => {
-        if (document.visibilityState === "visible") setRetry(value => value + 1);
-      }, 60_000) : undefined;
+    const clearTimer = () => window.clearTimeout(timer);
+    const refreshDelay = () => latest && cohortMetricRefreshDelay(latest, Date.now());
+
+    async function refresh() {
+      if (controller || document.visibilityState !== "visible") return;
+      clearTimer();
+      const request = new AbortController();
+      controller = request;
+      try {
+        const data = await accountCohortMetrics(query, request.signal);
+        if (request.signal.aborted) return;
+        latest = data;
+        setState({ key: identity, data });
+      } catch (error: unknown) {
+        if (!request.signal.aborted) setState(previous => ({
+          key: identity,
+          ...(previous.key === identity && previous.data ? { data: previous.data } : {}),
+          error: error instanceof Error ? error.message : "账户核心指标暂时不可用。",
+        }));
+      } finally {
+        if (controller === request) {
+          controller = undefined;
+          const delay = refreshDelay();
+          if (delay !== undefined && document.visibilityState === "visible") {
+            timer = window.setTimeout(() => {
+              if (refreshDelay() !== undefined) void refresh();
+            }, delay);
+          }
+        }
+      }
+    }
+
+    const cancel = () => {
+      clearTimer();
+      controller?.abort();
+      controller = undefined;
     };
     const visibilityChanged = () => {
-      schedule();
-      if (document.visibilityState === "visible") setRetry(value => value + 1);
+      if (document.visibilityState !== "visible") {
+        cancel();
+      } else if (!latest || refreshDelay() !== undefined) {
+        void refresh();
+      }
     };
-    schedule();
+    void refresh();
     document.addEventListener("visibilitychange", visibilityChanged);
-    return () => { if (timer !== undefined) window.clearTimeout(timer); document.removeEventListener("visibilitychange", visibilityChanged); };
-  }, [active, needsHistoryRefresh, retry]);
+    return () => {
+      cancel();
+      document.removeEventListener("visibilitychange", visibilityChanged);
+    };
+  }, [active, account, accountScope, openingFrom, openingTo, retry, identity]);
+  const current = state.key === identity ? state : undefined;
   const rows = current?.data ? [
     ...current.data.items.map(item => ({ kind: "available" as const, executionAccountId: item.executionAccountId, item })),
     ...current.data.unavailableAccounts.map(item => ({ kind: "unavailable" as const, executionAccountId: item.executionAccountId, item })),
@@ -113,13 +151,13 @@ function UnavailableSingleAccount({ item }: { item: UnavailableCohortAccount }) 
 }
 function AccountTableRow({ item }: { item: AccountCoreMetrics }) {
   const [open, setOpen] = useState(false); const id = useId();
-  return <Fragment><tr data-core-metrics-account={item.executionAccountId}><th scope="row"><button type="button" className="trading-core-coverage" aria-label={`${item.executionAccountId} 取价明细`} aria-expanded={open} aria-controls={id} onClick={() => setOpen(v => !v)}>{item.executionAccountId}</button><small>{item.marketSource === "KALSHI" ? "Kalshi" : "Polymarket"}</small></th>{stats(item).map(stat => <td key={stat.label} data-core-metric={stat.label} className={stat.tone}>{stat.value}{stat.detail && <small>{stat.detail}</small>}</td>)}</tr>{open && <tr className="trading-core-detail-row"><td colSpan={LABELS.length + 1}><div id={id}><AssetDetails item={item} /></div></td></tr>}</Fragment>;
+  return <Fragment><tr data-core-metrics-account={item.executionAccountId}><th scope="row"><button type="button" className="trading-core-coverage" aria-label={`${item.executionAccountId} 取价明细`} aria-expanded={open} aria-controls={id} onClick={() => setOpen(v => !v)}>{item.executionAccountId}</button><small>{item.marketSource === "KALSHI" ? "Kalshi" : "Polymarket"}</small>{hasPendingCohortValuation(item) && <small>{pendingValuationText(item)}</small>}</th>{stats(item).map(stat => <td key={stat.label} data-core-metric={stat.label} className={stat.tone}>{stat.value}{stat.detail && <small>{stat.detail}</small>}</td>)}</tr>{open && <tr className="trading-core-detail-row"><td colSpan={LABELS.length + 1}><div id={id}><AssetDetails item={item} /></div></td></tr>}</Fragment>;
 }
 function SingleAccount({ item }: { item: AccountCoreMetrics }) {
   const [open, setOpen] = useState(false); const id = useId();
   return <article data-core-metrics-account={item.executionAccountId} className="trading-core-single" aria-label={`${item.executionAccountId} 账户核心指标`}>
     <LocalScroll label="单账户核心指标横条"><dl className="trading-core-strip">{stats(item).map(stat => <div key={stat.label} data-core-metric={stat.label}><dt>{stat.label}</dt><dd className={stat.tone}>{stat.value}</dd>{stat.detail && <small>{stat.detail}</small>}</div>)}</dl></LocalScroll>
-    <div className="trading-core-single-status"><button type="button" className="trading-core-coverage" aria-label={`${item.executionAccountId} 取价明细`} aria-expanded={open} aria-controls={id} onClick={() => setOpen(v => !v)}>取价明细</button>{item.quoteObservedFrom && <span>报价观测 {formatV2Time(item.quoteObservedFrom ?? undefined)}{item.quoteObservedTo !== item.quoteObservedFrom && <> 至 {formatV2Time(item.quoteObservedTo ?? undefined)}</>}</span>}</div>
+    <div className="trading-core-single-status"><button type="button" className="trading-core-coverage" aria-label={`${item.executionAccountId} 取价明细`} aria-expanded={open} aria-controls={id} onClick={() => setOpen(v => !v)}>取价明细</button>{item.quoteObservedFrom && <span>报价观测 {formatV2Time(item.quoteObservedFrom ?? undefined)}{item.quoteObservedTo !== item.quoteObservedFrom && <> 至 {formatV2Time(item.quoteObservedTo ?? undefined)}</>}</span>}<span role="status">{pendingValuationText(item)}</span></div>
     {open && <div id={id}><AssetDetails item={item} /></div>}
   </article>;
 }
